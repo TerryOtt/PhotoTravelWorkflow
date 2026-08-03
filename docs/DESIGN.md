@@ -1,7 +1,8 @@
 # End-of-day photo offload — design
 
-Status: **design complete, not yet implemented.** Eighteen decisions, each with the
-reasoning behind it; what remains to build is listed at the end.
+Status: **design complete, not yet implemented.** Twenty decisions, each with the reasoning
+behind it, plus what was considered and rejected; what remains to build is listed at the
+end.
 
 ## The goal, in one sentence
 
@@ -80,6 +81,27 @@ These run concurrently, so the floor is the maximum, not the sum: **~2–4 min f
 50 GB day, ~8–16 min for a 188 GB day**, bound by the slowest SSD's *sustained* write
 once its SLC cache is exhausted — which a continuous 188 GB write will certainly
 exhaust.
+
+### Phase 1 in detail
+
+The mechanism, stated explicitly since it is what everything else is measured against:
+
+1. A **reader** pulls one file from the CFexpress card into a buffer taken from a bounded
+   pool. Each source file is read **exactly once** — never once per destination.
+2. From that in-memory buffer: the **SHA-256**, which becomes this photo's canonical hash,
+   and the **EXIF capture time**, which decides its output directory and filename.
+3. The buffer is handed to **four independent writer queues**, one per destination. They
+   are independent so a slow SSD stalls only itself; the pool size bounds how far it can
+   lag and applies backpressure to the reader when it falls too far behind.
+4. Each writer writes to a temporary name, flushes, and **renames**, so a partial file
+   never carries the real name.
+5. A **verifier** per destination trails the write front by a fixed byte window (~4 GB),
+   re-reading with `FILE_FLAG_NO_BUFFERING` and comparing against the canonical hash.
+6. A record per `(file, destination)` is appended to the run log as it is verified.
+
+**All I/O is unbuffered in both directions.** Writes, because a buffered write leaves data
+in RAM after the program believes it landed, which makes the milestone unmeasurable; reads,
+because a cached read compares a buffer to itself.
 
 ## Decisions
 
@@ -285,6 +307,12 @@ The worst outcome for a walk-away tool is returning from dinner to a run that di
 minutes in. Before anything is written, pre-flight asserts: all four destinations
 present, distinct physical devices, writable, and with capacity ≥ N plus margin; the fast
 card readable and enumerated; sleep inhibited (`SetThreadExecutionState`); GPX parsed.
+
+**It also checks Windows Defender exclusions.** Real-time scanning of several hundred
+gigabytes of freshly written files across four volumes is a large and invisible tax on
+exactly this workload. The archive roots should be excluded; pre-flight reads the
+exclusion list and **warns rather than fails**, since this is a throughput problem and not
+a correctness one.
 
 Because the cards are formatted daily, enumeration is exact and cheap — the card *is*
 the day — so pre-flight can print a real estimate:
@@ -634,6 +662,58 @@ Exit codes, kept deliberately coarse:
 Everything else is deliberately untested. This is a personal tool with one user, one rig
 and a recoverable failure mode; the RawGeotag testing standard would be a poor trade here.
 
+### 19. There is no sampled verification anywhere
+
+Every bit is checked, on every run and on every `verify`. These are the most emotionally
+valuable files this archive holds, and the run happens unattended — the entire point is
+that the result needs no interpretation. A full re-verify of a multi-terabyte archive takes
+on the order of an hour, an acceptable price for a check performed occasionally and trusted
+completely.
+
+Transitivity is what makes the guarantee whole. Phase 1 proves every destination equals the
+CFexpress hash; phase 2 proves the SDXC copy equals that same hash. Both holding means every
+destination is proven identical to **both** cards. Note the timing: that full two-source
+property completes at the end of phase 2, not at LANDED, where all four are proven equal to
+the CFexpress copy alone.
+
+### 20. `verify` and `sync` are standalone and config-free
+
+Both take a destination *path* rather than a config label, because an archive pulled from
+the safe has to be checkable on a machine that has never seen this tool's configuration.
+
+**`photoday verify <DEST>`** reads the destination marker to name what it is checking, then
+walks every date folder: manifest checksum first, so a rotted manifest is reported as a
+rotted manifest rather than as damaged photographs; then every raw re-hashed unbuffered
+against it. Tombstones are honoured, so a file deliberately deleted in phase 2 reports clean
+rather than missing. XMP drift is ignored on a `working` destination and should not exist on
+an `archive` one.
+
+**`photoday sync <DEST>`** backfills a destination that missed an offload — the SSD that was
+in a drawer during the lunchtime ingest. It copies from the laptop's working copy, since the
+cards are long since reformatted, and verifies what it writes exactly as phase 1 does. **It
+never deletes**, so it cannot be used to make a destination match by removing files from it.
+
+## Considered and rejected
+
+Recorded so a later reviewer does not spend effort re-proposing them. Reopening one needs
+new evidence rather than fresh taste.
+
+| Proposal | Why not |
+|---|---|
+| Local-time date folders | UTC is a deliberate conviction, not an oversight. The early-morning-east-of-UTC consequence is understood and accepted |
+| Verifying immediately after each write | Reads out of the OS page cache, then out of the SSD's own DRAM cache — proves nothing about what is on the disk. Replaced by the lagged verify, decision 2 |
+| Reading both cards before writing anything | Puts the ~11.6-minute SDXC read on the critical path for a guarantee that can be delivered after it without being weakened. Decision 1 |
+| Skipping a file whose two source copies disagree | Leaves the one file known to have a problem in *zero* backups — the exact inversion of the goal. Decision 3 |
+| A `_NNN` suffix assigned per offload batch, coordinated across destinations | Superseded by decision 5. Timestamp-prefixed names are a pure function of the photo, so no coordination is needed and collisions are pathological |
+| A timestamp prefix replacing the camera's filename | Unnecessary — prefixing rather than replacing keeps both the original name and shooting order. Decision 5 |
+| A content heuristic for `--force-xmp` (refuse when the XMP carries `crs:` properties) | A destructive flag that sometimes declines is worse than one that is honest. Decision 16's role scoping is explicit targeting, not a guess at intent |
+| A flag to overwrite raw files, or to bypass pre-flight | No case where either is correct; better as structural impossibilities. Decision 16 |
+| Per-device queue depth and overlapped I/O | One buffer-fed blocking writer idles ~1 ms per 45 MB write. Not worth the machinery on speculation — revisit if measurement shows a device going idle. Decision 15 |
+| Scaling `--jobs` to the I/O fan-out | Threads do not create bandwidth. Decision 15 |
+| Graceful handling of a destination unplugged mid-run | Crash safety is already structural, so the cost exceeds the benefit. Decision 18 |
+| Go for the pipeline, shelling out to `rawgeotag.exe` for phase 3 | Defensible, and rejected on the validated CR3, GPX and XMP assets. Decision 17 |
+| Carrying RawGeotag's `TESTING.md` whole | A stricter regime than decision 18 calls for; its one load-bearing principle is folded into `REVIEWING.md` |
+
 ## Non-goals
 
 - **Touching the cards.** The tool reads them and nothing else — never writes, never
@@ -646,13 +726,6 @@ and a recoverable failure mode; the RawGeotag testing standard would be a poor t
 ## Open questions
 
 None outstanding — the design is complete enough to build from.
-
-**Settled late, and worth calling out: there is no sampled verification anywhere.** Every bit is checked, on every
-run and on every `verify`. These are the most emotionally valuable files the archive
-holds, and the run happens unattended over dinner — the entire point is that the result
-needs no interpretation. A full re-verify of a multi-terabyte archive takes on the order
-of an hour, which is an acceptable price for a check you do occasionally and trust
-completely.
 
 What remains is implementation:
 
