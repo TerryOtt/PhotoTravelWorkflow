@@ -104,8 +104,9 @@ The mechanism, stated explicitly since it is what everything else is measured ag
 3. The buffer is handed to **four independent writer queues**, one per destination. They
    are independent so a slow SSD stalls only itself; the pool size bounds how far it can
    lag and applies backpressure to the reader when it falls too far behind.
-4. Each writer writes to a temporary name, flushes, and **renames**, so a partial file
-   never carries the real name.
+4. Each writer writes through (`FILE_FLAG_WRITE_THROUGH`) to a temporary name, then
+   **renames** — so a partial file never carries the real name, and nothing renamed is
+   still sitting in a cache.
 5. When a destination's write pass completes, its **verify pass** begins: every file
    re-read sequentially with `FILE_FLAG_NO_BUFFERING` and compared against the canonical
    hash. One pass per destination, each starting as soon as its own writes finish — the
@@ -113,9 +114,13 @@ The mechanism, stated explicitly since it is what everything else is measured ag
 6. A record per `(file, destination)` is appended to the run log as each verify read
    completes — never before.
 
-**All I/O is unbuffered in both directions.** Writes, because a buffered write leaves data
-in RAM after the program believes it landed, which makes the milestone unmeasurable; reads,
-because a cached read compares a buffer to itself.
+**Writes are write-through; verify reads are unbuffered.** The write side uses
+`FILE_FLAG_WRITE_THROUGH`, because what LANDED needs is *durably on media before it is
+claimed*, not a cache bypass — `FILE_FLAG_NO_BUFFERING` demands sector-multiple writes,
+which a raw file's partial final sector cannot satisfy without a pad-and-truncate dance
+that buys no additional guarantee. The verify side uses `FILE_FLAG_NO_BUFFERING` for
+real, where it is both essential (a cached read compares a buffer to itself) and
+painless (short reads at EOF are legal).
 
 ## Decisions
 
@@ -163,8 +168,14 @@ slipping LANDED by single-digit percent. Accepted rather than throttled — Wind
 no clean way to deprioritize one USB stream, and the report's per-destination sustained
 rates will show whether the contention is ever real.
 
-Unbuffered writes matter for a second reason: buffered writes make the metric
-unmeasurable, because the program can exit with gigabytes still sitting in RAM.
+The write side is `FILE_FLAG_WRITE_THROUGH` rather than unbuffered — settled at design
+review, replacing an "unbuffered in both directions" claim that a raw file's partial
+final sector makes unimplementable as stated. Write-through delivers the guarantee the
+milestone actually needs, durability before the claim, without the sector-alignment
+constraints; a plain buffered write would let the program exit with gigabytes still in
+RAM, which makes the metric unmeasurable. It also softens the small-day residual above:
+even a verify read served from the SSD's onboard cache then describes data the device
+has already committed to media.
 
 ### 3. Source mismatch: warn by default, delete after the fact
 
@@ -778,6 +789,7 @@ new evidence rather than fresh taste.
 | Local-time date folders | UTC is a deliberate conviction, not an oversight. The early-morning-east-of-UTC consequence is understood and accepted |
 | Verifying immediately after each write | Reads out of the OS page cache, then out of the SSD's own DRAM cache — proves nothing about what is on the disk. Replaced by the sequential verify pass, decision 2 |
 | A verifier trailing the write front by a ~4 GB lag window | The original design here, replaced at design review. Equal on the primary metric at best (`N/w + N/r` under any schedule), pays mixed read/write penalties, and keeps the CFexpress reader busy to the end — forfeiting phase 2's early start. Decision 2 |
+| `FILE_FLAG_NO_BUFFERING` on the write side | Also original here, replaced at design review: it demands sector-multiple writes, which a raw file's partial final sector cannot meet without a pad-and-truncate dance — for no guarantee beyond what `FILE_FLAG_WRITE_THROUGH` already provides. Decision 2 |
 | Reading both cards before writing anything | Puts the ~11.6-minute SDXC read on the critical path for a guarantee that can be delivered after it without being weakened. Decision 1 |
 | Skipping a file whose two source copies disagree | Leaves the one file known to have a problem in *zero* backups — the exact inversion of the goal. Decision 3 |
 | A `_NNN` suffix assigned per offload batch, coordinated across destinations | Superseded by decision 5. Timestamp-prefixed names are a pure function of the photo, so no coordination is needed and collisions are pathological |
