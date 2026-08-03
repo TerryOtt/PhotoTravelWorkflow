@@ -390,6 +390,9 @@ photoday                            the nightly command
   --fail-on-source-mismatch  abort rather than warn when the two cards disagree
   --allow-single-source      proceed when only one card is present — it becomes
                              the sole source of truth; corroboration is waived
+  --without <LABEL>          run without a named archive destination — pre-flight
+                             otherwise refuses when one is missing; repeatable;
+                             sync the disk when it returns
   --gpx <PATH>               override when tracks aren't in the usual place
   --max-gap-seconds <S>      refuse to interpolate across a longer hole [default: 60]
   --max-gap-meters <M>       refuse to interpolate across a wider hole [default: 100]
@@ -425,8 +428,9 @@ seconds, so drift surfaces while you are still standing at the desk.
 
 The worst outcome for a walk-away tool is returning from dinner to a run that died two
 minutes in. Before anything is written, pre-flight asserts: all four destinations
-present, distinct physical devices, writable, and with capacity ≥ N plus margin; both
-cards present — `--allow-single-source` is the deliberate exception (decision 7) — and
+present — `--without` is the declared exception (decision 25) — distinct physical
+devices, writable, and with capacity ≥ N plus margin; both cards present —
+`--allow-single-source` is the deliberate exception (decision 7) — and
 the fast one readable and enumerated; sleep inhibited (`SetThreadExecutionState`); GPX
 parsed.
 
@@ -648,6 +652,7 @@ with anything above it. Its forms:
 | Anything unverified anywhere | `NOT SAFE — 12 files unverified on SSD-C` |
 | Phase 1 clean, mismatches far above baseline | append `— BUT CHECK YOUR SDXC CARD (47 mismatches)` |
 | Run under `--allow-single-source`, phase 1 verified everywhere | append `— SINGLE SOURCE, NEVER CORROBORATED` |
+| Run under `--without`, phase 1 verified on the rest | append `— SSD-C EXCLUDED, SYNC IT ON RETURN` |
 
 Eject can modulate the safe verdict's wording; it can never turn SAFE into NOT SAFE.
 
@@ -744,7 +749,8 @@ Two consequences of scoping it that way:
   content is skipped by hash, different content takes a `_001` suffix. Better as a
   structural impossibility than as a flag nobody should reach for.
 - **No flag bypasses pre-flight.** Running against fewer destinations is an explicit
-  selection, not an override. Pre-flight exists to fail while you are still at the desk.
+  selection (`--without`, decision 25), not an override — it narrows what pre-flight
+  asserts, never skips it. Pre-flight exists to fail while you are still at the desk.
 
 Sidecars on the archives are only ever written by this tool, so forcing them is harmless.
 Sidecars on the laptop are written by Lightroom and hold develop settings that exist
@@ -811,7 +817,7 @@ Exit codes, kept deliberately coarse:
 |---|---|
 | 0 | Phase 1 verified everywhere, no source mismatches |
 | 1 | Fatal — the run did not complete; reason printed |
-| 2 | Completed, but something wants your attention (mismatches, deletions, unfiled files, a refused eject, a single-source run) |
+| 2 | Completed, but something wants your attention; the report names it — a mismatch, a deletion, a stray or unfiled file, a refused eject, a run missing a source (decision 7) or a destination (decision 25) |
 
 **Testing is three things**, and stops there:
 
@@ -858,8 +864,8 @@ against it. Tombstones are honoured, so a file deliberately deleted in phase 2 r
 rather than missing. XMP drift is ignored on a `working` destination and should not exist on
 an `archive` one.
 
-**`photoday sync <DEST>`** backfills a destination that missed an offload — the SSD that was
-in a drawer during the lunchtime ingest. It copies from the laptop's working copy, since the
+**`photoday sync <DEST>`** backfills a destination that missed an offload — the SSD that
+sat in a drawer while a `--without` run went on without it (decision 25). It copies from the laptop's working copy, since the
 cards are long since reformatted, and verifies what it writes exactly as phase 1 does. **It
 never deletes**, so it cannot be used to make a destination match by removing files from it.
 
@@ -1016,6 +1022,46 @@ junk drawer for formats the operator never shoots. A backup tool that quietly ho
 up whatever it finds would be building machinery for a contract violation instead of
 naming it.
 
+### 25. A destination missing at offload is declared, not configured around
+
+The destination mirror of decision 7, and it closes a real gap: decision 9 refuses to
+run unless all four destinations are present, `sync` exists to backfill a disk that
+missed an offload — and nothing said how an offload could legitimately happen without
+one. As previously written, an SSD that died mid-trip would have blocked every
+remaining night.
+
+The default stays refusal, in the first ten seconds, naming the fix:
+
+```
+DESTINATION MISSING — SSD-C (SanDisk E61 2312A9…) not connected.
+Plug it in, or re-run with --without SSD-C and sync the disk when it returns.
+```
+
+Proceeding requires naming what is missing: **`--without <LABEL>`**, taking a config
+label, repeatable, archive destinations only. Each absent disk is declared per run, so
+a three-copy night can never happen by accident and the cost of the night is visible in
+the command itself. The flag narrows what pre-flight asserts — it never weakens an
+assertion on what remains, which is validated exactly as decision 9 demands.
+
+Under the flag, every "all four destinations" in this design reads as "every
+destination this run was asked to cover." LANDED and the eject gate are scoped the same
+way; the verdict carries the scar (decision 14) and the exit code is 2 (decision 18).
+
+The `working` destination cannot be excluded: it is internal, so it cannot be missing —
+and it is `sync`'s copy source, the thing that makes exclusion recoverable at all.
+
+Recovery is `sync`, never the next run. The next offload ingests from cards that by
+then hold a different session, so the missed session survives only on the laptop copy,
+and reading that is `sync`'s charter (decision 20), not the card pipeline's.
+Format-after-eject stays safe for the same reason: the ejected disks and the laptop
+copy hold everything, and `sync` needs no cards.
+
+Two alternatives were rejected. Editing the config makes the rig description lie — the
+config describes the rig, not tonight's subset — owes a second edit when the disk
+returns, and an 11pm JSON edit in a hotel room is the exact failure decision 8 exists
+to prevent. Refusing with no gate blocks every remaining night of a trip the moment one
+SSD dies: the same inversion of the goal that decision 7 rejects on the card side.
+
 ## Considered and rejected
 
 Recorded so a later reviewer does not spend effort re-proposing them. Reopening one needs
@@ -1031,6 +1077,7 @@ new evidence rather than fresh taste.
 | `FILE_FLAG_NO_BUFFERING` on the write side | Also original here, replaced at design review: it demands sector-multiple writes, which a raw file's partial final sector cannot meet without a pad-and-truncate dance — for no guarantee beyond what `FILE_FLAG_WRITE_THROUGH` already provides. Decision 2 |
 | Reading both cards before writing anything | Puts the ~11.6-minute SDXC read on the critical path for a guarantee that can be delivered after it without being weakened. Decision 1 |
 | A single-card run that either always refuses or always proceeds | Refusing outright leaves a one-card night with zero backups; proceeding behind a warning — this design's first answer — makes routine what must never be routine. `--allow-single-source` is the narrow gate between them. Decision 7 |
+| Editing the config when a destination is missing | The config describes the rig, not tonight's subset — the entry would need editing back, and an 11pm config edit is the failure decision 8 exists to prevent. `--without` declares the absence per run. Decision 25 |
 | Skipping a file whose two source copies disagree | Leaves the one file known to have a problem in *zero* backups — the exact inversion of the goal. Decision 3 |
 | A `_NNN` suffix assigned per offload batch, coordinated across destinations | Superseded by decision 5. Timestamp-prefixed names are a pure function of the photo, so no coordination is needed and collisions are pathological |
 | A timestamp prefix replacing the camera's filename | Unnecessary — prefixing rather than replacing keeps both the original name and shooting order. Decision 5 |
