@@ -31,8 +31,9 @@ deferred* — see [Phase 1 reads one card](#1-phase-1-reads-the-cfexpress-card-o
 
 ## Inputs
 
-- **Camera:** Canon EOS R5 — the only body — uncompressed RAW (CR3), ~40–50 MB per
-  frame, clock intended to run on UTC (decision 23).
+- **Camera:** Canon EOS R5 — the only body — shooting uncompressed RAW (CR3) stills
+  and nothing else (decision 24), ~40–50 MB per frame, clock intended to run on UTC
+  (decision 23).
 - **Cards:** one CFexpress Type B (512 GB), one SDXC UHS-II (512 GB). Every frame is
   written to **both** slots by the camera. Both cards are formatted in-camera at the
   start of each shooting day.
@@ -410,8 +411,7 @@ Config is JSON:
       "volume_guid": "{a1b2c3d4-...}",
       "subpath": "Images" }
   ],
-  "gpx_dir": "C:\\Travel\\GPX",
-  "date_folders": "utc"
+  "gpx_dir": "C:\\Travel\\GPX"
 }
 ```
 
@@ -731,6 +731,11 @@ destructive flag has to be honest about what it destroys, which includes being
 unambiguous about *what*. Semantics are otherwise unchanged, including composing with
 `--dry-run` as a rehearsal that reports what would be overwritten while writing nothing.
 
+The rule the flag is the exception to deserves stating outright: **an existing sidecar
+is never rewritten without `--force-xmp` — by any code path.** Phase 3 tags what is
+untagged and skips the rest (decision 13's convergence); `sync` writes a sidecar only
+where none exists (decision 20). One invariant, one door through it.
+
 Two consequences of scoping it that way:
 
 - **No flag overwrites a raw file.** There is no case where it is correct — identical
@@ -834,10 +839,15 @@ destination is proven identical to **both** cards. Note the timing: that full tw
 property completes at the end of phase 2, not at LANDED, where all four are proven equal to
 the CFexpress copy alone.
 
-### 20. `verify` and `sync` are standalone and config-free
+### 20. `verify` and `sync` are standalone; only `verify` is config-free
 
-Both take a destination *path* rather than a config label, because an archive pulled from
-the safe has to be checkable on a machine that has never seen this tool's configuration.
+Both take a destination *path* rather than a config label. For `verify` the reason is
+absolute: an archive pulled from the safe has to be checkable on a machine that has
+never seen this tool's configuration, and it is — `verify` reads nothing but the
+destination itself, its marker and its manifests. `sync` does not share that property
+and should not pretend to: it needs a copy source (the laptop working copy) and GPX
+tracks for regeneration, and it takes both from the config — fine, because backfilling
+a disk that missed an offload happens on the machine that ran the offload.
 
 **`photoday verify <DEST>`** reads the destination marker to name what it is checking, then
 walks every date folder: manifest checksum first, so a rotted manifest is reported as a
@@ -852,7 +862,12 @@ cards are long since reformatted, and verifies what it writes exactly as phase 1
 never deletes**, so it cannot be used to make a destination match by removing files from it.
 
 **Sync copies raws and regenerates XMP sidecars** from the manifest's capture times and
-the GPX tracks, exactly as phase 3 does — it never copies a sidecar. Settled at design
+the GPX tracks, exactly as phase 3 does — it never copies a sidecar, and it writes one
+only where none exists. Sync does not accept `--force-xmp`: decision 16's invariant has
+one door, and it is on the nightly command. The stakes of that line are real — pointed
+at the laptop copy at home, a regenerate-all sync would overwrite Lightroom's develop
+settings, the one data loss this tool could cause outside the deletion path, and
+write-only-missing cannot. Settled at design
 review: run during a trip, copying the laptop's sidecars would be harmless (they are all
 tool-written — see decision 11), but run at home they are Lightroom's, carrying develop
 settings that must not leak onto an archive. Regeneration is correct in both regimes
@@ -892,6 +907,7 @@ The complete per-file defect set, in one place:
 | SDXC copy absent | continues | kept, reported uncorroborated (decision 4) |
 | present on the SDXC only | continues | ingested from the SDXC through the full phase 1 pipeline, reported (decision 4) |
 | EXIF unreadable | continues | written and verified to `_unfiled`, reported (this decision) |
+| not a CR3 — a contract violation | continues | left on the card, named in the report, exit 2 (decision 24) |
 | anything environmental | **fatal** | — (decision 18) |
 
 **No per-file defect stops the run; only the environment can.** The 99.9% case always
@@ -976,6 +992,28 @@ A scattered miss pattern is a logging gap; a uniform one is a clock. The distinc
 computable, and it is the difference between finding out tonight and finding out on
 Lightroom's map three weeks later.
 
+### 24. The tool ingests CR3 raw stills, and nothing else
+
+Scope, settled with the operator: only CR3 raw stills are ever shot (`CONOPS.md`, the
+shooting-day contract) — the R5 can produce JPG, HEIF and video, and none of it is
+used. So enumeration takes `*.CR3`, on both cards, and every guarantee in this design
+is a claim about raw stills: LANDED, corroboration, and decision 22's eject claim all
+read "every file" as "every CR3."
+
+A non-CR3 file on a card is therefore a contract violation, and the answer is the
+report, not the pipeline. The file is named — on the card, not backed up by this tool —
+and the exit code is 2; it is not ingested, not `_unfiled`, and does not hold the eject
+gate. The tool never writes to cards (non-goals), so the file sits untouched until the
+next in-camera format, and what happens to it before then is the operator's call — made
+tonight, because the report said it in words, rather than discovered after the format
+has already eaten it.
+
+`_unfiled` deliberately does not catch these. It exists for a CR3 whose EXIF cannot be
+read (decision 21) — a defective instance of the thing this tool backs up — not as a
+junk drawer for formats the operator never shoots. A backup tool that quietly hoovers
+up whatever it finds would be building machinery for a contract violation instead of
+naming it.
+
 ## Considered and rejected
 
 Recorded so a later reviewer does not spend effort re-proposing them. Reopening one needs
@@ -984,6 +1022,8 @@ new evidence rather than fresh taste.
 | Proposal | Why not |
 |---|---|
 | Local-time date folders | UTC is a deliberate conviction, not an oversight. The early-morning-east-of-UTC consequence is understood and accepted |
+| A `date_folders` config setting | A knob whose only legal value is its default — UTC foldering is the conviction above, not a preference |
+| Ingesting non-CR3 files into `_unfiled` as a catch-all | Machinery for formats the operator never shoots. `_unfiled` exists for a defective CR3, not as a junk drawer; the report names strays instead. Decision 24 |
 | Verifying immediately after each write | Reads out of the OS page cache, then out of the SSD's own DRAM cache — proves nothing about what is on the disk. Replaced by the sequential verify pass, decision 2 |
 | A verifier trailing the write front by a ~4 GB lag window | The original design here, replaced at design review. Equal on the primary metric at best (`N/w + N/r` under any schedule), pays mixed read/write penalties, and keeps the CFexpress reader busy to the end — forfeiting phase 2's early start. Decision 2 |
 | `FILE_FLAG_NO_BUFFERING` on the write side | Also original here, replaced at design review: it demands sector-multiple writes, which a raw file's partial final sector cannot meet without a pad-and-truncate dance — for no guarantee beyond what `FILE_FLAG_WRITE_THROUGH` already provides. Decision 2 |

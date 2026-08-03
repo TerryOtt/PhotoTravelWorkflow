@@ -10,7 +10,7 @@ each frame from a GPX track into a Lightroom-ready XMP sidecar, and prints a ver
 can read in five seconds before putting an SSD in the safe.
 
 **Status: designed, not yet implemented.** The design is settled and written up in
-[`docs/DESIGN.md`](docs/DESIGN.md) — seventeen decisions with the reasoning behind each,
+[`docs/DESIGN.md`](docs/DESIGN.md) — numbered decisions, each with its reasoning,
 covering the phase structure, why verification has to defeat both the OS page cache and
 the SSD's own DRAM cache, how filenames stay deterministic across four destinations, and
 where the wall-clock time actually goes.

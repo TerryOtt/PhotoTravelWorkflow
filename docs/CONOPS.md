@@ -39,11 +39,15 @@ numbers. Read it with the other eye, or in the morning.
 The tool's guarantees rest on habits it cannot enforce. They are the operator's half of
 the deal:
 
-- **The fleet is one body — a Canon EOS R5.** The tool leans on that: CR3 is the only
-  format, every frame records its timezone offset, and both slots receive every shot. A
-  new or replacement body is a **design event**, not a config change — its EXIF and
-  dual-slot behavior get verified at home before any trip trusts it
-  ([`DESIGN.md`](DESIGN.md) decision 23).
+- **The fleet is one body — a Canon EOS R5.** The tool leans on that: every frame
+  records its timezone offset, and both slots receive every shot. A new or replacement
+  body is a **design event**, not a config change — its EXIF and dual-slot behavior get
+  verified at home before any trip trusts it ([`DESIGN.md`](DESIGN.md) decision 23).
+- **Only CR3 raw stills are ever shot.** The camera can produce JPG, HEIF and video;
+  none of it is used, and this project's scope is exactly what is shot — the raw
+  stills. A non-CR3 file on a card is a contract violation: the tool does not back it
+  up, and the report names it so the decision about it happens before the next
+  in-camera format, not after ([`DESIGN.md`](DESIGN.md) decision 24).
 - **Both cards are formatted in-camera at the start of each shooting day.** This is what
   makes a card equal a day, which is what makes pre-flight's estimate exact and the
   file-set resume check trustworthy.
