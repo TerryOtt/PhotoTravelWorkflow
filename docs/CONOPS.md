@@ -48,9 +48,14 @@ the deal:
   stills. A non-CR3 file on a card is a contract violation: the tool does not back it
   up, and the report names it so the decision about it happens before the next
   in-camera format, not after ([`DESIGN.md`](DESIGN.md) decision 24).
-- **Both cards are formatted in-camera at the start of each shooting day.** This is what
-  makes a card equal a day, which is what makes pre-flight's estimate exact and the
-  file-set resume check trustworthy.
+- **Both cards are formatted in-camera at the start of every shooting session.** There
+  may be several sessions in a day — a midday return to the hotel often means offload,
+  reformat, and back out for the evening — and a session never spans more than one
+  local-time day. The format is what makes a card equal a session, which is what makes
+  pre-flight's estimate exact and the file-set resume check trustworthy. **Format only
+  after the previous offload's SSDs have ejected**: the eject is the tool's claim that
+  every file from both cards is accounted for, which is exactly what makes the format
+  safe ([`DESIGN.md`](DESIGN.md) decision 22).
 - **The camera writes every frame to both slots** (CFexpress + SDXC), uncompressed —
   and both cards come to the readers at every offload. Two authoritative sources is
   the standing assumption, and the camera has two slots for exactly this reason. A
@@ -88,7 +93,9 @@ home — nothing this tool does mid-trip can step on an edit, because no edits e
 ## Offloading more than once a day
 
 Run the same bare `photoday` at lunch, again in the evening, as often as anxiety
-suggests. Every run is a convergence pass: work already done is recognized and skipped,
+suggests — the natural rhythm is one offload per shooting session, each followed by the
+next session's in-camera format once the SSDs eject. Every run is a convergence pass:
+work already done is recognized and skipped,
 new files are ingested, and nothing is ever duplicated — a photo already in the archive
 is matched by content hash, not filename, so re-offloading a card is always safe.
 

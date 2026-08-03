@@ -36,11 +36,13 @@ deferred* — see [Phase 1 reads one card](#1-phase-1-reads-the-cfexpress-card-o
   (decision 23).
 - **Cards:** one CFexpress Type B (512 GB), one SDXC UHS-II (512 GB). Every frame is
   written to **both** slots by the camera. Both cards are formatted in-camera at the
-  start of each shooting day.
+  start of every **shooting session** — there may be several in a day, and a session
+  never spans more than one local-time day.
 - **GPX tracks** covering the day, from an external logger.
-- **Multiple offloads per day are normal** — a lunchtime offload and an evening one.
-  The card may be formatted between them, which resets the camera's file counter and
-  causes filename collisions in an already-populated date folder.
+- **Multiple offloads per day are normal** — a lunchtime offload and an evening one,
+  one per session. The cards are typically reformatted between them (the next
+  session's format), which resets the camera's file counter and causes filename
+  collisions in an already-populated date folder.
 
 ## Outputs
 
@@ -313,9 +315,9 @@ machine that has never seen the config.
 
 ### 7. Cards are identified by measurement, not configuration
 
-An in-camera format each morning assigns a new volume serial, so a card's volume GUID
-changes daily; and cheap readers report generic or empty hardware serials, so the reader
-is not reliably identifiable either.
+An in-camera format at the start of every shooting session assigns a new volume serial,
+so a card's volume GUID changes at least daily; and cheap readers report generic or
+empty hardware serials, so the reader is not reliably identifiable either.
 
 So pre-flight finds removable volumes containing `DCIM`, reads ~64 MB from each, and uses
 the faster one as the phase 1 source. CFexpress lands near 65 ms against UHS-II's 240 ms
@@ -434,8 +436,8 @@ exactly this workload. The archive roots should be excluded; pre-flight reads th
 exclusion list and **warns rather than fails**, since this is a throughput problem and not
 a correctness one.
 
-Because the cards are formatted daily, enumeration is exact and cheap — the card *is*
-the day — so pre-flight can print a real estimate:
+Because the cards are formatted at the start of every session, enumeration is exact and
+cheap — the card *is* the session — so pre-flight can print a real estimate:
 
 ```
 1,247 files · 56.1 GB · 4 destinations verified distinct · est. 6-8 min
@@ -1045,7 +1047,7 @@ new evidence rather than fresh taste.
 
 - **Touching the cards.** The tool reads them and nothing else — never writes, never
   deletes, never formats. Reformatting stays a deliberate in-camera step at the start of
-  each shooting day, which is also what guarantees a card equals a day.
+  each shooting session, which is also what guarantees a card equals a session.
 - Modifying raw files. All derived data goes to sidecars and manifests.
 - Managing the Lightroom catalog, including renaming historical files.
 - Cloud or offsite replication.
