@@ -241,11 +241,11 @@ frame a 512 GB card holds 11,000+ — more frames than the counter spans, so one
 can legitimately contain two `_50A0001.CR3` in different DCIM folders. And the hash is
 never the key, because matching by content would read a genuine mismatch as an absence
 plus a new SDXC-only file — ingesting the corrupt variant through the fourth outcome
-instead of quarantining it (decision 3). Decision 13's file-set check compares these
-same paths, so run identity and pairing rest on one key. If the two trees ever failed
-to mirror, the miss degrades safely: the stranded file rides the fourth outcome into
-decision 5's name-then-hash check, where an identical photo is skipped rather than
-duplicated.
+instead of quarantining it (decision 3). Run identity is separate evidence — the cards'
+volume serials (decision 13) — so pairing never has to double as a swap detector. If the
+two trees ever failed to mirror, the miss degrades safely: the stranded file rides the
+fourth outcome into decision 5's name-then-hash check, where an identical photo is
+skipped rather than duplicated.
 
 Two consequences worth stating. These files land **after LANDED** — the milestone
 speaks for the source card's contents, and it is decision 22's eject gate that speaks
@@ -260,6 +260,11 @@ refusal (decision 7) and the held eject (decision 22) exist to keep that window 
 
 A run reporting far more mismatches than the 1–2 baseline is a dying card, and the
 summary should say so in those words rather than making the number speak for itself.
+Absences carry the same rule: one or two are a slot hiccup, but hundreds are an
+equipment story — an empty card, the wrong card, a slot that died at breakfast — so the
+verdict names it (decision 14) and the exit code is 2 (decision 18). Nothing is lost if
+the missing frames' card turns up later: a re-run converges, and `absent` upgrades to
+`matched` (decision 13).
 
 ### 5. Filenames are a pure function of the photo
 
@@ -370,14 +375,18 @@ waived as settled (decision 22) — the SSDs still eject once the card's content
 verified on all four destinations and phase 3 is complete, because holding them for a
 card the operator has declared absent would hold the night hostage to nothing.
 The verdict carries the scar (decision 14), the exit code is 2 (decision 18), and if
-the missing card ever does turn up, a re-run converges: same file set, corroboration
-finishes, waived upgrades to matched (decision 13).
+the missing card ever does turn up, a re-run converges: corroboration finishes and
+waived upgrades to matched (decision 13).
 
-One case is exempt because it is not a single-source run at all: a resume whose only
-outstanding work is corroboration (decision 13). Both sources existed that night and
-the ingest card already gave everything it had, so the lone SDXC in the reader is not a
-lone source — it is the exact remainder. The file-set check is what tells the two
-apart, and no flag is required.
+One case is exempt because it is not a single-source run at all: a resume of a night
+that had two sources (decision 13). That night's pre-flight recorded both cards' volume
+serials, so a lone card whose serial matches the incomplete run is not a lone source —
+it is the remainder of a known pair, and the run continues with whatever that card can
+answer for. A lone SDXC finishes corroboration, and the SSDs eject at that moment
+(decision 22). A lone CFexpress finishes landing and verifying the raws while
+corroboration stays pending: the SSDs stay mounted and the verdict says to insert the
+SDXC and re-run (decision 14). The recorded serials are what tell a remainder from a
+lone source, and no flag is required.
 
 Two simpler postures were rejected. Refusing outright, with no escape, leaves a
 one-card night with zero backups — the exact inversion of the goal. Proceeding
@@ -448,9 +457,10 @@ The worst outcome for a walk-away tool is returning from dinner to a run that di
 minutes in. Before anything is written, pre-flight asserts: all four destinations
 present — `--without` is the declared exception (decision 25) — distinct physical
 devices, writable, and with capacity ≥ N plus margin; both cards present —
-`--allow-single-source` is the deliberate exception (decision 7) — and
-the fast one readable and enumerated; sleep inhibited (`SetThreadExecutionState`); GPX
-tracks present and parsed — `--no-gpx` is the declared exception (decision 26).
+`--allow-single-source` (decision 7) and a remainder resume (decision 13) are the
+deliberate exceptions — and the fast one readable and enumerated; sleep inhibited
+(`SetThreadExecutionState`); GPX tracks present and parsed — `--no-gpx` is the declared
+exception (decision 26).
 
 **It also checks Windows Defender exclusions.** Real-time scanning of several hundred
 gigabytes of freshly written files across four volumes is a large and invisible tax on
@@ -576,7 +586,7 @@ deleting.
 The `runs` array is what makes several offloads a day legible after the fact — each file
 records which offload brought it in.
 
-### 13. Resume is automatic and scoped by the source file set
+### 13. Resume is automatic and scoped by card generation
 
 A file counts as done only for a **specific destination** — the run log records
 `(file, destination) → verified`, not `file → done` — so a crash partway through fan-out
@@ -591,10 +601,25 @@ of the log on resume; the two-pass verify of decision 2 removed it.)
 Interrupted writes leave no ambiguity, because writes are temp-then-rename: a partial file
 never carries the real name. Pre-flight sweeps orphaned temps.
 
-**Resume is scoped by comparing the incomplete run's file list against what is on the card
-now.** Same set means the same offload, so resume it; a different set means a new offload,
-so the old run stays recorded as incomplete and a fresh one begins. That check is what
-makes it safe to resume without asking whether the cards were swapped.
+**Resume is scoped by card generation, and a generation's identity is its volume
+serial.** Every in-camera format assigns a new serial (decision 7), so the format that
+starts a session also stamps it — and the stamp is free: pre-flight already opens both
+card volumes to measure their speed, and records both serials in the run log. A card
+whose serial matches the incomplete run is the same generation — resume converges on it,
+even when it now holds more files than the run's list, because a session legitimately
+continues after a crashed midday offload. A serial the log has never seen is a new
+generation, and the stale run is closed out below.
+
+Settled at design review, replacing a file-set comparison — same set meant the same
+offload, a different set meant a new one. The set is the wrong evidence in both
+directions. A format resets the camera's file counter (decision 5), so a reformatted,
+reshot card with the same frame count presents the *identical* path set: resume would
+trust a log describing photos it never ingested, and phase 2 would then read every one
+of them as a confirmed mismatch — quarantining a verified morning while the evening
+never lands at all. And a continued session presents a *superset* — a "different" set —
+that would close out a run whose corroboration bytes still sit in the reader. The serial
+answers the question actually being asked — did a format happen since this log was
+written? — instead of inferring it from what the format leaves behind.
 
 Resume is **automatic** — no flag — and announced:
 
@@ -604,26 +629,28 @@ Resuming. Est. 3 min.
 ```
 
 The scenario is discovering at 11pm that the run died. The failure mode of automatic
-resume is bounded to redundant work, it cannot produce a wrong archive, and the file-set
+resume is bounded to redundant work, it cannot produce a wrong archive, and the serial
 check already prevents resuming across a card swap. Requiring a flag to get the obviously
 correct behavior is friction at precisely the wrong moment.
 
 **Resume covers every phase — extended at design review from phase 1 to the whole run.**
 A run is a convergence pass: it does whatever the log says remains — copies what is
 missing, verifies what is unverified, corroborates what is uncorroborated, tags what is
-untagged — idempotent on finished work, monotonic on the rest. Combined with decision 7's
-willingness to run with whichever card is present, one recovery falls out for free:
-re-inserting just the SDXC card days later matches the incomplete run's file set and
-finishes corroboration alone, no flag or subcommand needed — and the archive SSDs eject
-at that moment, per decision 22's gate.
+untagged — idempotent on finished work, monotonic on the rest. Combined with decision
+7's remainder exemption, two recoveries fall out for free, no flag or subcommand needed:
+re-inserting just the SDXC days later finishes corroboration alone, and the archive SSDs
+eject at that moment, per decision 22's gate; re-inserting just the CFexpress finishes
+landing and verifying the raws, and the SSDs stay mounted for the corroboration only the
+SDXC can supply — the verdict says exactly that (decision 14).
 
-A card set that comes back *different* — reformatted and reshot — is the one thing that
-can strand corroboration, because the SDXC bytes the old run still needed no longer
-exist anywhere. That is detected by evidence, never by timeout: the moment a new card
-generation appears, the stale run is closed out and its unexamined files are marked
-**`forfeited`** in the manifest (decision 12) — permanently uncorroborated, reported
-once at close-out with the closing run exiting 2 (decision 18), informational in
-`verify` forever after, and never gating anything again. The mark is its own rather
+A generation that never comes back — reformatted and reshot before phase 2 examined it —
+is the one thing that can strand corroboration, because the SDXC bytes the old run still
+needed no longer exist anywhere. That is detected by evidence, never by timeout: the
+moment a new serial appears where the old one was still owed work, the stale run is
+closed out and its unexamined files are marked **`forfeited`** in the manifest
+(decision 12) — permanently uncorroborated, reported once at close-out with the closing
+run exiting 2 (decision 18), informational in `verify` forever after, and never gating
+anything again. The mark is its own rather
 than a reuse of `absent` — by loss, not by examination (decision 12). Gating eject on
 bytes that provably no longer exist would wedge the tool for good.
 
@@ -689,6 +716,7 @@ with anything above it. Its forms:
 | Phase 1 verified everywhere, corroboration incomplete | `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` |
 | Anything unverified anywhere | `NOT SAFE — 12 files unverified on SSD-C` |
 | Phase 1 clean, mismatches far above baseline | append `— BUT CHECK YOUR SDXC CARD (47 mismatches)` |
+| Phase 1 clean, absences far above baseline | append `— BUT CHECK YOUR SDXC CARD (823 files it never held)` |
 | Run under `--allow-single-source`, phase 1 verified everywhere | append `— SINGLE SOURCE, NEVER CORROBORATED` |
 | Run under `--without`, phase 1 verified on the rest | append `— SSD-C EXCLUDED, SYNC IT ON RETURN` |
 
@@ -866,7 +894,7 @@ Exit codes, kept deliberately coarse:
 |---|---|
 | 0 | Phase 1 verified everywhere, no source mismatches |
 | 1 | Fatal — the run did not complete; reason printed |
-| 2 | Completed, but something wants your attention; the report names it — a mismatch, a deletion, a stray or unfiled file, a refused eject, a run missing a source (decision 7), a destination (decision 25), or its tracks (decision 26), or one that closed out a predecessor's corroboration as forfeited (decision 13) |
+| 2 | Completed, but something wants your attention; the report names it — a mismatch, a deletion, an absence or an SDXC-only ingest (decision 4), a stray or unfiled file, a refused eject, an eject held for unfinished corroboration (decision 22), a run missing a source (decision 7), a destination (decision 25), or its tracks (decision 26), or one that closed out a predecessor's corroboration as forfeited (decision 13) |
 
 **Testing is three things**, and stops there:
 
@@ -936,6 +964,13 @@ both ways: a laptop file whose in-flight hash no longer matches its own manifest
 working-copy rot, and sync refuses to propagate it — the file is named, skipped, and
 left for recovery from an archive rather than written over a good copy's future.
 
+**`_unfiled` is inside sync's walk like any date folder** (decision 21): its raws are
+copied and read-back verified, its manifest carried, and no sidecar question arises — a
+file is in `_unfiled` precisely because it has no capture time to correlate. Skipping it
+would be the quiet failure: a disk that missed an offload would come back "current"
+while permanently missing a raw, and `verify` could never notice — it reads nothing but
+the disk, and a folder that was never written checks clean.
+
 **Sync copies raws and regenerates XMP sidecars** from the manifest's capture times and
 the GPX tracks, exactly as phase 3 does — it never copies a sidecar, and it writes one
 only where none exists. Sync does not accept `--force-xmp`: decision 16's invariant has
@@ -968,10 +1003,10 @@ Such a file is still hashed, still written to all four destinations, still verif
 everything phase 1 does — but under `_unfiled\<run-id>\<original-name>` instead of a date
 folder. Outside the `YYYY\` tree, so Lightroom never sees it; the per-run subfolder makes
 name collisions impossible without collision logic. `_unfiled` carries a manifest like
-any date folder, so `verify` covers it. The report calls it out loudly and the exit code
-is 2, but the verdict stays SAFE — every bit on the card is verified in four places,
-which is what SAFE means. Phase 2 corroborates these files like any other, and a
-mismatch there follows decision 3.
+any date folder, so `verify` covers it and `sync` carries it (decision 20). The report
+calls it out loudly and the exit code is 2, but the verdict stays SAFE — every bit on
+the card is verified in four places, which is what SAFE means. Phase 2 corroborates
+these files like any other, and a mismatch there follows decision 3.
 
 The contrast with the mismatch path is deliberate: a two-card hash mismatch means the
 bits themselves are untrustworthy and no copy can be proven right, so the photo is
@@ -1022,11 +1057,12 @@ track is a settled outcome, not a hold, and a `--no-gpx` run has no tagging work
 hold for (decision 26). "Complete" is the bar, not "all matched": a mismatch resolved
 by deletion-and-tombstone is settled, and so is every non-matched verdict — `absent`,
 `waived`, `forfeited` — whose distinctions decision 12 carries. Only files the current
-cards could still answer for hold the gate. If corroboration could not finish — the SDXC card was
-never seen tonight, or phase 2 was interrupted — the SSDs stay mounted and the report
-says exactly what to do: ensure the SDXC card is inserted and re-run, or eject by hand.
-Re-runs converge (decision 13), so the normal recovery is plugging in what was missing
-and running again; the tool corroborates the remainder and ejects the moment certainty
+cards could still answer for hold the gate. If corroboration could not finish — a lone
+CFexpress landed the raws without the SDXC ever being seen (decision 7's remainder
+resume), or phase 2 was interrupted — the SSDs stay mounted and the report says exactly
+what to do: ensure the SDXC card is inserted and re-run, or eject by hand. Re-runs
+converge (decision 13), so the normal recovery is plugging in what was missing and
+running again; the tool corroborates the remainder and ejects the moment certainty
 arrives.
 
 **An SSD this tool has ejected is therefore a physical claim: every file from both cards
@@ -1192,6 +1228,7 @@ new evidence rather than fresh taste.
 | `FILE_FLAG_NO_BUFFERING` on the write side | Also original here, replaced at design review: it demands sector-multiple writes, which a raw file's partial final sector cannot meet without a pad-and-truncate dance — for no guarantee beyond what `FILE_FLAG_WRITE_THROUGH` already provides. Decision 2 |
 | Reading both cards before writing anything | Puts the ~11.6-minute SDXC read on the critical path for a guarantee that can be delivered after it without being weakened. Decision 1 |
 | A single-card run that either always refuses or always proceeds | Refusing outright leaves a one-card night with zero backups; proceeding behind a warning — this design's first answer — makes routine what must never be routine. `--allow-single-source` is the narrow gate between them. Decision 7 |
+| Scoping resume by comparing the card's file set against the incomplete run's | The original design here, replaced at design review. A format resets the file counter, so an equal-count reshoot presents the identical path set — resume would trust a log describing photos it never ingested, then phase 2 would quarantine the verified morning while the evening never lands; and a continued session presents a superset, closing out corroboration its own SDXC could still deliver. The volume serial the format already assigns is the exact evidence. Decision 13 |
 | Editing the config when a destination is missing | The config describes the rig, not tonight's subset — the entry would need editing back, and an 11pm config edit is the failure decision 8 exists to prevent. `--without` declares the absence per run. Decision 25 |
 | Warning and proceeding when the GPX directory is empty | Empty almost always means tracks never copied off the logger, or a stale `gpx_dir` — both fixed in a minute at the desk. A warning makes an untagged night routine, noticed when Lightroom's map comes up empty weeks later. `--no-gpx` declares the genuine case. Decision 26 |
 | Skipping a file whose two source copies disagree | Leaves the one file known to have a problem in *zero* backups — the exact inversion of the goal. Decision 3 |

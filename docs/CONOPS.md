@@ -51,11 +51,12 @@ the deal:
 - **Both cards are formatted in-camera at the start of every shooting session.** There
   may be several sessions in a day — a midday return to the hotel often means offload,
   reformat, and back out for the evening — and a session never spans more than one
-  local-time day. The format is what makes a card equal a session, which is what makes
-  pre-flight's estimate exact and the file-set resume check trustworthy. **Format only
-  after the previous offload's SSDs have ejected**: the eject is the tool's claim that
-  every file from both cards is accounted for, which is exactly what makes the format
-  safe ([`DESIGN.md`](DESIGN.md) decision 22).
+  local-time day. The format is what makes a card equal a session — and it stamps each
+  card with a fresh volume serial, the session identity the tool trusts when it resumes
+  ([`DESIGN.md`](DESIGN.md) decision 13) — which is what makes pre-flight's estimate
+  exact. **Format only after the previous offload's SSDs have ejected**: the eject is
+  the tool's claim that every file from both cards is accounted for, which is exactly
+  what makes the format safe ([`DESIGN.md`](DESIGN.md) decision 22).
 - **The camera writes every frame to both slots** (CFexpress + SDXC), uncompressed —
   and both cards come to the readers at every offload. Two authoritative sources is
   the standing assumption, and the camera has two slots for exactly this reason. A
@@ -140,9 +141,10 @@ Two boundaries keep the flag honest:
 - **It is for a card that is *gone*, not one that is elsewhere.** If the second card
   exists, plug it in instead — and if a "gone" card turns up later, run `photoday`
   again with both cards in; corroboration completes after the fact.
-- **A resume that only needs to finish corroboration is not a single-source run** and
-  needs no flag — that night had two sources, and the tool tells the two situations
-  apart on its own ([`DESIGN.md`](DESIGN.md) decisions 7 and 13).
+- **A resume of a night that had two sources is not a single-source run** and needs no
+  flag — whichever card is inserted, the tool continues what that card can answer for
+  and tells a remainder from a lone source on its own ([`DESIGN.md`](DESIGN.md)
+  decisions 7 and 13).
 
 ## Before a trip, at home
 
