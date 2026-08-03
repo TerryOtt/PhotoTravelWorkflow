@@ -18,7 +18,7 @@ matters traces back to that person.
    distinct, estimated time. That one line is what earns walking away.
 4. Go to dinner.
 5. Back at the desk, read the **last line of the report first**. It is the verdict, and
-   it is the only place its phrases ever appear:
+   it is the only place its phrases ever appear ([`DESIGN.md`](DESIGN.md) decision 14):
 
 | The last line says | You do |
 |---|---|
@@ -65,13 +65,12 @@ the deal:
 - **The GPS logger runs all day**, and its tracks land in the configured GPX directory
   before the evening run (or are pointed at with `--gpx`).
 - **The camera runs on UTC, and its clock is right** — checked at trip start and after
-  every zone crossing. The two halves fail differently. A camera left on some other
-  *timezone* is harmless — the classic being London time with DST on, producing BST
-  frames: the recorded offset lets every date self-correct into true UTC, and the
-  report flags the deviation. A *clock* that is wrong as an instant cannot be detected
-  from metadata at all — it shifts every date folder and every geotag uniformly while
-  looking perfectly normal. The report's systematic-miss heuristic may catch it after
-  the fact; thirty seconds with the camera menu is the real defense.
+  every zone crossing. The two halves fail differently ([`DESIGN.md`](DESIGN.md)
+  decision 23): a wrong *timezone* self-corrects — the recorded offset puts every frame
+  in its true UTC date, and the report flags the deviation — but a wrong *clock* shifts
+  every date and geotag uniformly and looks perfectly normal doing it. The report's
+  systematic-miss heuristic may catch it after the fact; thirty seconds with the camera
+  menu is the real defense.
 
 ## One application at a time
 
@@ -95,9 +94,9 @@ home — nothing this tool does mid-trip can step on an edit, because no edits e
 Run the same bare `photoday` at lunch, again in the evening, as often as anxiety
 suggests — the natural rhythm is one offload per shooting session, each followed by the
 next session's in-camera format once the SSDs eject. Every run is a convergence pass:
-work already done is recognized and skipped,
-new files are ingested, and nothing is ever duplicated — a photo already in the archive
-is matched by content hash, not filename, so re-offloading a card is always safe.
+work already done is recognized and skipped, new files are ingested, and nothing is
+ever duplicated — a photo already in the archive is matched by content hash, not
+filename, so re-offloading a card is always safe.
 
 ## When something goes wrong
 

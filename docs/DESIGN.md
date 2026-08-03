@@ -119,13 +119,9 @@ The mechanism, stated explicitly since it is what everything else is measured ag
 6. A record per `(file, destination)` is appended to the run log as each verify read
    completes — never before.
 
-**Writes are write-through; verify reads are unbuffered.** The write side uses
-`FILE_FLAG_WRITE_THROUGH`, because what LANDED needs is *durably on media before it is
-claimed*, not a cache bypass — `FILE_FLAG_NO_BUFFERING` demands sector-multiple writes,
-which a raw file's partial final sector cannot satisfy without a pad-and-truncate dance
-that buys no additional guarantee. The verify side uses `FILE_FLAG_NO_BUFFERING` for
-real, where it is both essential (a cached read compares a buffer to itself) and
-painless (short reads at EOF are legal).
+**Writes are write-through; verify reads are unbuffered.** The two flags are
+deliberately different, and neither substitutes for the other — decision 2 carries the
+why for each side.
 
 ## Decisions
 
@@ -133,8 +129,8 @@ painless (short reads at EOF are legal).
 
 Optimistic and greedy. In the normal run the SDXC card contributes no bytes to the
 output — it is a corroborating hash — and reading it costs ~11.6 minutes at UHS-II
-speeds on a big day.
-Keeping it off the critical path is the single largest available win against the metric.
+speeds on a big day. Keeping it off the critical path is the single largest available
+win against the metric.
 
 The guarantee is **preserved but deferred**: any disagreement is still detected in phase
 2, just after the milestone rather than before it.
@@ -176,10 +172,13 @@ rates will show whether the contention is ever real.
 
 The write side is `FILE_FLAG_WRITE_THROUGH` rather than unbuffered — settled at design
 review, replacing an "unbuffered in both directions" claim that a raw file's partial
-final sector makes unimplementable as stated. Write-through delivers the guarantee the
-milestone actually needs, durability before the claim, without the sector-alignment
-constraints; a plain buffered write would let the program exit with gigabytes still in
-RAM, which makes the metric unmeasurable. It also softens the small-day residual above:
+final sector makes unimplementable as stated: `FILE_FLAG_NO_BUFFERING` demands
+sector-multiple writes, and the pad-and-truncate dance that would satisfy it buys no
+guarantee write-through does not already provide. What LANDED needs is *durably on
+media before it is claimed*, not a cache bypass — and a plain buffered write would let
+the program exit with gigabytes still in RAM, which makes the metric unmeasurable. The
+verify side keeps `FILE_FLAG_NO_BUFFERING`, where the alignment constraint never bites:
+short reads at EOF are legal. Write-through also softens the small-day residual above —
 even a verify read served from the SSD's onboard cache then describes data the device
 has already committed to media.
 
@@ -513,7 +512,7 @@ has to rewrite a manifest spanning years.
       "captured_utc": "2026-08-03T14:22:37Z",
       "source_card": "cfexpress",
       "run_id": "2026-08-03T18:22:04Z",
-      "verified_utc": "2026-08-03T18:31:12Z",
+      "verified_utc": "2026-08-03T18:23:31Z",
       "corroborated": "matched"
     }
   ]
@@ -641,7 +640,7 @@ about already settled.
     pre-flight       0:04        —
     1  ingest        4:12   504.9 GB
     2  corroborate   3:31    56.1 GB   ⎫ overlapped 1's verify
-    3  geotag        0:12     0.1 GB   ⎭ pass, and each other
+    3  geotag        0:12     0.0 GB   ⎭ pass, and each other
     total            5:41   561.0 GB
 
   ►  EJECTED — SAFE TO STORE
@@ -665,10 +664,10 @@ Eject can modulate the safe verdict's wording; it can never turn SAFE into NOT S
 
 Because writes are write-through and verify reads unbuffered, the rates are real device
 throughput rather than page-cache artifacts — which is what makes the per-destination
-line a usable diagnostic. The slowest
-destination sets the pace of the whole run, so naming it is the single most useful number
-for spotting a disk going bad. With a `_runs\` directory accumulating across a trip, a
-later comparison against a destination's own rolling average is the natural extension.
+line a usable diagnostic. The slowest destination sets the pace of the whole run, so
+naming it is the single most useful number for spotting a disk going bad. With a
+`_runs\` directory accumulating across a trip, a later comparison against a
+destination's own rolling average is the natural extension.
 
 `_runs\<timestamp>\report.json` carries the full forensic record: per-file outcomes,
 per-phase timings, per-destination throughput, and the resolved hardware identities.
@@ -877,23 +876,27 @@ rather than missing. XMP drift is ignored on a `working` destination and should 
 an `archive` one.
 
 **`photoday sync <DEST>`** backfills a destination that missed an offload — the SSD that
-sat in a drawer while a `--without` run went on without it (decision 25). It copies from the laptop's working copy, since the
-cards are long since reformatted, and verifies what it writes exactly as phase 1 does. **It
-never deletes**, so it cannot be used to make a destination match by removing files from it.
+sat in a drawer while a `--without` run went on without it (decision 25). It copies from
+the laptop's working copy, since the cards are long since reformatted, and verifies what
+it writes exactly as phase 1 does. **It never deletes**, so it cannot be used to make a
+destination match by removing files from it.
 
 **Sync copies raws and regenerates XMP sidecars** from the manifest's capture times and
 the GPX tracks, exactly as phase 3 does — it never copies a sidecar, and it writes one
 only where none exists. Sync does not accept `--force-xmp`: decision 16's invariant has
-one door, and it is on the nightly command. The stakes of that line are real — pointed
-at the laptop copy at home, a regenerate-all sync would overwrite Lightroom's develop
-settings, the one data loss this tool could cause outside the deletion path, and
-write-only-missing cannot. Settled at design
-review: run during a trip, copying the laptop's sidecars would be harmless (they are all
-tool-written — see decision 11), but run at home they are Lightroom's, carrying develop
-settings that must not leak onto an archive. Regeneration is correct in both regimes
-without anyone having to remember which one they are in. It also completes phase 3 crash
-recovery: sidecars missing on an archive, for any reason, are rebuilt by sync with no
-dedicated machinery.
+one door, and it is on the nightly command.
+
+Both halves of that rule were settled at design review, and each blocks its own
+data-loss path. *Regenerate rather than copy*: during a trip the laptop's sidecars are
+all tool-written and copying them would be harmless (decision 11), but at home they are
+Lightroom's, carrying develop settings that must not leak onto an archive. *Write only
+where none exists*: pointed at the laptop copy at home, a regenerate-all sync would
+overwrite those same settings — the one data loss this tool could cause outside the
+deletion path. Together they are correct in both regimes without anyone having to
+remember which one they are in.
+
+Regeneration also completes phase 3 crash recovery: sidecars missing on an archive, for
+any reason, are rebuilt by sync with no dedicated machinery.
 
 ### 21. A file whose EXIF cannot be read lands in `_unfiled`, not on the floor
 

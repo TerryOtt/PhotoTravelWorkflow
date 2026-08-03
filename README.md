@@ -4,10 +4,10 @@ One command, run from a hotel room at the end of a day's shooting, that lands fo
 verified copies of the day's photographs before bedtime.
 
 Plug two card readers and three external SSDs into a Thunderbolt hub, run it, go to
-dinner. It reads the day off the camera's cards, writes `YYYY/YYYY-MM-DD` directories to
-four destinations, reads every byte back to prove the copies are bit-identical, geotags
-each frame from a GPX track into a Lightroom-ready XMP sidecar, and prints a verdict you
-can read in five seconds before putting an SSD in the safe.
+dinner. It reads the cards, writes `YYYY/YYYY-MM-DD` directories to four destinations,
+reads every byte back to prove the copies are bit-identical, geotags each frame from a
+GPX track into a Lightroom-ready XMP sidecar, and prints a verdict you can read in five
+seconds before putting an SSD in the safe.
 
 **Status: designed, not yet implemented.** The design is settled and written up in
 [`docs/DESIGN.md`](docs/DESIGN.md) — numbered decisions, each with its reasoning,
