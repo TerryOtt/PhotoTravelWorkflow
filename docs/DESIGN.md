@@ -382,11 +382,16 @@ This eliminates a full re-read of the day that a standalone geotagging pass woul
 without putting anything on phase 1's critical path. Sidecar generation failure is never
 fatal and is always backfillable.
 
-### 11. The laptop copy is a working copy
+### 11. The laptop copy is a working copy — after the trip
 
-Lightroom rewrites the laptop's sidecars as soon as editing begins, so its manifest is
-*expected* to diverge from the archives'. `verify` must treat sidecar drift as normal on
-a `working` destination and as damage on an `archive` one.
+Lightroom is never run on travel: trips are content generation, editing happens at home
+(see `CONOPS.md`, *One application at a time*). During a trip, every XMP on every copy is
+tool-written and all four copies of a day are interchangeable.
+
+The divergence begins at home, when Lightroom imports from the laptop copy and editing
+starts: from then on its sidecars are Lightroom's, its state is *expected* to drift from
+the archives', and `verify` treats sidecar drift as normal on a `working` destination
+while it should not exist at all on an `archive` one.
 
 ### 12. The manifest covers raw files only
 
@@ -767,6 +772,15 @@ an `archive` one.
 in a drawer during the lunchtime ingest. It copies from the laptop's working copy, since the
 cards are long since reformatted, and verifies what it writes exactly as phase 1 does. **It
 never deletes**, so it cannot be used to make a destination match by removing files from it.
+
+**Sync copies raws and regenerates XMP sidecars** from the manifest's capture times and
+the GPX tracks, exactly as phase 3 does — it never copies a sidecar. Settled at design
+review: run during a trip, copying the laptop's sidecars would be harmless (they are all
+tool-written — see decision 11), but run at home they are Lightroom's, carrying develop
+settings that must not leak onto an archive. Regeneration is correct in both regimes
+without anyone having to remember which one they are in. It also completes phase 3 crash
+recovery: sidecars missing on an archive, for any reason, are rebuilt by sync with no
+dedicated machinery.
 
 ### 21. A file whose EXIF cannot be read lands in `_unfiled`, not on the floor
 

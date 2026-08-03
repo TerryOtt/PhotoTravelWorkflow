@@ -51,6 +51,23 @@ the deal:
   it looking perfectly normal. Thirty seconds with the camera menu is the entire
   defense.
 
+## One application at a time
+
+The trip rhythm keeps Lightroom and this tool from ever touching the same files in the
+same season:
+
+| When | What runs |
+|---|---|
+| Before a trip, at home | Lightroom only — plus the pre-trip checklist below |
+| During a trip | **this tool only** — Lightroom is never run on travel |
+| Home again | Lightroom — import from the laptop copy, then edit |
+
+Trips are content generation; editing happens at home. The consequence worth stating
+plainly: **during a trip, every XMP on every copy is tool-written**, so all four copies
+of a day are interchangeable while traveling. The laptop copy's divergence
+([`DESIGN.md`](DESIGN.md) decision 11) begins only when Lightroom starts editing at
+home — nothing this tool does mid-trip can step on an edit, because no edits exist yet.
+
 ## Offloading more than once a day
 
 Run the same bare `photoday` at lunch, again in the evening, as often as anxiety
