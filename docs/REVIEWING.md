@@ -156,7 +156,7 @@ cold, have to ask why? If yes, either change the code or write down the answer.
 The policy is not licence to relitigate. Specifically:
 
 - **A settled decision you would have made differently.** [`DESIGN.md`](DESIGN.md) records
-  eighteen with their reasoning. Disagreeing is fine; say so explicitly rather than
+  its decisions with their reasoning. Disagreeing is fine; say so explicitly rather than
   quietly diverging. Reopening one needs new evidence, not fresh taste.
 - **Deliberate simplicity.** A flat `Vec` and a linear scan are not debt when the input is
   bounded by what a human types on a command line. Speculative generality is the defect,

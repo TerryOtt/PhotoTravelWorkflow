@@ -1,8 +1,8 @@
 # End-of-day photo offload — design
 
-Status: **design complete, not yet implemented.** Twenty decisions, each with the reasoning
-behind it, plus what was considered and rejected; what remains to build is listed at the
-end.
+Status: **design complete, not yet implemented.** Decisions are numbered, each recorded
+with its reasoning, plus what was considered and rejected; what remains to build is
+listed at the end.
 
 ## The goal, in one sentence
 
@@ -662,7 +662,8 @@ That is real work, and it is the trade being accepted.
 **Almost every error is fatal.** Print why, exit non-zero, stop. There is no recovery
 machinery for unlikely hardware events — a destination unplugged mid-run, a disk filling
 unexpectedly — because handling them gracefully would cost more complexity than the
-scenarios are worth.
+scenarios are worth. The one exception is a defect in an input file itself, where fatal
+would not fail safe — see decision 21, whose table collects every per-file path.
 
 **That is affordable only because the robustness is structural rather than in error
 handling.** Four decisions already made carry it:
@@ -684,7 +685,7 @@ Exit codes, kept deliberately coarse:
 |---|---|
 | 0 | Phase 1 verified everywhere, no source mismatches |
 | 1 | Fatal — the run did not complete; reason printed |
-| 2 | Completed, but something wants your attention (mismatches, deletions) |
+| 2 | Completed, but something wants your attention (mismatches, deletions, unfiled files) |
 
 **Testing is three things**, and stops there:
 
@@ -731,6 +732,42 @@ in a drawer during the lunchtime ingest. It copies from the laptop's working cop
 cards are long since reformatted, and verifies what it writes exactly as phase 1 does. **It
 never deletes**, so it cannot be used to make a destination match by removing files from it.
 
+### 21. A file whose EXIF cannot be read lands in `_unfiled`, not on the floor
+
+The one narrow exception to decision 18's fatal-out rule, added at design review, because
+this is the case where fatal does not fail safe. A corrupt EXIF header on one file — a
+camera write glitch, one-in-ten-thousand territory — would otherwise kill the run two
+minutes after you left for dinner, costing the night's backup of every other photo. And
+pre-flight cannot warn: enumeration is metadata-only, so EXIF is not read until the file
+streams through phase 1.
+
+Such a file is still hashed, still written to all four destinations, still verified —
+everything phase 1 does — but under `_unfiled\<run-id>\<original-name>` instead of a date
+folder. Outside the `YYYY\` tree, so Lightroom never sees it; the per-run subfolder makes
+name collisions impossible without collision logic. `_unfiled` carries a manifest like
+any date folder, so `verify` covers it. The report calls it out loudly and the exit code
+is 2, but the verdict stays SAFE — every bit on the card is verified in four places,
+which is what SAFE means. Phase 2 corroborates these files like any other, and a
+mismatch there follows decision 3.
+
+The contrast with the mismatch path is deliberate: a two-card hash mismatch means the
+bits themselves are untrustworthy and no copy can be proven right, so the photo is
+called a loss. An unreadable EXIF means the bits are fine — both cards agree — and only
+the *placement* is unknowable, so the photo is kept. **Discard what cannot be trusted;
+keep what merely cannot be named.**
+
+The complete per-file defect set, in one place:
+
+| Defect | Run | The file |
+|---|---|---|
+| two-card hash mismatch | continues | deleted everywhere, tombstoned, quarantined in `_runs` (decision 3) |
+| SDXC copy absent | continues | kept, reported uncorroborated (decision 4) |
+| EXIF unreadable | continues | written and verified to `_unfiled`, reported (this decision) |
+| anything environmental | **fatal** | — (decision 18) |
+
+**No per-file defect stops the run; only the environment can.** The 99.9% case always
+finishes.
+
 ## Considered and rejected
 
 Recorded so a later reviewer does not spend effort re-proposing them. Reopening one needs
@@ -750,6 +787,7 @@ new evidence rather than fresh taste.
 | Per-device queue depth and overlapped I/O | One buffer-fed blocking writer idles ~1 ms per 45 MB write. Not worth the machinery on speculation — revisit if measurement shows a device going idle. Decision 15 |
 | Scaling `--jobs` to the I/O fan-out | Threads do not create bandwidth. Decision 15 |
 | Graceful handling of a destination unplugged mid-run | Crash safety is already structural, so the cost exceeds the benefit. Decision 18 |
+| Fatal-out on a file whose EXIF cannot be read | The original decision 18 reading, replaced at design review: fatal does not fail safe there — one corrupt file would cost the whole night's backup while nobody is watching. Decision 21 |
 | Go for the pipeline, shelling out to `rawgeotag.exe` for phase 3 | Defensible, and rejected on the validated CR3, GPX and XMP assets. Decision 17 |
 | Carrying RawGeotag's `TESTING.md` whole | A stricter regime than decision 18 calls for; its one load-bearing principle is folded into `REVIEWING.md` |
 
