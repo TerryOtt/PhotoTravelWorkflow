@@ -70,12 +70,13 @@ the previous day.
 | **2 · Corroborate** | Read SDXC fully, compare hashes, ingest what phase 1 never saw, delete + tombstone mismatches | Card health report |
 | **3 · Geotag** | Correlate stashed capture times to GPX, write sidecars to all 4 | Lightroom-ready |
 
-**Phase 2 does not wait for LANDED.** The moment the CFexpress reader goes idle — the end
-of phase 1's write feed, since backpressure keeps the reader busy until roughly the last
-write drains — the SDXC read begins, overlapping phase 1's verify pass. Phases 2 and 3 do
-not contend for the same hardware either — one reads the SD card, the other writes a few
-thousand 3 KB files — so they also run concurrently with each other. Both overlaps serve
-the secondary metric; decision 2 explains why the two-pass verify is what makes the early
+**Phases 2 and 3 do not wait for LANDED.** The moment the CFexpress reader goes idle —
+the end of phase 1's write feed, since backpressure keeps the reader busy until roughly
+the last write drains — both have what they need: the SDXC read begins, and with every
+capture time already stashed and the GPX parsed since pre-flight, sidecar writing does
+too. Both overlap phase 1's verify pass, and they do not contend with each other either —
+one reads the SD card, the other writes a few thousand 3 KB files. All of it serves the
+secondary metric; decision 2 explains why the two-pass verify is what makes the early
 start possible.
 
 ### Where the wall clock goes
@@ -351,9 +352,9 @@ difference, the two cases are equally bad and are treated identically. Phase 1 r
 that card and **phase 2 does not run at all** — not deferred, eliminated: corroboration
 is a comparison, and no second source exists to compare against. Every file is
 recorded `waived` rather than corroborated (decision 12), and the eject gate treats
-waived as settled (decision 22) — the SSDs still eject once the
-card's contents are verified on all four destinations and tagged, because holding them
-for a card the operator has declared absent would hold the night hostage to nothing.
+waived as settled (decision 22) — the SSDs still eject once the card's contents are
+verified on all four destinations and phase 3 is complete, because holding them for a
+card the operator has declared absent would hold the night hostage to nothing.
 The verdict carries the scar (decision 14), the exit code is 2 (decision 18), and if
 the missing card ever does turn up, a re-run converges: same file set, corroboration
 finishes, waived upgrades to matched (decision 13).
@@ -734,8 +735,10 @@ regression — no tag beats a wrong tag.
 **`--dry-run` is stronger here than it was there.** Because output filenames derive from
 EXIF capture time, and EXIF is cheap to read, a dry run can name every output file exactly
 — target paths, collisions, what would be skipped as already present, the ETA — without
-reading a file body or writing a byte. A complete answer in seconds, which makes it the
-natural thing to run before walking away.
+reading a file body or writing a byte. One honest limit: skip-versus-`_001` is decided
+by hash (decision 5), which a dry run never computes — its already-present calls are by
+name, and the real run re-decides them by content. A complete answer in seconds, which
+makes it the natural thing to run before walking away.
 
 **`--force` becomes `--force-xmp`.** In RawGeotag the bare name is unambiguous
 because sidecars are all it writes. This tool writes raws *and* sidecars, so `--force`
@@ -847,11 +850,13 @@ that the result needs no interpretation. A full re-verify of a multi-terabyte ar
 on the order of an hour, an acceptable price for a check performed occasionally and trusted
 completely.
 
-Transitivity is what makes the guarantee whole. Phase 1 proves every destination equals the
-CFexpress hash; phase 2 proves the SDXC copy equals that same hash. Both holding means every
-destination is proven identical to **both** cards. Note the timing: that full two-source
-property completes at the end of phase 2, not at LANDED, where all four are proven equal to
-the CFexpress copy alone.
+Transitivity is what makes the guarantee whole. Phase 1 proves every destination equals
+the source card's hash; phase 2 proves the other card's copy equals that same hash. Both
+holding means every destination is proven identical to **both** cards — for every file
+both cards hold. A file only one card ever held is proven against that card alone, which
+is exactly what its manifest verdict records: `absent`, `waived`, or `forfeited`
+(decisions 4, 7, 13). Note the timing: the full two-source property completes at the end
+of phase 2, not at LANDED, where all four are proven equal to the source card alone.
 
 ### 20. `verify` and `sync` are standalone; only `verify` is config-free
 
@@ -863,9 +868,10 @@ and should not pretend to: it needs a copy source (the laptop working copy) and 
 tracks for regeneration, and it takes both from the config — fine, because backfilling
 a disk that missed an offload happens on the machine that ran the offload.
 
-**`photoday verify <DEST>`** reads the destination marker to name what it is checking, then
-walks every date folder: manifest checksum first, so a rotted manifest is reported as a
-rotted manifest rather than as damaged photographs; then every raw re-hashed unbuffered
+**`photoday verify <DEST>`** reads the destination marker to name what it is checking,
+then walks every date folder, `_unfiled` included (decision 21): manifest checksum first,
+so a rotted manifest is reported as a rotted manifest rather than as damaged
+photographs; then every raw re-hashed unbuffered
 against it. Tombstones are honoured, so a file deliberately deleted in phase 2 reports clean
 rather than missing. XMP drift is ignored on a `working` destination and should not exist on
 an `archive` one.
@@ -951,17 +957,18 @@ decision 14 for how the verdict phrases it.
 only when nothing remains for the current cards: every file verified on all four
 destinations, phase 2 run to completion against the SDXC card with every mismatch
 resolved, every absence reported, and every file found only on the SDXC ingested and
-verified like any other (decision 4), sidecars written. "Complete" is the bar, not "all
+verified like any other (decision 4), phase 3 run to completion — a file outside the
+track is a settled outcome, not a hold. "Complete" is the bar, not "all
 matched": a mismatch resolved by deletion-and-tombstone and a file that only ever
 existed on one card are settled states, as are `waived`, a single-source run's
 declaration that no second card exists to examine (decision 7), and `forfeited`, the
 mark of a run already closed out (decision 13). Only files the current cards could
-still answer for hold the gate. If
-corroboration could not finish — the SDXC card was never seen tonight, or phase 2 was
-interrupted — the SSDs stay mounted and the report says exactly what to do: ensure the
-SDXC card is inserted and re-run, or eject by hand. Re-runs converge (decision 13), so the normal
-recovery is plugging in what was missing and running again; the tool corroborates the
-remainder and ejects the moment certainty arrives.
+still answer for hold the gate. If corroboration could not finish — the SDXC card was
+never seen tonight, or phase 2 was interrupted — the SSDs stay mounted and the report
+says exactly what to do: ensure the SDXC card is inserted and re-run, or eject by hand.
+Re-runs converge (decision 13), so the normal recovery is plugging in what was missing
+and running again; the tool corroborates the remainder and ejects the moment certainty
+arrives.
 
 **An SSD this tool has ejected is therefore a physical claim: every file from both cards
 is accounted for on that disk** — literal, because phase 2 enumerates the SDXC rather
@@ -1011,9 +1018,10 @@ Lightroom's map three weeks later.
 
 Scope, settled with the operator: only CR3 raw stills are ever shot (`CONOPS.md`, the
 shooting-day contract) — the R5 can produce JPG, HEIF and video, and none of it is
-used. So enumeration takes `*.CR3`, on both cards, and every guarantee in this design
-is a claim about raw stills: LANDED, corroboration, and decision 22's eject claim all
-read "every file" as "every CR3."
+used. So the walk sees every file — that is how a stray gets named — while ingest takes
+`*.CR3` only, on both cards, and every guarantee in this design is a claim about raw
+stills: LANDED, corroboration, and decision 22's eject claim all read "every file" as
+"every CR3."
 
 A non-CR3 file on a card is therefore a contract violation, and the answer is the
 report, not the pipeline. The file is named — on the card, not backed up by this tool —
