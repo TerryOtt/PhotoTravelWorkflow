@@ -763,10 +763,10 @@ per-phase timings, per-destination throughput, and the resolved hardware identit
 problem class parallelizes well into double-digit thread counts.
 
 **It governs the CPU-bound work**, where that finding applies directly. Phase 3 hashes 5N
-— one source read plus four verify reads, 280 GB on a 56 GB day. At roughly 2 GB/s per
-core with SHA-NI that is ~140 s single-threaded against a 252 s phase, close enough to
-bind the run on faster storage. Spread across cores it disappears. EXIF extraction and XMP
-generation ride the same pool.
+— one source read plus four verify reads, 280 GB on a 56 GB day. At the measured
+2,252 MB/s per core with SHA-NI (decision 17) that is ~125 s single-threaded against a
+252 s phase, close enough to bind the run on faster storage. Spread across cores it
+disappears. EXIF extraction and XMP generation ride the same pool.
 
 **It does not govern I/O concurrency**, which is structural:
 
@@ -855,7 +855,7 @@ copy requires naming it: `--force-xmp=laptop`.
 Two independent reasons, and they point the same way.
 
 **The hashing is real compute.** Decision 15 sizes it: 5N through SHA-256, which on a
-188 GB day is 940 GB — ~7.8 minutes single-threaded at the same ~2 GB/s per core, about
+188 GB day is 940 GB — ~7 minutes single-threaded at the measured rate below, about
 half of an 8–16 minute phase on its own. It has to spread across cores, which rules out
 anything with a global interpreter lock and rewards a language with real threads and no
 runtime overhead.
@@ -864,11 +864,24 @@ runtime overhead.
 hypothetical — this tool runs on the travel laptop's i7-13700H, whose P-cores and
 E-cores all carry the SHA extensions — and RustCrypto's ubiquitous `sha2` selects its
 SHA-NI backend at runtime through `cpufeatures`: no build flags, no `target-cpu`
-pinning, no per-machine binary to get wrong before a trip. That pairing is what grounds
-decision 15's ~2 GB/s per core. And it is one algorithm everywhere — until the day it
-is not, which decision 28 routes additively rather than as a break: the manifest's
-self-checksum (decision 12) is the same SHA-256, so a second hash function never needs
-choosing, validating, or explaining.
+pinning, no per-machine binary to get wrong before a trip. And it is one algorithm
+everywhere — until the day it is not, which decision 28 routes additively rather than as
+a break: the manifest's self-checksum (decision 12) is the same SHA-256, so a second
+hash function never needs choosing, validating, or explaining.
+
+**Measured on the rig, not assumed**, since that pairing is the whole argument — 2 GiB
+streamed through each in 8 MiB chunks, single-threaded, release build, on the
+i7-13700H:
+
+| Crate | Algorithm | Per core |
+|---|---|---|
+| `sha2` | SHA-256 (SHA-NI) | **2,252 MB/s** |
+| `sha3` | SHA3-256 | 529 MB/s |
+| `blake3` | BLAKE3 | 5,023 MB/s |
+
+That is the number decision 15's arithmetic uses, and it is what settled the two
+alternatives in *Considered and rejected*. Re-run it if the crates or the laptop ever
+change; nothing here should be taken on the strength of having once been true.
 
 **Three of the hard sub-problems are already solved and validated.** Not "code exists" —
 validated:
@@ -1385,6 +1398,8 @@ new evidence rather than fresh taste.
 | Graceful handling of a destination unplugged mid-run | Crash safety is already structural, so the cost exceeds the benefit. Decision 18 |
 | Fatal-out on a file whose EXIF cannot be read | The original decision 18 reading, replaced at design review: fatal does not fail safe there — one corrupt file would cost the whole night's backup while nobody is watching. Decision 21 |
 | Go for the pipeline, shelling out to `rawgeotag.exe` for phase 5 | Defensible, and rejected on the validated CR3, GPX and XMP assets. Decision 17 |
+| SHA3-256 instead of SHA-256 | Litigated on measurement, not taste: **4.3× slower on the rig** — 529 MB/s against SHA-256's 2,252 — and the gap is structural, since SHA-NI accelerates SHA-1 and SHA-256 while Keccak has no instruction to select. Nothing is bought for it here. SHA-256 is not deprecated and has no practical attack; SHA-3 was standardized as a structural *alternative* to SHA-2, not a replacement for a broken primitive, and its one clear advantage — length-extension immunity — is a MAC property that never arises when hashing files for integrity. **This hash detects bit rot, a dying card and a flaky reader, not a motivated adversary.** Paying 4.3× on every byte, five times per photo, to hedge against a break in Merkle–Damgård is the wrong trade for a data workflow tool. If SHA-2 ever does weaken, decision 28 already routes the replacement additively. Decision 17 |
+| BLAKE3 instead of SHA-256 | Measured in the same run and genuinely faster — 5,023 MB/s, 2.2× SHA-NI SHA-256 — and still rejected, on longevity rather than speed. `sha256sum` ships with every operating system, so a person in 2031 holding this disk and no copy of this tool can still recompute a manifest by hand; BLAKE3 needs a specific binary they may not have. For a format whose premise is proving itself decades later on an unknown machine, universal recomputability outranks throughput that is already not the bottleneck. Decisions 17, 28 |
 | Carrying RawGeotag's `TESTING.md` whole | A stricter regime than decision 18 calls for; its one load-bearing principle is folded into `REVIEWING.md` |
 
 ## Non-goals
