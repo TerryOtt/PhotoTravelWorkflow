@@ -65,7 +65,7 @@ the previous day.
 
 | Phase | Mandatory? | Work | Ends with |
 |---|---|---|---|
-| **1 · Pre-flight** (~10 s) | The assertions always run (decision 16); the card match needs two cards — one card must be declared (decisions 27, 7) | Assert both cards present one CR3 listing, validate destinations, parse GPX, inhibit sleep, print ETA | You can walk away |
+| **1 · Pre-flight** (~10 s) | The assertions always run (decision 16); the card match needs two cards — one card must be declared (decisions 27, 7) | Validate destinations, enumerate the cards and match their listings when there are two, parse GPX, inhibit sleep, print ETA | You can walk away |
 | **2 · Ingest & verify** | **Always — this phase is the product** | Read CFexpress once → SHA256 + EXIF → fan out to 4 → unbuffered read-back verify per destination | **LANDED** |
 | **3 · Corroborate** | Two cards only — a single-source run has nothing to compare (decision 7) | Read SDXC fully, compare hashes, delete + tombstone mismatches | Card health report |
 | **4 · Geotag** | Only with tracks (decision 26), and only frames a track brackets within limits (decision 16) | Correlate stashed capture times to GPX, write sidecars to all 4 | Lightroom-ready |
@@ -448,9 +448,10 @@ minutes in. Before anything is written, pre-flight asserts: all four destination
 present — `--without` is the declared exception (decision 25) — distinct physical
 devices, writable, and with capacity ≥ N plus margin; both cards present —
 `--allow-single-source` (decision 7) and a remainder resume (decision 13) are the
-deliberate exceptions — both enumerated and presenting one listing (decision 27), the
-faster one the phase 2 source; sleep inhibited (`SetThreadExecutionState`); GPX tracks
-present and parsed — `--no-gpx` is the declared exception (decision 26).
+deliberate exceptions — the faster one readable and enumerated as the phase 2 source,
+and wherever a run does have two, both enumerated and holding one identical listing
+(decision 27); sleep inhibited (`SetThreadExecutionState`); GPX tracks present and
+parsed — `--no-gpx` is the declared exception (decision 26).
 
 **It also checks Windows Defender exclusions.** Real-time scanning of several hundred
 gigabytes of freshly written files across four volumes is a large and invisible tax on
@@ -477,7 +478,12 @@ cheap — the card *is* the session — so pre-flight can print a real estimate:
 1,247 files on both cards · 56.1 GB · 4 destinations verified distinct · est. 6-8 min
 ```
 
-That number is what actually lets you leave.
+That number is what actually lets you leave. *On both cards* is the gate's receipt
+(decision 27) — the assertion that just passed, and what makes the estimate cover the
+whole day rather than the source card's share of it, since files only the other card
+held could once have surfaced and been ingested long after the estimate was printed. A
+declared single-source run prints `1,247 files · single source (SDXC)` instead: nothing
+agreed, and nothing claims to have.
 
 ### 10. Phase 2 collects EXIF for free, so phase 4 re-reads nothing
 
@@ -1062,9 +1068,11 @@ running again; the tool corroborates the remainder and ejects the moment certain
 arrives.
 
 **An SSD this tool has ejected is therefore a physical claim: every file from both cards
-is accounted for on that disk** — literal, because pre-flight proved the pair holds one
-set of files (decision 27) and phase 3 then verified every one of them (decision 4).
-The tray icon can never say that.
+is accounted for on that disk** — literal in a two-card run, because pre-flight proved
+the pair holds one set of files (decision 27) and phase 3 then verified every one of
+them (decision 4). A declared single-source night ejects on the narrower claim its one
+card can support, and the verdict says so in words rather than letting the same eject
+imply more than it proved (decisions 7 and 14). The tray icon can never say either.
 
 `--no-eject` disables it for the rare night the SSDs should stay mounted; the verdict
 names the withheld eject rather than letting silence look like a refusal (decision 14).
