@@ -716,13 +716,13 @@ about already settled.
     SSD-B   Samsung    112.2 GB     724 MB/s
     SSD-C   SanDisk    112.2 GB     445 MB/s   ← set the pace
 
-  Phase              wall     I/O
-    1  cards         0:02        —
-    2  destinations  0:02        —
-    3  ingest        4:12   504.9 GB
-    4  corroborate   3:31    56.1 GB   ⎫ overlapped 3's verify
-    5  geotag        0:12     0.0 GB   ⎭ pass, and each other
-    total            5:41   561.0 GB
+  Phase                                  wall     I/O
+    1  pre-flight: camera card contents  0:02        —
+    2  pre-flight: destinations and GPX  0:02        —
+    3  ingest & verify                   4:12   504.9 GB
+    4  corroborate                       3:31    56.1 GB   ⎫ overlapped 3's verify
+    5  geotag                            0:12     0.0 GB   ⎭ pass, and each other
+    total                                5:41   561.0 GB
 
   ►  EJECTED — SAFE TO STORE
 ```
