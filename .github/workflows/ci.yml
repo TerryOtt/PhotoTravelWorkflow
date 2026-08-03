@@ -1,0 +1,78 @@
+# The half of the code quality gate a machine can check, run where it cannot be skipped.
+#
+# The pre-commit hook in .githooks/ runs the same three checks before a commit is made.
+# This is not redundant with it: a hook can be bypassed with --no-verify, only exists on
+# a clone that ran `git config core.hooksPath .githooks`, and never sees a pull request
+# from a fork. This does.
+#
+# windows-latest, because Windows is the only platform this tool ships on -- the storage
+# reasoning throughout docs/DESIGN.md is about NTFS, unbuffered Win32 I/O and volume
+# identity, so testing somewhere the tool is never run would measure a configuration that
+# does not occur.
+#
+# This costs nothing while the repository is public: Actions minutes are free and
+# unlimited there on any standard GitHub-hosted runner. The Windows 2x minute multiplier
+# applies only to *private* repos, which get 2,000 free minutes a month. If this repo is
+# ever made private, that multiplier starts to matter and ubuntu-latest becomes the
+# frugal choice -- and note rulesets need a paid plan at the same moment, so both bite
+# together.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least privilege: this workflow only ever reads the checkout.
+permissions:
+  contents: read
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # This name is the status check context named by the "main: require pull request"
+    # ruleset. Renaming the job silently stops the gate from being enforced.
+    name: fmt, clippy, test
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # TEMPORARY: the design landed before the code did, so this repository is docs-only
+      # for now and the cargo steps below have nothing to build. Guarding them keeps the
+      # required status check green and honest rather than red-for-the-wrong-reason.
+      # Delete this step and the three `if:` conditions when Cargo.toml lands.
+      - name: Detect Cargo project
+        id: cargo
+        shell: bash
+        run: |
+          if [ -f Cargo.toml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Cargo.toml yet - skipping fmt, clippy and test."
+          fi
+
+      - name: Install toolchain
+        if: steps.cargo.outputs.present == 'true'
+        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
+
+      - name: cargo fmt --check
+        if: steps.cargo.outputs.present == 'true'
+        run: cargo fmt --all -- --check
+
+      # --all-targets is the point: without it clippy does not lint test code at all, and
+      # there will be more of that here than there is implementation.
+      - name: cargo clippy
+        if: steps.cargo.outputs.present == 'true'
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        if: steps.cargo.outputs.present == 'true'
+        run: cargo test

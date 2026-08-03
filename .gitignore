@@ -13,3 +13,6 @@ $RECYCLE.BIN/
 # Environment / secrets
 .env
 .env.local
+
+# Claude Code per-machine settings
+.claude/settings.local.json
