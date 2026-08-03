@@ -1,7 +1,7 @@
 # End-of-day photo offload — design
 
-Status: **design settled, not yet implemented.** Requirements, architecture and language
-are decided; what remains open is collected at the end.
+Status: **design complete, not yet implemented.** Eighteen decisions, each with the
+reasoning behind it; what remains to build is listed at the end.
 
 ## The goal, in one sentence
 
@@ -591,6 +591,49 @@ feeding a channel with one writer goroutine per destination is a page of obvious
 where Rust needs a bounded pool of buffers whose lifetimes span four concurrent consumers.
 That is real work, and it is the trade being accepted.
 
+### 18. Fatal out, and test lightly
+
+**Almost every error is fatal.** Print why, exit non-zero, stop. There is no recovery
+machinery for unlikely hardware events — a destination unplugged mid-run, a disk filling
+unexpectedly — because handling them gracefully would cost more complexity than the
+scenarios are worth.
+
+**That is affordable only because the robustness is structural rather than in error
+handling.** Four decisions already made carry it:
+
+- temp-then-rename means a killed process cannot leave a partial file under a real name
+- the append-only run log means the record survives whatever killed the process
+- automatic resume (decision 13) means recovery is "run it again"
+- pre-flight (decision 9) means predictable failures happen while you are still at the
+  desk, not two minutes after you leave
+
+So an SSD yanked mid-run needs no handler: the process dies, the archive stays consistent,
+and a re-run finishes the job. What must hold on *any* fatal exit is only what the
+structure already guarantees — no partial file under a real name, a readable log, and a
+stated reason.
+
+Exit codes, kept deliberately coarse:
+
+| Code | Meaning |
+|---|---|
+| 0 | Phase 1 verified everywhere, no source mismatches |
+| 1 | Fatal — the run did not complete; reason printed |
+| 2 | Completed, but something wants your attention (mismatches, deletions) |
+
+**Testing is three things**, and stops there:
+
+1. **The phase 2 deletion path.** The only code path in the tool that destroys data, so a
+   bug there deletes photographs. Everything else fails safe — worst case is a re-run.
+   Cheap to exercise: flip one byte in a fixture and confirm the file is tombstoned and
+   quarantined rather than silently dropped or wrongly kept.
+2. **The naming function.** Pure, trivially testable, and it decides where irreplaceable
+   files land: UTC date foldering, the `HHMMZ` prefix, and skip-on-identical-hash.
+3. **One end-to-end happy path** against real CR3 fixtures — two synthetic cards, four
+   temporary destinations, four identical trees out.
+
+Everything else is deliberately untested. This is a personal tool with one user, one rig
+and a recoverable failure mode; the RawGeotag testing standard would be a poor trade here.
+
 ## Non-goals
 
 - **Touching the cards.** The tool reads them and nothing else — never writes, never
@@ -602,17 +645,17 @@ That is real work, and it is the trade being accepted.
 
 ## Open questions
 
-- **Testing strategy.** The hard one. Verifying an unbuffered four-destination pipeline
-  means simulating conditions that are awkward to produce on demand: a destination
-  disconnected mid-run, a disk filling, a card read that returns wrong bytes, a crash
-  between write and rename. RawGeotag's standard — a test must be shown capable of
-  failing before it counts — is harder to meet here than it was there, and the answer
-  probably involves a destination abstraction that can be told to misbehave.
-- **Error taxonomy** beyond source mismatch: what else is fatal, what warns, and what the
-  exit codes mean.
-**Settled: there is no sampled verification anywhere.** Every bit is checked, on every
+None outstanding — the design is complete enough to build from.
+
+**Settled late, and worth calling out: there is no sampled verification anywhere.** Every bit is checked, on every
 run and on every `verify`. These are the most emotionally valuable files the archive
 holds, and the run happens unattended over dinner — the entire point is that the result
 needs no interpretation. A full re-verify of a multi-terabyte archive takes on the order
 of an hour, which is an acceptable price for a check you do occasionally and trust
 completely.
+
+What remains is implementation:
+
+- the cargo workspace, with RawGeotag's GPX and XMP engine lifted into a library crate
+- the phase 1 pipeline and the Windows storage-identity layer
+- deleting the temporary `Cargo.toml` guard from `.github/workflows/ci.yml`
