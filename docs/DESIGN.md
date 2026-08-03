@@ -328,9 +328,10 @@ GUID changed, that disk was reformatted and you want to hear about it loudly.
 Serials also make the distinct-device assertion exact, where four volume GUIDs could be
 four partitions on two disks.
 
-Each destination also carries a `.photoday-destination.json` marker at its root. An
-archive pulled from the safe in 2031 can then prove what it is and verify itself on a
-machine that has never seen the config.
+Each destination also carries a `.photoday-destination.json` marker at its root, itself
+schema-versioned and readable by every later build (decision 28). An archive pulled from
+the safe in 2031 can then prove what it is and verify itself on a machine that has never
+seen the config.
 
 ### 7. Cards are identified by measurement, and there are always two
 
@@ -580,7 +581,9 @@ few hundred kilobytes rot in the safe over five years, `verify` would otherwise 
 damage on photos that are perfectly intact — and a false alarm on irreplaceable data is
 its own kind of failure. A self-hash lets verify distinguish *your photos are damaged*
 from *this manifest is damaged, your photos are probably fine*. The three archives each
-carry their own manifest of the same day, so they also cross-check against each other.
+carry their own manifest of the same day, so they also cross-check against each other —
+which is why decision 28 pins the fields that cross-check rests on, and why `schema`
+sits at the top of the record rather than being implied by what a reader happens to find.
 
 `corroborated` carries phase 4's verdict per file — `matched`, `waived`, `forfeited`,
 or `null` while still pending. `waived` is the single-source run's mark (decision 7):
@@ -862,7 +865,8 @@ hypothetical — this tool runs on the travel laptop's i7-13700H, whose P-cores 
 E-cores all carry the SHA extensions — and RustCrypto's ubiquitous `sha2` selects its
 SHA-NI backend at runtime through `cpufeatures`: no build flags, no `target-cpu`
 pinning, no per-machine binary to get wrong before a trip. That pairing is what grounds
-decision 15's ~2 GB/s per core. And it is one algorithm everywhere: the manifest's
+decision 15's ~2 GB/s per core. And it is one algorithm everywhere — until the day it
+is not, which decision 28 routes additively rather than as a break: the manifest's
 self-checksum (decision 12) is the same SHA-256, so a second hash function never needs
 choosing, validating, or explaining.
 
@@ -918,7 +922,7 @@ Exit codes, kept deliberately coarse:
 | 1 | Fatal — the run did not complete; reason printed |
 | 2 | Completed, but something wants your attention; the report names it — a mismatch, a deletion, a stray or unfiled file, a refused eject, an eject held for unfinished corroboration (decision 22), a run missing a source (decision 7), a destination (decision 25), or its tracks (decision 26), or one that closed out a predecessor's corroboration as forfeited (decision 13) |
 
-**Testing is three things**, and stops there:
+**Testing is four things**, and stops there:
 
 1. **The phase 4 deletion path.** The only code path in the tool that destroys data, so a
    bug there deletes photographs. Everything else fails safe — worst case is a re-run.
@@ -928,6 +932,10 @@ Exit codes, kept deliberately coarse:
    files land: UTC date foldering, the `HHMMZ` prefix, and skip-on-identical-hash.
 3. **One end-to-end happy path** against real CR3 fixtures — two synthetic cards, four
    temporary destinations, four identical trees out.
+4. **`verify` against a committed schema-1 manifest fixture.** The one test aimed at a
+   defect that surfaces years from now: a reader that quietly stops understanding an old
+   archive (decision 28). Same criterion as the first two — the damage is irreversible,
+   because the disk in the safe cannot be regenerated.
 
 Everything else is deliberately untested. This is a personal tool with one user, one rig
 and a recoverable failure mode; the RawGeotag testing standard would be a poor trade here.
@@ -959,7 +967,9 @@ and should not pretend to: it needs a copy source (the laptop working copy) and 
 tracks for regeneration, and it takes both from the config — fine, because backfilling
 a disk that missed an offload happens on the machine that ran the offload.
 
-**`photoday verify <DEST>`** reads the destination marker to name what it is checking,
+**`photoday verify <DEST>`** reads the destination marker to name what it is checking —
+at whatever schema that disk was written with, which every later build still understands
+(decision 28) —
 then walks every date folder, `_unfiled` included (decision 21): manifest checksum first,
 so a rotted manifest is reported as a rotted manifest rather than as damaged
 photographs; then every raw re-hashed unbuffered
@@ -1268,6 +1278,13 @@ reading both cards end to end before phase 3 starts — the posture decision 1 a
 rejected — and content divergence at equal size is exactly what phase 4's hash pass
 exists to find (decision 4).
 
+The pattern is older than this project and has a name: **reconcile control totals between
+the sources before the load commits.** Worth saying outright, because it moves the
+justification off one predecessor's field experience — the gate is not a photoendofdaygo
+quirk, it is the standard answer for a pipeline that must never load a partial extract.
+That this design arrived at it from an operator's anxiety rather than from the literature
+is corroboration, not coincidence.
+
 What the gate buys is subtraction. "What if the SDXC holds half the day once phase 4
 finally reads it" — and every case shaped like it — stopped being a state the pipeline
 can reach and became one fatal at the desk. Corroboration dropped from four outcomes
@@ -1288,6 +1305,55 @@ after it.
 The check runs if and only if the run has two cards. `--allow-single-source` has no
 pair to compare, and a lone-card remainder resume is held to the listing its run
 recorded instead (decision 13).
+
+### 28. Every manifest this tool has ever written stays readable
+
+Decision 20's promise — an archive pulled from the safe in 2031 proves itself on a
+machine that has never seen this configuration — carries a dependency nobody had
+stated. The binary doing the proving is whatever is current *then*; the manifest it
+reads was written by whatever was current when the photos landed. Those are not the
+same program, and the gap only widens.
+
+**So `verify` reads every schema version this tool has ever written, permanently.** No
+deprecation window, no migration deadline. Dropping schema 1 would not degrade an old
+archive — it would strip it of the one thing that makes it self-describing, and the disk
+in the safe cannot be regenerated. A reader's backward compatibility is therefore a
+promise with the same lifetime as the photographs.
+
+**The other direction fails loudly instead of guessing.** An older binary meeting a
+newer manifest says exactly that — this manifest is schema N, this build understands up
+to M, use a newer `photoday` — and never reports the photos as damaged. Same reasoning
+as decision 12's self-checksum: for a verification tool, a false alarm on irreplaceable
+data is its own kind of failure, and *I cannot read this* must never wear the costume of
+*your archive is rotting*.
+
+**The number bumps only when an old reader would be wrong, not when it would be
+incomplete.** Adding a field that an old `verify` ignores while still checking every hash
+correctly is not a bump. Redefining an existing field, removing one, or making a new one
+load-bearing for verification is. That is the same compatible-versus-breaking line
+`UPDATING.md` already draws around semver, applied to this project's own artifact.
+
+**The photo facts are a stable core that no bump may redefine.** Decision 12 has the
+three archives cross-checking each other's manifests, and decision 20 lets `sync`
+rewrite one disk's manifest years after its siblings were written — so a cross-check
+will eventually span two schema versions, and it can only work if the fields it rests on
+still mean what they meant: `name`, `status`, `sha256`, `bytes`, `captured_utc`. A bump
+may add to that set and never redefine it. Even retiring SHA-256, if it ever comes to
+that, goes in additively — keep `sha256`, add the successor alongside it, and let each
+reader use the strongest field it recognizes (decision 17's one-algorithm claim holds
+until exactly that day).
+
+**The destination marker carries a schema too**, under the same rules. `verify` reads it
+before anything else on the disk (decision 20), so it is the first thing that must
+survive a decade in a safe.
+
+**This adds a fourth test to decision 18's three**, and it qualifies on that decision's
+own criterion rather than as an exception to it: those tests exist where a defect is
+irreversible. A schema-1 manifest fixture, committed to the repository, that `verify`
+must read correctly forever. The mutation that proves it can fail is deleting the
+schema-1 branch — and without the fixture nothing fails until someone opens a 2026 disk
+in 2031, at which point the archive is unverifiable and there is nothing left to fix it
+with.
 
 ## Considered and rejected
 

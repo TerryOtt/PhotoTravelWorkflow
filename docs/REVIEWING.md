@@ -166,11 +166,11 @@ The policy is not licence to relitigate. Specifically:
 - **Verbosity that buys clarity.** This project takes the obvious mechanism over the clever
   one on purpose. Longer and duller is not a window.
 
-## Tests: three of them, and each has to be able to fail
+## Tests: four of them, and each has to be able to fail
 
 [`DESIGN.md`](DESIGN.md) decision 18 sets the scope deliberately narrow — the phase 4
-deletion path, the naming function, one end-to-end happy path. Everything else is untested
-on purpose.
+deletion path, the naming function, one end-to-end happy path, and `verify` against a
+committed schema-1 manifest fixture. Everything else is untested on purpose.
 
 **That makes the bar on each surviving test higher, not lower:**
 
@@ -178,7 +178,7 @@ on purpose.
 > and only it, fails. Revert immediately.**
 
 A green test proves the code passes today. It does not prove the test would notice if the
-code stopped being right. With only three tests there is no redundancy to cover for one
+code stopped being right. With only four tests there is no redundancy to cover for one
 that turns out to be decorative.
 
 RawGeotag produced a worked example worth knowing. A test asserted that `collect_paths`
