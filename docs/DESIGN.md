@@ -232,6 +232,21 @@ out to all four destinations, verified. Nothing new is built for this — it is 
 machinery pointed at the other card, which decision 7 already allows as a phase 1
 source.
 
+**Pairing is by card-relative path** — `DCIM\100EOS5R\_50A0001.CR3` — which phase 1
+records in the run log for every file it ingests. The camera writes the same tree to
+both slots: file numbering is a single camera-level counter and both cards start each
+session freshly formatted, so the paths mirror. The bare basename is deliberately not
+the key: the counter is four digits with a folder rollover past 9999, and at ~45 MB a
+frame a 512 GB card holds 11,000+ — more frames than the counter spans, so one session
+can legitimately contain two `_50A0001.CR3` in different DCIM folders. And the hash is
+never the key, because matching by content would read a genuine mismatch as an absence
+plus a new SDXC-only file — ingesting the corrupt variant through the fourth outcome
+instead of quarantining it (decision 3). Decision 13's file-set check compares these
+same paths, so run identity and pairing rest on one key. If the two trees ever failed
+to mirror, the miss degrades safely: the stranded file rides the fourth outcome into
+decision 5's name-then-hash check, where an identical photo is skipped rather than
+duplicated.
+
 Two consequences worth stating. These files land **after LANDED** — the milestone
 speaks for the source card's contents, and it is decision 22's eject gate that speaks
 for both cards: it does not open until SDXC-only files are verified everywhere too. And
@@ -313,7 +328,7 @@ Each destination also carries a `.photoday-destination.json` marker at its root.
 archive pulled from the safe in 2031 can then prove what it is and verify itself on a
 machine that has never seen the config.
 
-### 7. Cards are identified by measurement, not configuration
+### 7. Cards are identified by measurement, and there are always two
 
 An in-camera format at the start of every shooting session assigns a new volume serial,
 so a card's volume GUID changes at least daily; and cheap readers report generic or
@@ -439,9 +454,21 @@ tracks present and parsed — `--no-gpx` is the declared exception (decision 26)
 
 **It also checks Windows Defender exclusions.** Real-time scanning of several hundred
 gigabytes of freshly written files across four volumes is a large and invisible tax on
-exactly this workload. The archive roots should be excluded; pre-flight reads the
-exclusion list and **warns rather than fails**, since this is a throughput problem and not
-a correctness one.
+exactly this workload. The archive roots should be excluded; pre-flight checks, and
+**warns rather than fails**, since this is a throughput problem and not a correctness
+one.
+
+The check has three outcomes, not two, because Windows hides the exclusion list from
+unelevated processes — and this tool runs unelevated by design: nothing else in the run
+needs administrator rights, and demanding them for a throughput check would be
+backwards. Readable with the roots excluded is silent; readable without them is the
+warning, naming the roots; unreadable says exactly that — the list could not be read,
+check Windows Security by hand — and never masquerades as the not-excluded warning.
+Conflating the two would fire a false warning on every run on precisely the machines
+that hide the list, and a warning that fires regardless of the truth is the warning you
+learn to read past (decision 12). Where the list stays unreadable, the real check is
+one the report already prints: the per-destination sustained rates (decision 14), where
+a Defender tax shows as every destination running far below its known ability.
 
 Because the cards are formatted at the start of every session, enumeration is exact and
 cheap — the card *is* the session — so pre-flight can print a real estimate:
@@ -594,11 +621,10 @@ can strand corroboration, because the SDXC bytes the old run still needed no lon
 exist anywhere. That is detected by evidence, never by timeout: the moment a new card
 generation appears, the stale run is closed out and its unexamined files are marked
 **`forfeited`** in the manifest (decision 12) — permanently uncorroborated, reported
-once at close-out, informational in `verify` forever after, and never gating anything
-again. The mark is its own rather than a reuse of `absent`, because `absent` states
-that an examination happened; close-out is the opposite fact — the examination can
-never happen. Gating eject on bytes that provably no longer exist would wedge the tool
-for good.
+once at close-out with the closing run exiting 2 (decision 18), informational in
+`verify` forever after, and never gating anything again. The mark is its own rather
+than a reuse of `absent` — by loss, not by examination (decision 12). Gating eject on
+bytes that provably no longer exist would wedge the tool for good.
 
 ### 14. The report separates "your raws are safe" from "everything went well"
 
@@ -658,6 +684,7 @@ with anything above it. Its forms:
 |---|---|
 | Phase 1 verified everywhere, all ejects clean | `EJECTED — SAFE TO STORE` |
 | Phase 1 verified everywhere, an eject refused | `SAFE TO STORE — EJECT SSD-B BY HAND (volume in use)` |
+| Run under `--no-eject`, everything else complete | `SAFE TO STORE — STILL MOUNTED (--no-eject)` |
 | Phase 1 verified everywhere, corroboration incomplete | `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` |
 | Anything unverified anywhere | `NOT SAFE — 12 files unverified on SSD-C` |
 | Phase 1 clean, mismatches far above baseline | append `— BUT CHECK YOUR SDXC CARD (47 mismatches)` |
@@ -773,11 +800,11 @@ copy requires naming it: `--force-xmp=laptop`.
 
 Two independent reasons, and they point the same way.
 
-**The hashing is real compute.** Phase 1 hashes 5N — one source read plus four verify
-reads — which is 940 GB on a 188 GB day. At roughly 2 GB/s per core with SHA-NI that is
-~7.8 minutes single-threaded against a phase that should take 8-16, so it would be about
-half the run on its own. It has to spread across cores, which rules out anything with a
-global interpreter lock and rewards a language with real threads and no runtime overhead.
+**The hashing is real compute.** Decision 15 sizes it: 5N through SHA-256, which on a
+188 GB day is 940 GB — ~7.8 minutes single-threaded at the same ~2 GB/s per core, about
+half of an 8–16 minute phase on its own. It has to spread across cores, which rules out
+anything with a global interpreter lock and rewards a language with real threads and no
+runtime overhead.
 
 **Three of the hard sub-problems are already solved and validated.** Not "code exists" —
 validated:
@@ -829,7 +856,7 @@ Exit codes, kept deliberately coarse:
 |---|---|
 | 0 | Phase 1 verified everywhere, no source mismatches |
 | 1 | Fatal — the run did not complete; reason printed |
-| 2 | Completed, but something wants your attention; the report names it — a mismatch, a deletion, a stray or unfiled file, a refused eject, a run missing a source (decision 7), a destination (decision 25), or its tracks (decision 26) |
+| 2 | Completed, but something wants your attention; the report names it — a mismatch, a deletion, a stray or unfiled file, a refused eject, a run missing a source (decision 7), a destination (decision 25), or its tracks (decision 26), or one that closed out a predecessor's corroboration as forfeited (decision 13) |
 
 **Testing is three things**, and stops there:
 
@@ -884,6 +911,20 @@ sat in a drawer while a `--without` run went on without it (decision 25). It cop
 the laptop's working copy, since the cards are long since reformatted, and verifies what
 it writes exactly as phase 1 does. **It never deletes**, so it cannot be used to make a
 destination match by removing files from it.
+
+**Sync leaves behind the same manifests a run would have.** Every date folder it touches
+gets its manifest written or updated by the same atomic mechanism (decision 12): sync
+records itself in the `runs` array, stamps its own `verified_utc` as each read-back
+completes, and carries the photo-facts — hash, capture time, source card, corroboration
+verdict — unchanged from the laptop's manifest, tombstones included, so a deliberately
+deleted file stays explained even on a disk that never held it. This is not optional
+bookkeeping: `verify` reads nothing but the disk, so a disk sync built must be as
+self-describing as one the nightly run built — and carrying the photo-facts unchanged is
+what keeps the three archives' manifests cross-checking after one of them is rebuilt.
+The laptop's manifest also supplies the canonical hash sync verifies against, which cuts
+both ways: a laptop file whose in-flight hash no longer matches its own manifest is
+working-copy rot, and sync refuses to propagate it — the file is named, skipped, and
+left for recovery from an archive rather than written over a good copy's future.
 
 **Sync copies raws and regenerates XMP sidecars** from the manifest's capture times and
 the GPX tracks, exactly as phase 3 does — it never copies a sidecar, and it writes one
@@ -968,12 +1009,10 @@ destinations, phase 2 run to completion against the SDXC card with every mismatc
 resolved, every absence reported, and every file found only on the SDXC ingested and
 verified like any other (decision 4), phase 3 run to completion — a file outside the
 track is a settled outcome, not a hold, and a `--no-gpx` run has no tagging work to
-hold for (decision 26). "Complete" is the bar, not "all
-matched": a mismatch resolved by deletion-and-tombstone and a file that only ever
-existed on one card are settled states, as are `waived`, a single-source run's
-declaration that no second card exists to examine (decision 7), and `forfeited`, the
-mark of a run already closed out (decision 13). Only files the current cards could
-still answer for hold the gate. If corroboration could not finish — the SDXC card was
+hold for (decision 26). "Complete" is the bar, not "all matched": a mismatch resolved
+by deletion-and-tombstone is settled, and so is every non-matched verdict — `absent`,
+`waived`, `forfeited` — whose distinctions decision 12 carries. Only files the current
+cards could still answer for hold the gate. If corroboration could not finish — the SDXC card was
 never seen tonight, or phase 2 was interrupted — the SSDs stay mounted and the report
 says exactly what to do: ensure the SDXC card is inserted and re-run, or eject by hand.
 Re-runs converge (decision 13), so the normal recovery is plugging in what was missing
@@ -985,7 +1024,8 @@ is accounted for on that disk** — literal, because phase 2 enumerates the SDXC
 than merely looking up what phase 1 ingested (decision 4). The tray icon can never say
 that.
 
-`--no-eject` disables it for the rare night the SSDs should stay mounted.
+`--no-eject` disables it for the rare night the SSDs should stay mounted; the verdict
+names the withheld eject rather than letting silence look like a refusal (decision 14).
 
 ### 23. Timezone: derived per photo, intended UTC, deviation flagged
 
