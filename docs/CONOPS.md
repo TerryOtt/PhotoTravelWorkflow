@@ -132,7 +132,7 @@ photoday --allow-single-source
 ```
 
 The surviving card becomes the sole source of truth, and which card survived makes no
-difference — CFexpress or SDXC, the situation is equally bad. **Phase 3 never runs**,
+difference — CFexpress or SDXC, the situation is equally bad. **Phase 4 never runs**,
 because corroboration is a comparison and there is no second source to compare
 against. The day is recorded as never corroborated, the verdict says so in words, and
 the SSDs still eject once every file from the surviving card is verified on all four

@@ -27,7 +27,7 @@ explicitly allowed to take longer as long as it does not delay that milestone.
 
 This is not a "correctness at any cost" design. Where certainty and wall clock conflict,
 the tie is broken in favor of wall clock *provided the guarantee is preserved, only
-deferred* — see [Phase 2 reads one card](#1-phase-2-reads-the-cfexpress-card-only).
+deferred* — see [Phase 3 reads one card](#1-phase-3-reads-the-cfexpress-card-only).
 
 ## Inputs
 
@@ -61,20 +61,29 @@ anywhere, monotonic across a trip, and unambiguous when crossing the date line. 
 accepted consequence is that a shot taken early in the morning east of UTC files under
 the previous day.
 
-## Architecture: four phases
+## Architecture: five phases
 
 | Phase | Mandatory? | Work | Ends with |
 |---|---|---|---|
-| **1 · Pre-flight** (~10 s) | The assertions always run (decision 16); the card match needs two cards — one card must be declared (decisions 27, 7) | Validate destinations, enumerate the cards and match their listings when there are two, parse GPX, inhibit sleep, print ETA | You can walk away |
-| **2 · Ingest & verify** | **Always — this phase is the product** | Read CFexpress once → SHA256 + EXIF → fan out to 4 → unbuffered read-back verify per destination | **LANDED** |
-| **3 · Corroborate** | Two cards only — a single-source run has nothing to compare (decision 7) | Read SDXC fully, compare hashes, delete + tombstone mismatches | Card health report |
-| **4 · Geotag** | Only with tracks (decision 26), and only frames a track brackets within limits (decision 16) | Correlate stashed capture times to GPX, write sidecars to all 4 | Lightroom-ready |
+| **1 · Pre-flight: card content match** | Enumeration always — the *match* needs two cards, and one card must be declared (decisions 27, 7) | Find the cards, speed-test to pick the ingest source, walk each CR3 listing, assert the two agree name for name and size for size | One agreed file set, and **N** |
+| **2 · Pre-flight: destinations and GPX** | Always — `--without` and `--no-gpx` narrow what it asserts, never skip it (decisions 25, 26, 16) | Resolve destinations by serial, assert four distinct, writable, capacity ≥ N; parse GPX; inhibit sleep; sweep orphaned temps; print the ETA | You can walk away |
+| **3 · Ingest & verify** | **Always — this phase is the product** | Read CFexpress once → SHA256 + EXIF → fan out to 4 → unbuffered read-back verify per destination | **LANDED** |
+| **4 · Corroborate** | Two cards only — a single-source run has nothing to compare (decision 7) | Read SDXC fully, compare hashes, delete + tombstone mismatches | Card health report |
+| **5 · Geotag** | Only with tracks (decision 26), and only frames a track brackets within limits (decision 16) | Correlate stashed capture times to GPX, write sidecars to all 4 | Lightroom-ready |
 
-**Phases 3 and 4 do not wait for LANDED.** The moment the CFexpress reader goes idle —
-the end of phase 2's write feed, since backpressure keeps the reader busy until roughly
+**Phases 1 and 2 are both pre-flight**, and together they are the ten seconds that decide
+whether you can leave. They are split because they answer different questions and fail
+differently: phase 1 establishes *what tonight is* — the file set, and the proof that the
+two cards agree about it — while phase 2 checks whether the rig can take it. The order is
+forced rather than chosen: **N** is phase 1's output and phase 2's input, since a capacity
+assertion needs a number to compare against. It also puts the fatal that means *equipment
+failure* ahead of the ones that merely mean *go fetch something*.
+
+**Phases 4 and 5 do not wait for LANDED.** The moment the CFexpress reader goes idle —
+the end of phase 3's write feed, since backpressure keeps the reader busy until roughly
 the last write drains — both have what they need: the SDXC read begins, and with every
 capture time already stashed and the GPX parsed since pre-flight, sidecar writing does
-too. Both overlap phase 2's verify pass, and they do not contend with each other either —
+too. Both overlap phase 3's verify pass, and they do not contend with each other either —
 one reads the SD card, the other writes a few thousand 3 KB files. All of it serves the
 secondary metric; decision 2 explains why the two-pass verify is what makes the early
 start possible.
@@ -83,7 +92,7 @@ start possible.
 
 Let **N** = one copy of the day's raws. A big day is N ≈ 188 GB; a normal one N ≈ 50 GB.
 
-Phase 2 moves **9N**: 1N read from CFexpress, 4N written, 4N read back to verify. Only
+Phase 3 moves **9N**: 1N read from CFexpress, 4N written, 4N read back to verify. Only
 **7N crosses the Thunderbolt hub**, because the laptop's copy is internal.
 
 | Link | Realistic sustained | Time at N = 188 GB |
@@ -98,7 +107,7 @@ These run concurrently, so the floor is the maximum, not the sum: **~2–4 min f
 once its SLC cache is exhausted — which a continuous 188 GB write will certainly
 exhaust.
 
-### Phase 2 in detail
+### Phase 3 in detail
 
 The mechanism, stated explicitly since it is what everything else is measured against:
 
@@ -125,7 +134,7 @@ why for each side.
 
 ## Decisions
 
-### 1. Phase 2 reads the CFexpress card only
+### 1. Phase 3 reads the CFexpress card only
 
 Optimistic and greedy. In the normal run the SDXC card contributes no bytes to the
 output — it is a corroborating hash — and reading it costs ~11.6 minutes at UHS-II
@@ -133,7 +142,7 @@ speeds on a big day. Keeping it off the critical path is the single largest avai
 win against the metric.
 
 The guarantee is **preserved but deferred**: any disagreement is still detected in
-phase 3, just after the milestone rather than before it.
+phase 4, just after the milestone rather than before it.
 
 ### 2. Verification must defeat both caches, and runs as a second pass
 
@@ -150,7 +159,7 @@ verifier trailed the write front by a ~4 GB byte window. Three things decided it
   — and clean sequential passes sidestep whatever a controller loses to a mixed
   read/write stream.
 - **The secondary metric can.** Under two-pass the CFexpress reader goes idle at the end
-  of the write feed, which is what lets phase 3's SDXC read start during phase 2's
+  of the write feed, which is what lets phase 4's SDXC read start during phase 3's
   verify pass. The interleaved scheme holds the reader busy to the end of everything —
   writes finish later because they contend with verify reads throughout — so the early
   start does not exist there.
@@ -164,7 +173,7 @@ any size. What it cannot defeat on a small day is the **SSD's own onboard cache*
 may still hold just-written data. That residual is accepted and recorded here rather
 than engineered away.
 
-The phase 3 overlap carries one measurable risk to the primary metric: three SSD verify
+The phase 4 overlap carries one measurable risk to the primary metric: three SSD verify
 streams plus the SDXC read can brush the hub's usable bandwidth on the biggest days,
 slipping LANDED by single-digit percent. Accepted rather than throttled — Windows offers
 no clean way to deprioritize one USB stream, and the report's per-destination sustained
@@ -210,7 +219,7 @@ Two safeguards on the deletion:
 ### 4. Corroboration has two outcomes; decision 27 settled the rest
 
 Decision 27 settles *membership* before any byte moves — both cards hold the same
-names at the same sizes — so phase 3 is left with the one question a listing cannot
+names at the same sizes — so phase 4 is left with the one question a listing cannot
 answer, and it has two outcomes per file:
 
 | SDXC hash | Meaning | Action |
@@ -220,16 +229,16 @@ answer, and it has two outcomes per file:
 
 This decision originally carried **four outcomes, not two** — *absent* and *present
 but never ingested* joined the table — because a pair could diverge mid-day and
-phase 3 was where the divergence finally surfaced: a slot fills or errors, the camera
+phase 4 was where the divergence finally surfaced: a slot fills or errors, the camera
 carries on writing the other, and a naive "delete anything uncorroborated" rule would
 have deleted every frame shot after the failure. Both branches retired when decision
 27 moved the divergence check to pre-flight: a fresh run cannot start diverged, a
 lone-card remainder resume must match the listing its run recorded (decision 13), and
 a two-card resume is gated again like any fresh run. A file the gate saw that cannot
-be read back in phase 3 is not a corroboration outcome at all — a card that changes
+be read back in phase 4 is not a corroboration outcome at all — a card that changes
 under a run is environmental, and environmental is fatal (decision 18).
 
-**Pairing is by card-relative path** — `DCIM\100EOS5R\_50A0001.CR3` — which phase 2
+**Pairing is by card-relative path** — `DCIM\100EOS5R\_50A0001.CR3` — which phase 3
 records in the run log for every file it ingests. The camera writes the same tree to
 both slots: file numbering is a single camera-level counter and both cards start each
 session freshly formatted, so the paths mirror. The bare basename is deliberately not
@@ -240,7 +249,7 @@ never the key, because matching by content would read a genuine mismatch as two
 unrelated files rather than one disputed one, losing decision 3's quarantine. Run
 identity is separate evidence — the cards' volume serials (decision 13) — so pairing
 never has to double as a swap detector. And if the two trees ever failed to mirror,
-that is a listing difference now: the gate refuses it before phase 2 starts
+that is a listing difference now: the gate refuses it before phase 3 starts
 (decision 27).
 
 The gate also narrowed the residual. Reformatting cards before their run finished now
@@ -291,7 +300,7 @@ photo is ingested twice and yields an identical name:
 
 Deciding on filename alone would get the first case wrong in the silent direction — a
 genuinely different photo skipped because its name matched — so the hash is what decides.
-Phase 2 computes it before writing anyway, so the check is free.
+Phase 3 computes it before writing anyway, so the check is free.
 
 **Historical files keep their existing names.** Renaming already-imported raws on disk
 breaks the Lightroom catalog's links to them; a migration, if ever wanted, has to be
@@ -328,9 +337,9 @@ so a card's volume GUID changes at least daily; and cheap readers report generic
 empty hardware serials, so the reader is not reliably identifiable either.
 
 So pre-flight finds removable volumes containing `DCIM`, reads ~64 MB from each, and uses
-the faster one as the phase 2 source. CFexpress lands near 65 ms against UHS-II's 240 ms
+the faster one as the phase 3 source. CFexpress lands near 65 ms against UHS-II's 240 ms
 — unambiguous. Costs two seconds, needs no configuration, survives buying a new reader,
-and is correct by construction: phase 2 always runs off the fast card regardless of which
+and is correct by construction: phase 3 always runs off the fast card regardless of which
 reader is in which port. A config override exists for the day that surprises us.
 
 **A single card at offload is an equipment failure, not a mode.** The camera has two
@@ -355,12 +364,12 @@ first ten seconds, while the fix is still a reach into the camera bag:
 
 Proceeding requires saying so: **`--allow-single-source`**. Under the flag, whichever
 card is present becomes the sole source of truth — CFexpress or SDXC makes no
-difference, the two cases are equally bad and are treated identically. Phase 2 runs on
-that card and **phase 3 does not run at all** — not deferred, eliminated: corroboration
+difference, the two cases are equally bad and are treated identically. Phase 3 runs on
+that card and **phase 4 does not run at all** — not deferred, eliminated: corroboration
 is a comparison, and no second source exists to compare against. Every file is
 recorded `waived` rather than corroborated (decision 12), and the eject gate treats
 waived as settled (decision 22) — the SSDs still eject once the card's contents are
-verified on all four destinations and phase 4 is complete, because holding them for a
+verified on all four destinations and phase 5 is complete, because holding them for a
 card the operator has declared absent would hold the night hostage to nothing.
 The verdict carries the scar (decision 14), the exit code is 2 (decision 18), and if
 the missing card ever does turn up, a re-run converges: corroboration finishes and
@@ -382,7 +391,7 @@ automatically behind a warning — this design's first answer, replaced the same
 makes routine what must never be routine. The flag is the narrow gate between them:
 the run is always possible, and it can never happen by accident. Presence is also only
 half of what pre-flight asserts about a pair — decision 27 holds the two cards present
-to a single listing before phase 2 moves a byte.
+to a single listing before phase 3 moves a byte.
 
 ### 8. One command, almost no arguments
 
@@ -444,13 +453,18 @@ seconds, so drift surfaces while you are still standing at the desk.
 ### 9. Pre-flight must be able to fail, and only there
 
 The worst outcome for a walk-away tool is returning from dinner to a run that died two
-minutes in. Before anything is written, pre-flight asserts: all four destinations
-present — `--without` is the declared exception (decision 25) — distinct physical
-devices, writable, and with capacity ≥ N plus margin; both cards present —
-`--allow-single-source` (decision 7) and a remainder resume (decision 13) are the
-deliberate exceptions — the faster one readable and enumerated as the phase 2 source,
-and wherever a run does have two, both enumerated and holding one identical listing
-(decision 27); sleep inhibited (`SetThreadExecutionState`); GPX tracks present and
+minutes in. Before anything is written, pre-flight asserts — in the two phases whose
+order the data forces rather than taste:
+
+**Phase 1, the cards.** Both present — `--allow-single-source` (decision 7) and a
+remainder resume (decision 13) are the deliberate exceptions — the faster one readable
+and enumerated as the phase 3 source, and wherever a run does have two, both enumerated
+and holding one identical listing (decision 27). Its output is the file set and **N**.
+
+**Phase 2, the rig.** All four destinations present — `--without` is the declared
+exception (decision 25) — distinct physical devices, writable, and with capacity ≥ N
+plus margin, which is precisely why this cannot come first; orphaned temps swept
+(decision 13); sleep inhibited (`SetThreadExecutionState`); GPX tracks present and
 parsed — `--no-gpx` is the declared exception (decision 26).
 
 **It also checks Windows Defender exclusions.** Real-time scanning of several hundred
@@ -485,14 +499,14 @@ held could once have surfaced and been ingested long after the estimate was prin
 declared single-source run prints `1,247 files · single source (SDXC)` instead: nothing
 agreed, and nothing claims to have.
 
-### 10. Phase 2 collects EXIF for free, so phase 4 re-reads nothing
+### 10. Phase 3 collects EXIF for free, so phase 5 re-reads nothing
 
-Phase 2 already holds each file in RAM to hash it, so extracting capture time costs no
-I/O. Stashing it in the run manifest means phase 4 never re-reads a raw file — it
+Phase 3 already holds each file in RAM to hash it, so extracting capture time costs no
+I/O. Stashing it in the run manifest means phase 5 never re-reads a raw file — it
 correlates timestamps against the GPX index and writes a few thousand 3 KB sidecars.
 
 This eliminates a full re-read of the day that a standalone geotagging pass would cost,
-without putting anything on phase 2's critical path. Sidecar generation failure is never
+without putting anything on phase 3's critical path. Sidecar generation failure is never
 fatal and is always backfillable; the one fatal near geotagging is pre-flight's, before
 anything runs — an empty GPX directory is refused unless declared away (decision 26).
 
@@ -511,7 +525,7 @@ while it should not exist at all on an `archive` one.
 
 Raws and sidecars have opposite natures. A raw file is immutable — hash it once, and any
 later deviation is corruption. A sidecar is *supposed* to change: Lightroom rewrites it
-the moment develop settings are touched, and a re-run of phase 4 against a better track
+the moment develop settings are touched, and a re-run of phase 5 against a better track
 would rewrite it too.
 
 If `verify` hashed both the same way, it would report the archives as damaged the first
@@ -522,7 +536,7 @@ sidecars are treated as regenerable derived data and are not covered.
 
 Two artifacts, split by their durability requirements:
 
-- **The run log is append-only** — one record per file as it lands. A crash mid-phase-2
+- **The run log is append-only** — one record per file as it lands. A crash mid-phase-3
   therefore leaves a valid partial record that resume can read, rather than a truncated
   array. JSON Lines.
 - **The per-date-folder manifest is the durable artifact** — written atomically via
@@ -564,12 +578,12 @@ its own kind of failure. A self-hash lets verify distinguish *your photos are da
 from *this manifest is damaged, your photos are probably fine*. The three archives each
 carry their own manifest of the same day, so they also cross-check against each other.
 
-`corroborated` carries phase 3's verdict per file — `matched`, `waived`, `forfeited`,
+`corroborated` carries phase 4's verdict per file — `matched`, `waived`, `forfeited`,
 or `null` while still pending. `waived` is the single-source run's mark (decision 7):
 no second card existed to consult — and `source_card` records which card fed the run,
 so a single-source night run off the SDXC appears as `"source_card": "sdxc"` with
 `"corroborated": "waived"`. `forfeited` is close-out's mark (decision 13): the card
-generation that could have answered was reformatted before phase 3 examined it. The
+generation that could have answered was reformatted before phase 4 examined it. The
 two non-matched verdicts are deliberately distinct — `waived` is by declaration,
 `forfeited` by loss — because conflating them is how a record stops meaning anything
 years later. (A third, `absent` — by examination — existed while a pair could still
@@ -618,7 +632,7 @@ Settled at design review, replacing a file-set comparison — same set meant the
 offload, a different set meant a new one. The set is the wrong evidence in both
 directions. A format resets the camera's file counter (decision 5), so a reformatted,
 reshot card with the same frame count presents the *identical* path set: resume would
-trust a log describing photos it never ingested, and phase 3 would then read every one
+trust a log describing photos it never ingested, and phase 4 would then read every one
 of them as a confirmed mismatch — quarantining a verified morning while the evening
 never lands at all. And a continued session presents a *superset* — a "different" set —
 that would close out a run whose corroboration bytes still sit in the reader. The serial
@@ -637,7 +651,7 @@ resume is bounded to redundant work, it cannot produce a wrong archive, and the 
 check already prevents resuming across a card swap. Requiring a flag to get the obviously
 correct behavior is friction at precisely the wrong moment.
 
-**Resume covers every phase — extended at design review from phase 2 to the whole run.**
+**Resume covers every phase — extended at design review from phase 3 to the whole run.**
 A run is a convergence pass: it does whatever the log says remains — copies what is
 missing, verifies what is unverified, corroborates what is uncorroborated, tags what is
 untagged — idempotent on finished work, monotonic on the rest. Combined with decision
@@ -647,7 +661,7 @@ eject at that moment, per decision 22's gate; re-inserting just the CFexpress fi
 landing and verifying the raws, and the SSDs stay mounted for the corroboration only the
 SDXC can supply — the verdict says exactly that (decision 14).
 
-A generation that never comes back — reformatted and reshot before phase 3 examined it —
+A generation that never comes back — reformatted and reshot before phase 4 examined it —
 is the one thing that can strand corroboration, because the SDXC bytes the old run still
 needed no longer exist anywhere. That is detected by evidence, never by timeout: the
 moment a new serial appears where the old one was still owed work, the stale run is
@@ -660,17 +674,17 @@ wedge the tool for good.
 
 ### 14. The report separates "your raws are safe" from "everything went well"
 
-Phase 2 is the product and the rest is gravy, so **only phase 2 may change the verdict.**
+Phase 3 is the product and the rest is gravy, so **only phase 3 may change the verdict.**
 A geotag miss or a track that didn't cover the evening walk is a count in the body, never
 a downgrade at the top — otherwise you learn to read past the verdict line, which is the
 same failure the raws-only manifest exists to avoid.
 
-**LANDED is announced when it happens**, not only in the final summary, because phases 2
-and 3 run on afterward and someone walking in during them should see the thing they care
+**LANDED is announced when it happens**, not only in the final summary, because phases 4
+and 5 run on afterward and someone walking in during them should see the thing they care
 about already settled.
 
 ```
-═══ 2026-08-03 · LANDED 18:26:16 · phase 2 took 4m 12s ═══
+═══ 2026-08-03 · LANDED 18:26:16 · phase 3 took 4m 12s ═══
 
   1,247 files · 56.1 GB · read from CFexpress
 
@@ -699,10 +713,11 @@ about already settled.
     SSD-C   SanDisk    112.2 GB     445 MB/s   ← set the pace
 
   Phase              wall     I/O
-    1  pre-flight    0:04        —
-    2  ingest        4:12   504.9 GB
-    3  corroborate   3:31    56.1 GB   ⎫ overlapped 2's verify
-    4  geotag        0:12     0.0 GB   ⎭ pass, and each other
+    1  cards         0:02        —
+    2  destinations  0:02        —
+    3  ingest        4:12   504.9 GB
+    4  corroborate   3:31    56.1 GB   ⎫ overlapped 3's verify
+    5  geotag        0:12     0.0 GB   ⎭ pass, and each other
     total            5:41   561.0 GB
 
   ►  EJECTED — SAFE TO STORE
@@ -714,14 +729,14 @@ with anything above it. Its forms:
 
 | Condition | Verdict |
 |---|---|
-| Phase 2 verified everywhere, all ejects clean | `EJECTED — SAFE TO STORE` |
-| Phase 2 verified everywhere, an eject refused | `SAFE TO STORE — EJECT SSD-B BY HAND (volume in use)` |
+| Phase 3 verified everywhere, all ejects clean | `EJECTED — SAFE TO STORE` |
+| Phase 3 verified everywhere, an eject refused | `SAFE TO STORE — EJECT SSD-B BY HAND (volume in use)` |
 | Run under `--no-eject`, everything else complete | `SAFE TO STORE — STILL MOUNTED (--no-eject)` |
-| Phase 2 verified everywhere, corroboration incomplete | `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` |
+| Phase 3 verified everywhere, corroboration incomplete | `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` |
 | Anything unverified anywhere | `NOT SAFE — 12 files unverified on SSD-C` |
-| Phase 2 clean, mismatches far above baseline | append `— BUT CHECK YOUR SDXC CARD (47 mismatches)` |
-| Run under `--allow-single-source`, phase 2 verified everywhere | append `— SINGLE SOURCE, NEVER CORROBORATED` |
-| Run under `--without`, phase 2 verified on the rest | append `— SSD-C EXCLUDED, SYNC IT ON RETURN` |
+| Phase 3 clean, mismatches far above baseline | append `— BUT CHECK YOUR SDXC CARD (47 mismatches)` |
+| Run under `--allow-single-source`, phase 3 verified everywhere | append `— SINGLE SOURCE, NEVER CORROBORATED` |
+| Run under `--without`, phase 3 verified on the rest | append `— SSD-C EXCLUDED, SYNC IT ON RETURN` |
 
 Eject can modulate the safe verdict's wording; it can never turn SAFE into NOT SAFE.
 
@@ -740,7 +755,7 @@ per-phase timings, per-destination throughput, and the resolved hardware identit
 `--jobs N`, defaulting to logical CPU count, following RawGeotag's finding that this
 problem class parallelizes well into double-digit thread counts.
 
-**It governs the CPU-bound work**, where that finding applies directly. Phase 2 hashes 5N
+**It governs the CPU-bound work**, where that finding applies directly. Phase 3 hashes 5N
 — one source read plus four verify reads, 280 GB on a 56 GB day. At roughly 2 GB/s per
 core with SHA-NI that is ~140 s single-threaded against a 252 s phase, close enough to
 bind the run on faster storage. Spread across cores it disappears. EXIF extraction and XMP
@@ -753,7 +768,7 @@ generation ride the same pool.
   each other while each stays sequential within itself
 
 RawGeotag's 12× came from a *latency*-bound workload — SMB round trips and container
-seeks, where threads hide waiting. Phase 2 is bandwidth-bound sequential streaming, and
+seeks, where threads hide waiting. Phase 3 is bandwidth-bound sequential streaming, and
 threads do not create bandwidth: a destination sustaining 445 MB/s still sustains
 445 MB/s under thirty-two writers, minus whatever sequential locality they break.
 
@@ -764,7 +779,7 @@ rename costs two metadata operations per file, so ~2,500 serialized operations f
 1,247-file day, which is a couple of seconds against a 252-second phase. Under 1%.
 
 RawGeotag measured that effect on 3 KB sidecars, where metadata *is* the work. Which means
-it bites in **phase 4**, not phase 2 — thousands of tiny sidecars into one directory per
+it bites in **phase 5**, not phase 3 — thousands of tiny sidecars into one directory per
 destination is precisely the case that will not scale with threads. Same structural answer
 for both phases, for opposite reasons.
 
@@ -810,7 +825,7 @@ unambiguous about *what*. Semantics are otherwise unchanged, including composing
 `--dry-run` as a rehearsal that reports what would be overwritten while writing nothing.
 
 The rule the flag is the exception to deserves stating outright: **an existing sidecar
-is never rewritten without `--force-xmp` — by any code path.** Phase 4 tags what is
+is never rewritten without `--force-xmp` — by any code path.** Phase 5 tags what is
 untagged and skips the rest (decision 13's convergence); `sync` writes a sidecar only
 where none exists (decision 20). One invariant, one door through it.
 
@@ -851,7 +866,7 @@ choosing, validating, or explaining.
 validated:
 
 - CR3 EXIF extraction by seeking the container rather than reading 45 MB (~0.3 s for
-  3,883 files), which is exactly what phase 2 needs
+  3,883 files), which is exactly what phase 3 needs
 - GPX indexing and interpolation, with the gap/distance refusal logic
 - XMP packets diffed against Lightroom Classic 15.4.1's own output, agreeing to
   0.02–0.12 m on CR3
@@ -864,7 +879,7 @@ Genuinely new: the ingest and verification pipeline, and a Windows storage-ident
 (volume GUID and disk serial enumeration, `FILE_FLAG_NO_BUFFERING` with its alignment
 requirements, `SetThreadExecutionState`). Neither exists in any language today.
 
-**The honest cost:** the phase 2 fan-out is the one part Go would make easier — a reader
+**The honest cost:** the phase 3 fan-out is the one part Go would make easier — a reader
 feeding a channel with one writer goroutine per destination is a page of obvious code,
 where Rust needs a bounded pool of buffers whose lifetimes span four concurrent consumers.
 That is real work, and it is the trade being accepted.
@@ -895,13 +910,13 @@ Exit codes, kept deliberately coarse:
 
 | Code | Meaning |
 |---|---|
-| 0 | Phase 2 verified everywhere, no source mismatches |
+| 0 | Phase 3 verified everywhere, no source mismatches |
 | 1 | Fatal — the run did not complete; reason printed |
 | 2 | Completed, but something wants your attention; the report names it — a mismatch, a deletion, a stray or unfiled file, a refused eject, an eject held for unfinished corroboration (decision 22), a run missing a source (decision 7), a destination (decision 25), or its tracks (decision 26), or one that closed out a predecessor's corroboration as forfeited (decision 13) |
 
 **Testing is three things**, and stops there:
 
-1. **The phase 3 deletion path.** The only code path in the tool that destroys data, so a
+1. **The phase 4 deletion path.** The only code path in the tool that destroys data, so a
    bug there deletes photographs. Everything else fails safe — worst case is a re-run.
    Cheap to exercise: flip one byte in a fixture and confirm the file is tombstoned and
    quarantined rather than silently dropped or wrongly kept.
@@ -921,13 +936,13 @@ that the result needs no interpretation. A full re-verify of a multi-terabyte ar
 on the order of an hour, an acceptable price for a check performed occasionally and trusted
 completely.
 
-Transitivity is what makes the guarantee whole. Phase 2 proves every destination equals
-the source card's hash; phase 3 proves the other card's copy equals that same hash. Both
+Transitivity is what makes the guarantee whole. Phase 3 proves every destination equals
+the source card's hash; phase 4 proves the other card's copy equals that same hash. Both
 holding means every destination is proven identical to **both** cards — and decision 27
 asserted at launch that the two cards hold the same files, so in a gated run that is
 every file. A file proven against one card alone is exactly what its manifest verdict
 records: `waived` (decision 7) or `forfeited` (decision 13). Note the timing: the full
-two-source property completes at the end of phase 3, not at LANDED, where all four are
+two-source property completes at the end of phase 4, not at LANDED, where all four are
 proven equal to the source card alone.
 
 ### 20. `verify` and `sync` are standalone; only `verify` is config-free
@@ -944,14 +959,14 @@ a disk that missed an offload happens on the machine that ran the offload.
 then walks every date folder, `_unfiled` included (decision 21): manifest checksum first,
 so a rotted manifest is reported as a rotted manifest rather than as damaged
 photographs; then every raw re-hashed unbuffered
-against it. Tombstones are honoured, so a file deliberately deleted in phase 3 reports clean
+against it. Tombstones are honoured, so a file deliberately deleted in phase 4 reports clean
 rather than missing. XMP drift is ignored on a `working` destination and should not exist on
 an `archive` one.
 
 **`photoday sync <DEST>`** backfills a destination that missed an offload — the SSD that
 sat in a drawer while a `--without` run went on without it (decision 25). It copies from
 the laptop's working copy, since the cards are long since reformatted, and verifies what
-it writes exactly as phase 2 does. **It never deletes**, so it cannot be used to make a
+it writes exactly as phase 3 does. **It never deletes**, so it cannot be used to make a
 destination match by removing files from it.
 
 **Sync leaves behind the same manifests a run would have.** Every date folder it touches
@@ -976,7 +991,7 @@ while permanently missing a raw, and `verify` could never notice — it reads no
 the disk, and a folder that was never written checks clean.
 
 **Sync copies raws and regenerates XMP sidecars** from the manifest's capture times and
-the GPX tracks, exactly as phase 4 does — it never copies a sidecar, and it writes one
+the GPX tracks, exactly as phase 5 does — it never copies a sidecar, and it writes one
 only where none exists. Sync does not accept `--force-xmp`: decision 16's invariant has
 one door, and it is on the nightly command.
 
@@ -989,7 +1004,7 @@ overwrite those same settings — the one data loss this tool could cause outsid
 deletion path. Together they are correct in both regimes without anyone having to
 remember which one they are in.
 
-Regeneration also completes phase 4 recovery: sidecars missing on any destination, for
+Regeneration also completes phase 5 recovery: sidecars missing on any destination, for
 any reason — a crash, a `--no-gpx` night (decision 26) — are rebuilt by sync with no
 dedicated machinery. Pointed at the laptop copy for that purpose, sync's copy step
 simply finds nothing to do and regeneration is all that runs.
@@ -1001,15 +1016,15 @@ this is the case where fatal does not fail safe. A corrupt EXIF header on one fi
 camera write glitch, one-in-ten-thousand territory — would otherwise kill the run two
 minutes after you left for dinner, costing the night's backup of every other photo. And
 pre-flight cannot warn: enumeration is metadata-only, so EXIF is not read until the file
-streams through phase 2.
+streams through phase 3.
 
 Such a file is still hashed, still written to all four destinations, still verified —
-everything phase 2 does — but under `_unfiled\<run-id>\<original-name>` instead of a date
+everything phase 3 does — but under `_unfiled\<run-id>\<original-name>` instead of a date
 folder. Outside the `YYYY\` tree, so Lightroom never sees it; the per-run subfolder makes
 name collisions impossible without collision logic. `_unfiled` carries a manifest like
 any date folder, so `verify` covers it and `sync` carries it (decision 20). The report
 calls it out loudly and the exit code is 2, but the verdict stays SAFE — every bit on
-the card is verified in four places, which is what SAFE means. Phase 3 corroborates
+the card is verified in four places, which is what SAFE means. Phase 4 corroborates
 these files like any other, and a mismatch there follows decision 3.
 
 The contrast with the mismatch path is deliberate: a two-card hash mismatch means the
@@ -1039,7 +1054,7 @@ bits were still sitting in a cache. By the time this tool ejects, that fear is
 structurally dead: writes were write-through and every byte was read back off the media
 (decision 2), so ejection *confirms* persistence rather than providing it.
 
-When the full run completes — not at LANDED, since phases 3 and 4 still write to the
+When the full run completes — not at LANDED, since phases 4 and 5 still write to the
 archives — each `archive` destination is ejected: flush the volume, lock it
 (`FSCTL_LOCK_VOLUME`, retried with backoff for ~30 s, since Defender or the indexer may
 be holding freshly written files), dismount, then `CM_Request_Device_Eject` so Windows
@@ -1053,15 +1068,15 @@ decision 14 for how the verdict phrases it.
 
 **Eject is also the certainty gate — deliberate, settled at design review.** It fires
 only when nothing remains for the current cards: every file verified on all four
-destinations, phase 3 run to completion against the SDXC card with every mismatch
-resolved (decisions 4 and 3), phase 4 run to completion — a file outside the track is
+destinations, phase 4 run to completion against the SDXC card with every mismatch
+resolved (decisions 4 and 3), phase 5 run to completion — a file outside the track is
 a settled outcome, not a hold, and a `--no-gpx` run has no tagging work to hold for
 (decision 26). "Complete" is the bar, not "all matched": a mismatch resolved
 by deletion-and-tombstone is settled, and so is every non-matched verdict — `waived`,
 `forfeited` — whose distinctions decision 12 carries. Only files the current
 cards could still answer for hold the gate. If corroboration could not finish — a lone
 CFexpress landed the raws without the SDXC ever being seen (decision 7's remainder
-resume), or phase 3 was interrupted — the SSDs stay mounted and the report says exactly
+resume), or phase 4 was interrupted — the SSDs stay mounted and the report says exactly
 what to do: ensure the SDXC card is inserted and re-run, or eject by hand. Re-runs
 converge (decision 13), so the normal recovery is plugging in what was missing and
 running again; the tool corroborates the remainder and ejects the moment certainty
@@ -1069,7 +1084,7 @@ arrives.
 
 **An SSD this tool has ejected is therefore a physical claim: every file from both cards
 is accounted for on that disk** — literal in a two-card run, because pre-flight proved
-the pair holds one set of files (decision 27) and phase 3 then verified every one of
+the pair holds one set of files (decision 27) and phase 4 then verified every one of
 them (decision 4). A declared single-source night ejects on the narrower claim its one
 card can support, and the verdict says so in words rather than letting the same eject
 imply more than it proved (decisions 7 and 14). The tray icon can never say either.
@@ -1102,7 +1117,7 @@ camera on UTC.
 camera set to UTC whose clock reads two hours off derives a wrong UTC from honest
 arithmetic — wrong date folders, shifted geotags, no error anywhere, because the
 metadata itself is lying. Two defenses, both partial: the operator habit in
-`CONOPS.md`'s shooting-day contract, and one heuristic in the report — when phase 4's
+`CONOPS.md`'s shooting-day contract, and one heuristic in the report — when phase 5's
 misses are *systematic*, photos falling outside the track by a near-constant offset,
 the report says so in words rather than printing a bare count:
 
@@ -1199,8 +1214,8 @@ only when Lightroom's map comes up empty weeks later — the posture decision 7 
 rejects.
 
 **`--no-gpx`** declares the genuine case: the logger is dead or its data is unreachable
-tonight. Phase 4 does not run — raws land in their `YYYY\YYYY-MM-DD` folders exactly as
-always, and no sidecar is written anywhere. Phases 2 and 3 are untouched, so LANDED
+tonight. Phase 5 does not run — raws land in their `YYYY\YYYY-MM-DD` folders exactly as
+always, and no sidecar is written anywhere. Phases 3 and 4 are untouched, so LANDED
 means what it always means, and the eject gate holds for nothing: there is no tagging
 work outstanding (decision 22). The verdict is deliberately unmarked, unlike decisions
 7 and 25 — those flags scar it because they narrow what it certifies, while sidecars
@@ -1220,12 +1235,14 @@ flag is involved.
 ### 27. Both cards must present the same listing before any byte moves
 
 Carried over from photoendofdaygo, this pipeline's predecessor, where it proved itself
-in the field. Whenever a run has two cards, pre-flight enumerates the CR3 listing of
-**both**, sorts each by card-relative path — the key phase 3 pairs on (decision 4) —
-and compares them entry by entry: same names, same sizes. A directory read, not a data
-read; seconds, inside pre-flight's ten. The listings matching exactly is phase 2's
-precondition — a pair that has diverged is an equipment failure announced while the
-fix is a reach into the camera bag:
+in the field. **This is phase 1**, and it comes before pre-flight's rig checks because
+what it produces — one agreed file set, and N — is the thing those checks are measured
+against. Whenever a run has two cards it enumerates the CR3 listing of **both**, sorts
+each by card-relative path — the key phase 4 pairs on (decision 4) — and compares them
+entry by entry: same names, same sizes. A directory read, not a data read; seconds,
+inside pre-flight's ten. The listings matching exactly is phase 3's precondition — a
+pair that has diverged is an equipment failure announced while the fix is a reach into
+the camera bag:
 
 ```
 CARDS DISAGREE — the two cards do not hold the same files.
@@ -1243,11 +1260,11 @@ truth, never corroborated.
 Names catch a *presence* divergence — the slot that filled or died mid-day, the wrong
 card in a reader. Sizes catch a *content* divergence without reading a byte: the same
 name at two lengths cannot be the same photo. Hashing stays out, because it would mean
-reading both cards end to end before phase 2 starts — the posture decision 1 already
-rejected — and content divergence at equal size is exactly what phase 3's hash pass
+reading both cards end to end before phase 3 starts — the posture decision 1 already
+rejected — and content divergence at equal size is exactly what phase 4's hash pass
 exists to find (decision 4).
 
-What the gate buys is subtraction. "What if the SDXC holds half the day once phase 3
+What the gate buys is subtraction. "What if the SDXC holds half the day once phase 4
 finally reads it" — and every case shaped like it — stopped being a state the pipeline
 can reach and became one fatal at the desk. Corroboration dropped from four outcomes
 to two (decision 4), `absent` retired from the manifest vocabulary (decision 12), the
@@ -1279,13 +1296,13 @@ new evidence rather than fresh taste.
 | A `date_folders` config setting | A knob whose only legal value is its default — UTC foldering is the conviction above, not a preference |
 | Ingesting non-CR3 files into `_unfiled` as a catch-all | Machinery for formats the operator never shoots. `_unfiled` exists for a defective CR3, not as a junk drawer; the report names strays instead. Decision 24 |
 | Verifying immediately after each write | Reads out of the OS page cache, then out of the SSD's own DRAM cache — proves nothing about what is on the disk. Replaced by the sequential verify pass, decision 2 |
-| A verifier trailing the write front by a ~4 GB lag window | The original design here, replaced at design review. Equal on the primary metric at best (`N/w + N/r` under any schedule), pays mixed read/write penalties, and keeps the CFexpress reader busy to the end — forfeiting phase 3's early start. Decision 2 |
+| A verifier trailing the write front by a ~4 GB lag window | The original design here, replaced at design review. Equal on the primary metric at best (`N/w + N/r` under any schedule), pays mixed read/write penalties, and keeps the CFexpress reader busy to the end — forfeiting phase 4's early start. Decision 2 |
 | `FILE_FLAG_NO_BUFFERING` on the write side | Also original here, replaced at design review: it demands sector-multiple writes, which a raw file's partial final sector cannot meet without a pad-and-truncate dance — for no guarantee beyond what `FILE_FLAG_WRITE_THROUGH` already provides. Decision 2 |
 | Reading both cards before writing anything | Puts the ~11.6-minute SDXC read on the critical path for a guarantee that can be delivered after it without being weakened. Decision 1 |
 | A single-card run that either always refuses or always proceeds | Refusing outright leaves a one-card night with zero backups; proceeding behind a warning — this design's first answer — makes routine what must never be routine. `--allow-single-source` is the narrow gate between them. Decision 7 |
-| Scoping resume by comparing the card's file set against the incomplete run's | The original design here, replaced at design review. A format resets the file counter, so an equal-count reshoot presents the identical path set — resume would trust a log describing photos it never ingested, then phase 3 would quarantine the verified morning while the evening never lands; and a continued session presents a superset, closing out corroboration its own SDXC could still deliver. The volume serial the format already assigns is the exact evidence. Decision 13 |
+| Scoping resume by comparing the card's file set against the incomplete run's | The original design here, replaced at design review. A format resets the file counter, so an equal-count reshoot presents the identical path set — resume would trust a log describing photos it never ingested, then phase 4 would quarantine the verified morning while the evening never lands; and a continued session presents a superset, closing out corroboration its own SDXC could still deliver. The volume serial the format already assigns is the exact evidence. Decision 13 |
 | Running a diverged pair through a four-outcome corroboration | The posture here before decision 27 — *absent* and *SDXC-only* branches so a mid-day slot failure could not delete the surviving afternoon. It survived the divergence after dinner; the gate refuses it at the desk instead, and both branches retired with the states that needed them. Decision 27 |
-| Hashing both cards in the equivalency gate | Reading every byte of both cards before phase 2 is the posture decision 1 rejected, returned in a new coat. Sizes already convict unequal content without a read; equal-size divergence is what phase 3's hash pass exists to find. Decision 27 |
+| Hashing both cards in the equivalency gate | Reading every byte of both cards before phase 3 is the posture decision 1 rejected, returned in a new coat. Sizes already convict unequal content without a read; equal-size divergence is what phase 4's hash pass exists to find. Decision 27 |
 | Editing the config when a destination is missing | The config describes the rig, not tonight's subset — the entry would need editing back, and an 11pm config edit is the failure decision 8 exists to prevent. `--without` declares the absence per run. Decision 25 |
 | Warning and proceeding when the GPX directory is empty | Empty almost always means tracks never copied off the logger, or a stale `gpx_dir` — both fixed in a minute at the desk. A warning makes an untagged night routine, noticed when Lightroom's map comes up empty weeks later. `--no-gpx` declares the genuine case. Decision 26 |
 | Skipping a file whose two source copies disagree | Leaves the one file known to have a problem in *zero* backups — the exact inversion of the goal. Decision 3 |
@@ -1297,7 +1314,7 @@ new evidence rather than fresh taste.
 | Scaling `--jobs` to the I/O fan-out | Threads do not create bandwidth. Decision 15 |
 | Graceful handling of a destination unplugged mid-run | Crash safety is already structural, so the cost exceeds the benefit. Decision 18 |
 | Fatal-out on a file whose EXIF cannot be read | The original decision 18 reading, replaced at design review: fatal does not fail safe there — one corrupt file would cost the whole night's backup while nobody is watching. Decision 21 |
-| Go for the pipeline, shelling out to `rawgeotag.exe` for phase 4 | Defensible, and rejected on the validated CR3, GPX and XMP assets. Decision 17 |
+| Go for the pipeline, shelling out to `rawgeotag.exe` for phase 5 | Defensible, and rejected on the validated CR3, GPX and XMP assets. Decision 17 |
 | Carrying RawGeotag's `TESTING.md` whole | A stricter regime than decision 18 calls for; its one load-bearing principle is folded into `REVIEWING.md` |
 
 ## Non-goals
@@ -1316,5 +1333,5 @@ None outstanding — the design is complete enough to build from.
 What remains is implementation:
 
 - the cargo workspace, with RawGeotag's GPX and XMP engine lifted into a library crate
-- the phase 2 pipeline and the Windows storage-identity layer
+- the phase 3 pipeline and the Windows storage-identity layer
 - deleting the temporary `Cargo.toml` guard from `.github/workflows/ci.yml`
