@@ -52,7 +52,8 @@ the deal:
   before the evening run (or are pointed at with `--gpx`).
 - **The camera runs on UTC, and its clock is right** — checked at trip start and after
   every zone crossing. The two halves fail differently. A camera left on some other
-  *timezone* is harmless: the recorded offset lets every date self-correct, and the
+  *timezone* is harmless — the classic being London time with DST on, producing BST
+  frames: the recorded offset lets every date self-correct into true UTC, and the
   report flags the deviation. A *clock* that is wrong as an instant cannot be detected
   from metadata at all — it shifts every date folder and every geotag uniformly while
   looking perfectly normal. The report's systematic-miss heuristic may catch it after

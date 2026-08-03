@@ -863,13 +863,16 @@ Settled at design review, from three operator facts: the only body is an R5, the
 records `OffsetTimeOriginal` on every frame, and the standing intent is to run every
 camera on UTC.
 
-- **UTC capture time is always derived per photo** — EXIF wall time minus the recorded
-  offset. A camera accidentally left on a home timezone therefore still folders
-  correctly: the offset is recorded, the arithmetic self-corrects, nothing is misfiled.
-- **Deviation from the UTC intent is flagged, never "fixed."** The report counts files
-  by recorded offset; anything not `+00:00` gets its own line — the dates are right,
-  but the camera is not configured as intended and tonight is the night to fix the
-  menu.
+- **The camera setting may be any timezone; storage is always true UTC.** Capture time
+  is derived per photo — EXIF wall time minus the recorded offset — and the
+  `YYYY\YYYY-MM-DD` foldering uses nothing else. The recurring real case: the camera
+  accidentally set to London time with DST on, so a summer shoot arrives stamped
+  `+01:00` BST. The offset is recorded, the arithmetic self-corrects, and every file
+  still lands in its true UTC date folder. No timezone *setting* can misfile a photo.
+- **Deviation from the UTC intent is flagged, as information.** Storage needed no help —
+  the flag is about the camera, not the data: the report counts files by recorded
+  offset, and anything not `+00:00` gets its own line, because the menu is not set as
+  intended and tonight is the night to fix it.
 - **A readable EXIF with no offset goes to `_unfiled`** (decision 21). The R5 always
   writes one, so its absence means a malformed file, not a policy question. There is
   deliberately no `--utc-offset` flag — RawGeotag needed one for a body that recorded
