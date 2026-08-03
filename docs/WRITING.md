@@ -27,6 +27,7 @@ So the first question for any document is **who opens this, and what were they a
 | Document | Its reader | What they came for |
 |---|---|---|
 | `README.md` | someone evaluating or running the tool | what it does, then a command that works |
+| `CONOPS.md` | the operator, mid-trip | the ritual, and what to do when it goes sideways |
 | `DESIGN.md` | someone changing the design | the settled design and why |
 | `REVIEWING.md` | someone about to put a change on `main` | the bar it has to clear |
 | `UPDATING.md` | someone about to bump a dependency | whether to update at all, then how |

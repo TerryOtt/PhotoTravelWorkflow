@@ -1,0 +1,108 @@
+# Concept of operations
+
+*How this tool is **intended** to be used. [`DESIGN.md`](DESIGN.md) records how it works
+and why; this file records the operating rhythm it was built to serve. If the two ever
+disagree, that is a defect in one of them — fix it, per
+[`WRITING.md`](WRITING.md)'s one-canonical-place rule.*
+
+The operator is one photographer, on travel, running this at the end of a shooting day —
+tired, in a hotel room or cruise cabin, with dinner waiting. Every design decision that
+matters traces back to that person.
+
+## The nightly ritual
+
+1. Load both camera cards into the readers on the Thunderbolt hub. Confirm the three
+   archive SSDs are plugged into it.
+2. Run **`photoday`**.
+3. Read the pre-flight summary — file count, gigabytes, four destinations confirmed
+   distinct, estimated time. That one line is what earns walking away.
+4. Go to dinner.
+5. Back at the desk, read the **last line of the report first**. It is the verdict, and
+   it is the only place its phrases ever appear:
+
+| The last line says | You do |
+|---|---|
+| `EJECTED — SAFE TO STORE` | Pull the SSDs — they are already ejected — put them in the safe, go to bed. |
+| `SAFE, NOT EJECTED — INSERT SDXC AND RE-RUN` | Raws are safe on all four copies; certainty work remains. Do what it says. |
+| `SAFE TO STORE — EJECT <X> BY HAND` | Everything is done; one volume would not release. Eject it from the tray and store. |
+| `NOT SAFE — …` | Something did not finish. Eject nothing; run `photoday` again and it continues where it stopped. |
+
+The physical state carries the meaning: **an SSD this tool has ejected is a claim that
+every file from both cards is accounted for, verified, on that disk.** A still-mounted
+SSD means work remains, and the report names it.
+
+Everything above the verdict is detail — mismatches, geotag counts, the throughput
+numbers. Read it with the other eye, or in the morning.
+
+## The shooting-day contract
+
+The tool's guarantees rest on habits it cannot enforce. They are the operator's half of
+the deal:
+
+- **Both cards are formatted in-camera at the start of each shooting day.** This is what
+  makes a card equal a day, which is what makes pre-flight's estimate exact and the
+  file-set resume check trustworthy.
+- **The camera writes every frame to both slots** (CFexpress + SDXC), uncompressed.
+- **The GPS logger runs all day**, and its tracks land in the configured GPX directory
+  before the evening run (or are pointed at with `--gpx`).
+- **The camera's clock and timezone are set correctly** — checked at trip start and
+  after every zone crossing. This is the one input failure the tool cannot detect: a
+  wrong clock shifts every UTC date folder and every geotag by the same amount, all of
+  it looking perfectly normal. Thirty seconds with the camera menu is the entire
+  defense.
+
+## Offloading more than once a day
+
+Run the same bare `photoday` at lunch, again in the evening, as often as anxiety
+suggests. Every run is a convergence pass: work already done is recognized and skipped,
+new files are ingested, and nothing is ever duplicated — a photo already in the archive
+is matched by content hash, not filename, so re-offloading a card is always safe.
+
+## When something goes wrong
+
+One rule covers nearly everything: **plug in whatever is missing and run `photoday`
+again.** Runs converge — each one finishes whatever the last one could not, and the
+SSDs eject the moment nothing remains.
+
+| What happened | What to do |
+|---|---|
+| Run crashed mid-copy | `photoday` again. It resumes at the first unfinished file. |
+| Forgot to plug in the SDXC card | Raws still landed from CFexpress. Insert the SDXC card, `photoday` again; it corroborates and ejects. |
+| Laptop slept / power died | Same as a crash. The archives cannot be left half-written — a partial file never carries a real name. |
+| An SSD stayed in the safe last night | `photoday sync <that disk>` backfills it from the laptop copy. |
+| Cards already reformatted before corroboration finished | Nothing to recover — the run closes out on its own at the next offload and the report says which files stayed uncorroborated. They were still verified on all four copies. |
+
+Fatal errors are deliberate ([`DESIGN.md`](DESIGN.md) decision 18): the tool stops and
+says why rather than improvising. The recovery is always the same re-run.
+
+## Before a trip, at home
+
+The full checklist lives in [`UPDATING.md`](UPDATING.md); the shape of it:
+
+- Update dependencies and toolchain **before leaving, never on the road** — travel with
+  a verified binary rather than a current one.
+- **`photoday --dry-run` against the real rig** — both readers, all three SSDs. This is
+  the rehearsal that catches a reformatted drive, a changed reader, or a stale config
+  entry while the fix is a walk to a drawer rather than a ruined evening.
+- If Lightroom Classic had a major release since the last trip, run the XMP checks noted
+  there.
+
+## After a trip
+
+Lightroom ingests from the **laptop copy** (`C:\Travel\Images`) — never from an archive
+SSD. The laptop copy is the working copy; Lightroom will rewrite its XMP sidecars as
+editing happens, and that divergence is expected and harmless. The three archive SSDs
+stay in the safe, byte-stable, untouched by the catalog.
+
+## Years later
+
+Any archive SSD can prove itself on any machine, with no config and no memory of this
+setup: **`photoday verify <path>`** re-hashes every raw against the manifests the disk
+carries. Deliberately deleted files are tombstoned, so a clean disk reports *clean* —
+not a mystery gap. Every bit is checked, every time; there is no sampled mode.
+
+## What this tool will never do
+
+The full list is [`DESIGN.md`](DESIGN.md)'s non-goals; the two that shape daily use:
+it **never writes to a camera card** — formatting stays an in-camera act — and it
+**never modifies a raw file**, anywhere, under any flag.
