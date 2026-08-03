@@ -485,6 +485,24 @@ resume is bounded to redundant work, it cannot produce a wrong archive, and the 
 check already prevents resuming across a card swap. Requiring a flag to get the obviously
 correct behavior is friction at precisely the wrong moment.
 
+**Resume covers every phase — extended at design review from phase 1 to the whole run.**
+A run is a convergence pass: it does whatever the log says remains — copies what is
+missing, verifies what is unverified, corroborates what is uncorroborated, tags what is
+untagged — idempotent on finished work, monotonic on the rest. Combined with decision 7's
+willingness to run with whichever card is present, one recovery falls out for free:
+re-inserting just the SDXC card days later matches the incomplete run's file set and
+finishes corroboration alone, no flag or subcommand needed — and the archive SSDs eject
+at that moment, per decision 22's gate.
+
+A card set that comes back *different* — reformatted and reshot — is the one thing that
+can strand corroboration, because the SDXC bytes the old run still needed no longer
+exist anywhere. That is detected by evidence, never by timeout: the moment a new card
+generation appears, the stale run is closed out and its unexamined files are marked
+**uncorroborated-permanent** — the same standing as decision 4's absent outcome —
+reported once at close-out, informational in `verify` forever after, and never gating
+anything again. Gating eject on bytes that provably no longer exist would wedge the tool
+for good.
+
 ### 14. The report separates "your raws are safe" from "everything went well"
 
 Phase 1 is the product and the rest is gravy, so **only phase 1 may change the verdict.**
@@ -542,6 +560,7 @@ with anything above it. Its forms:
 |---|---|
 | Phase 1 verified everywhere, all ejects clean | `EJECTED — SAFE TO STORE` |
 | Phase 1 verified everywhere, an eject refused | `SAFE TO STORE — EJECT SSD-B BY HAND (volume in use)` |
+| Phase 1 verified everywhere, corroboration incomplete | `SAFE, NOT EJECTED — INSERT SDXC AND RE-RUN` |
 | Anything unverified anywhere | `NOT SAFE — 12 files unverified on SSD-C` |
 | Phase 1 clean, mismatches far above baseline | append `— BUT CHECK YOUR SDXC CARD (47 mismatches)` |
 
@@ -804,6 +823,21 @@ card, so pulling one is safe at any time after the run.
 A refused eject — something else holds the volume — is named per device and downgrades
 nothing, because the data guarantees were settled before eject was attempted. See
 decision 14 for how the verdict phrases it.
+
+**Eject is also the certainty gate — deliberate, settled at design review.** It fires
+only when nothing remains for the current cards: every file verified on all four
+destinations, phase 2 run to completion against the SDXC card with every mismatch
+resolved and every absence reported, sidecars written. "Complete" is the bar, not "all
+matched" — a mismatch resolved by deletion-and-tombstone and a file that only ever
+existed on one card are settled states; only unexamined files hold the gate. If
+corroboration could not finish — the SDXC card was never seen tonight, or phase 2 was
+interrupted — the SSDs stay mounted and the report says exactly what to do: insert the
+SDXC card and re-run, or eject by hand. Re-runs converge (decision 13), so the normal
+recovery is plugging in what was missing and running again; the tool corroborates the
+remainder and ejects the moment certainty arrives.
+
+**An SSD this tool has ejected is therefore a physical claim: every file from both cards
+is accounted for on that disk.** The tray icon can never say that.
 
 `--no-eject` disables it for the rare night the SSDs should stay mounted.
 
