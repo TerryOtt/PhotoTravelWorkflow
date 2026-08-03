@@ -526,13 +526,17 @@ its own kind of failure. A self-hash lets verify distinguish *your photos are da
 from *this manifest is damaged, your photos are probably fine*. The three archives each
 carry their own manifest of the same day, so they also cross-check against each other.
 
-`corroborated` carries phase 2's verdict per file — `matched`, `absent`, `waived`, or
-`null` while still pending. `absent` means the *other* card was examined and never
-held the file, whichever card sourced it; `source_card` records which one did, so a
-file phase 2 ingested from the SDXC (decision 4's fourth outcome) appears as
-`"source_card": "sdxc"` with `"corroborated": "absent"`. `waived` is the single-source
-run's mark (decision 7): no second card existed to consult — by declaration, not
-examination. A file deleted for a genuine mismatch stays in the list as a **tombstone**
+`corroborated` carries phase 2's verdict per file — `matched`, `absent`, `waived`,
+`forfeited`, or `null` while still pending. `absent` means the *other* card was
+examined and never held the file, whichever card sourced it; `source_card` records
+which one did, so a file phase 2 ingested from the SDXC (decision 4's fourth outcome)
+appears as `"source_card": "sdxc"` with `"corroborated": "absent"`. `waived` is the
+single-source run's mark (decision 7): no second card existed to consult. `forfeited`
+is close-out's mark (decision 13): the card generation that could have answered was
+reformatted before phase 2 examined it. The three non-matched verdicts are deliberately
+distinct — `absent` is by examination, `waived` by declaration, `forfeited` by loss —
+because conflating them is how a record stops meaning anything years later. A file
+deleted for a genuine mismatch stays in the list as a **tombstone**
 (`"status": "deleted"` with both competing hashes, the reason and a timestamp) so a
 `verify` years later reports *clean* rather than flagging a missing file nobody remembers
 deleting.
@@ -585,9 +589,11 @@ A card set that comes back *different* — reformatted and reshot — is the one
 can strand corroboration, because the SDXC bytes the old run still needed no longer
 exist anywhere. That is detected by evidence, never by timeout: the moment a new card
 generation appears, the stale run is closed out and its unexamined files are marked
-**uncorroborated-permanent** — the same standing as decision 4's absent outcome —
-reported once at close-out, informational in `verify` forever after, and never gating
-anything again. Gating eject on bytes that provably no longer exist would wedge the tool
+**`forfeited`** in the manifest (decision 12) — permanently uncorroborated, reported
+once at close-out, informational in `verify` forever after, and never gating anything
+again. The mark is its own rather than a reuse of `absent`, because `absent` states
+that an examination happened; close-out is the opposite fact — the examination can
+never happen. Gating eject on bytes that provably no longer exist would wedge the tool
 for good.
 
 ### 14. The report separates "your raws are safe" from "everything went well"
@@ -946,10 +952,11 @@ only when nothing remains for the current cards: every file verified on all four
 destinations, phase 2 run to completion against the SDXC card with every mismatch
 resolved, every absence reported, and every file found only on the SDXC ingested and
 verified like any other (decision 4), sidecars written. "Complete" is the bar, not "all
-matched" — a mismatch resolved by deletion-and-tombstone and a file that only ever
-existed on one card are settled states — as is `waived`, a single-source run's
-declaration that no second card exists to examine (decision 7); only unexamined files
-hold the gate. If
+matched": a mismatch resolved by deletion-and-tombstone and a file that only ever
+existed on one card are settled states, as are `waived`, a single-source run's
+declaration that no second card exists to examine (decision 7), and `forfeited`, the
+mark of a run already closed out (decision 13). Only files the current cards could
+still answer for hold the gate. If
 corroboration could not finish — the SDXC card was never seen tonight, or phase 2 was
 interrupted — the SSDs stay mounted and the report says exactly what to do: ensure the
 SDXC card is inserted and re-run, or eject by hand. Re-runs converge (decision 13), so the normal
