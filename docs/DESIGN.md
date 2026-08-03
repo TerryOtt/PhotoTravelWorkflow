@@ -323,6 +323,7 @@ photoday                            the nightly command
   --max-gap-meters <M>       refuse to interpolate across a wider hole [default: 100]
   --force-xmp[=<DEST>]       overwrite existing XMP; archives only unless a
                              destination is named
+  --no-eject                 leave the archive SSDs mounted when the run ends
 
 photoday verify <DEST>       standalone re-verify; works years later, without config
 photoday sync <DEST>         backfill a disk that missed an offload
@@ -507,6 +508,7 @@ about already settled.
 
   Corroboration   1,246 matched · 1 mismatch · 0 uncorroborated
   Geotag          1,198 tagged · 49 outside track
+  Eject           SSD-A ✓ · SSD-B ✓ · SSD-C ✓
 
   !  1 file deleted from all four copies — source mismatch
      1611Z_50A2087.CR3 → _runs\2026-08-03T18-22-04\quarantine\
@@ -529,21 +531,25 @@ about already settled.
     3  geotag        0:12     0.1 GB   ⎭ pass, and each other
     total            5:41   561.0 GB
 
-  ►  SAFE TO EJECT AND STORE
+  ►  EJECTED — SAFE TO STORE
 ```
 
 Serials on every destination line so a glance confirms four genuinely distinct disks. The
 verdict is the last line and that phrase appears nowhere else, so it cannot be confused
-with anything above it. It takes three forms:
+with anything above it. Its forms:
 
 | Condition | Verdict |
 |---|---|
-| Phase 1 verified everywhere | `SAFE TO EJECT AND STORE` |
+| Phase 1 verified everywhere, all ejects clean | `EJECTED — SAFE TO STORE` |
+| Phase 1 verified everywhere, an eject refused | `SAFE TO STORE — EJECT SSD-B BY HAND (volume in use)` |
 | Anything unverified anywhere | `NOT SAFE — 12 files unverified on SSD-C` |
-| Phase 1 clean, mismatches far above baseline | `SAFE TO EJECT — BUT CHECK YOUR SDXC CARD (47 mismatches)` |
+| Phase 1 clean, mismatches far above baseline | append `— BUT CHECK YOUR SDXC CARD (47 mismatches)` |
 
-Because all I/O is unbuffered, the rates are real device throughput rather than page-cache
-artifacts — which is what makes the per-destination line a usable diagnostic. The slowest
+Eject can modulate the safe verdict's wording; it can never turn SAFE into NOT SAFE.
+
+Because writes are write-through and verify reads unbuffered, the rates are real device
+throughput rather than page-cache artifacts — which is what makes the per-destination
+line a usable diagnostic. The slowest
 destination sets the pace of the whole run, so naming it is the single most useful number
 for spotting a disk going bad. With a `_runs\` directory accumulating across a trip, a
 later comparison against a destination's own rolling average is the natural extension.
@@ -696,7 +702,7 @@ Exit codes, kept deliberately coarse:
 |---|---|
 | 0 | Phase 1 verified everywhere, no source mismatches |
 | 1 | Fatal — the run did not complete; reason printed |
-| 2 | Completed, but something wants your attention (mismatches, deletions, unfiled files) |
+| 2 | Completed, but something wants your attention (mismatches, deletions, unfiled files, a refused eject) |
 
 **Testing is three things**, and stops there:
 
@@ -778,6 +784,28 @@ The complete per-file defect set, in one place:
 
 **No per-file defect stops the run; only the environment can.** The 99.9% case always
 finishes.
+
+### 22. The run ends by safely ejecting the archive SSDs
+
+Added at design review, from the field: the nightly ritual used to end with three trips
+to the tray icon, ejecting each SSD by hand — usually twice per device, out of fear that
+bits were still sitting in a cache. By the time this tool ejects, that fear is
+structurally dead: writes were write-through and every byte was read back off the media
+(decision 2), so ejection *confirms* persistence rather than providing it.
+
+When the full run completes — not at LANDED, since phases 2 and 3 still write to the
+archives — each `archive` destination is ejected: flush the volume, lock it
+(`FSCTL_LOCK_VOLUME`, retried with backoff for ~30 s, since Defender or the indexer may
+be holding freshly written files), dismount, then `CM_Request_Device_Eject` so Windows
+powers the device down exactly as the tray icon would. The `working` destination is
+internal and never touched. The card readers need nothing: the tool never writes to a
+card, so pulling one is safe at any time after the run.
+
+A refused eject — something else holds the volume — is named per device and downgrades
+nothing, because the data guarantees were settled before eject was attempted. See
+decision 14 for how the verdict phrases it.
+
+`--no-eject` disables it for the rare night the SSDs should stay mounted.
 
 ## Considered and rejected
 
