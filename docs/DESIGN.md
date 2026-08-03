@@ -88,10 +88,10 @@ Phase 1 moves **9N**: 1N read from CFexpress, 4N written, 4N read back to verify
 
 | Link | Realistic sustained | Time at N = 188 GB |
 |---|---|---|
-| CFexpress read (1N) | 1000–1700 MB/s | 2–3 min |
+| CFexpress read (1N) | 1,000–1,700 MB/s | 2–3 min |
 | TB4 hub aggregate (7N) | ~3 GB/s usable | ~7 min |
 | Each SSD, write + verify (2N) | 400–800 MB/s sustained | **8–16 min** ← binds |
-| Laptop NVMe, write + verify (2N) | 2000+ MB/s | ~3 min |
+| Laptop NVMe, write + verify (2N) | 2,000+ MB/s | ~3 min |
 
 These run concurrently, so the floor is the maximum, not the sum: **~2–4 min for a
 50 GB day, ~8–16 min for a 188 GB day**, bound by the slowest SSD's *sustained* write
@@ -236,7 +236,7 @@ source.
 records in the run log for every file it ingests. The camera writes the same tree to
 both slots: file numbering is a single camera-level counter and both cards start each
 session freshly formatted, so the paths mirror. The bare basename is deliberately not
-the key: the counter is four digits with a folder rollover past 9999, and at ~45 MB a
+the key: the counter is four digits with a folder rollover past 9,999, and at ~45 MB a
 frame a 512 GB card holds 11,000+ — more frames than the counter spans, so one session
 can legitimately contain two `_50A0001.CR3` in different DCIM folders. And the hash is
 never the key, because matching by content would read a genuine mismatch as an absence
@@ -550,7 +550,8 @@ has to rewrite a manifest spanning years.
 }
 ```
 
-**The manifest carries its own checksum.** It holds every hash in the archive, so if those
+**The manifest carries its own checksum** — the same SHA-256 as everything else
+(decision 17). It holds every hash in the archive, so if those
 few hundred kilobytes rot in the safe over five years, `verify` would otherwise report
 damage on photos that are perfectly intact — and a false alarm on irreplaceable data is
 its own kind of failure. A self-hash lets verify distinguish *your photos are damaged*
@@ -806,6 +807,15 @@ half of an 8–16 minute phase on its own. It has to spread across cores, which 
 anything with a global interpreter lock and rewards a language with real threads and no
 runtime overhead.
 
+**The crate is `sha2`, and the acceleration is automatic.** The machine is not
+hypothetical — this tool runs on the travel laptop's i7-13700H, whose P-cores and
+E-cores all carry the SHA extensions — and RustCrypto's ubiquitous `sha2` selects its
+SHA-NI backend at runtime through `cpufeatures`: no build flags, no `target-cpu`
+pinning, no per-machine binary to get wrong before a trip. That pairing is what grounds
+decision 15's ~2 GB/s per core. And it is one algorithm everywhere: the manifest's
+self-checksum (decision 12) is the same SHA-256, so a second hash function never needs
+choosing, validating, or explaining.
+
 **Three of the hard sub-problems are already solved and validated.** Not "code exists" —
 validated:
 
@@ -813,7 +823,7 @@ validated:
   3,883 files), which is exactly what phase 1 needs
 - GPX indexing and interpolation, with the gap/distance refusal logic
 - XMP packets diffed against Lightroom Classic 15.4.1's own output, agreeing to
-  0.02-0.12 m on CR3
+  0.02–0.12 m on CR3
 
 Re-implementing that last one elsewhere means re-earning validation across thousands of
 real files on two bodies. The test is not "was time already spent on it" but "does it
