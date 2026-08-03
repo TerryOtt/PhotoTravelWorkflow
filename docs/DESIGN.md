@@ -10,14 +10,20 @@ Get back to the hotel, plug two card readers and three external SSDs into a Thun
 hub, run one command, go to dinner, and come back to four verified copies of the day's
 photos — so an SSD can go in the safe without anxiety.
 
-## The metric
+## The two optimization metrics
 
-**Wall clock from pressing Enter to all four copies of the date-divided raw files being
-written and read-back verified.**
+Standing, project-level, and in strict priority order. Nearly every engineering decision
+below traces back to one of these:
 
-That moment is the product. Everything after it — GPS sidecars, second-card
-corroboration — is gravy, and is explicitly allowed to take longer as long as it does
-not delay that milestone.
+1. **Primary — wall clock from launch to LANDED**: all four copies of the date-divided
+   raw files written and read-back verified. That moment is the product; it is when the
+   data-loss anxiety ends and an SSD can go in the safe.
+2. **Secondary — wall clock from launch to run complete**: corroboration, geotags,
+   report. Worth shrinking, but **never at any cost to the primary** — an improvement to
+   this metric that moves LANDED later is rejected outright.
+
+Everything after LANDED — GPS sidecars, second-card corroboration — is gravy, and is
+explicitly allowed to take longer as long as it does not delay that milestone.
 
 This is not a "correctness at any cost" design. Where certainty and wall clock conflict,
 the tie is broken in favor of wall clock *provided the guarantee is preserved, only
@@ -60,8 +66,13 @@ the previous day.
 | **2 · Corroborate** | Read SDXC, compare hashes, delete + tombstone mismatches | Card health report |
 | **3 · Geotag** | Correlate stashed capture times to GPX, write sidecars to all 4 | Lightroom-ready |
 
-Phases 2 and 3 do not contend for the same hardware — one reads the SD card, the other
-writes a few thousand 3 KB files — so they **run concurrently** to compress the tail.
+**Phase 2 does not wait for LANDED.** The moment the CFexpress reader goes idle — the end
+of phase 1's write feed, since backpressure keeps the reader busy until roughly the last
+write drains — the SDXC read begins, overlapping phase 1's verify pass. Phases 2 and 3 do
+not contend for the same hardware either — one reads the SD card, the other writes a few
+thousand 3 KB files — so they also run concurrently with each other. Both overlaps serve
+the secondary metric; decision 2 explains why the two-pass verify is what makes the early
+start possible.
 
 ### Where the wall clock goes
 
@@ -95,9 +106,12 @@ The mechanism, stated explicitly since it is what everything else is measured ag
    lag and applies backpressure to the reader when it falls too far behind.
 4. Each writer writes to a temporary name, flushes, and **renames**, so a partial file
    never carries the real name.
-5. A **verifier** per destination trails the write front by a fixed byte window (~4 GB),
-   re-reading with `FILE_FLAG_NO_BUFFERING` and comparing against the canonical hash.
-6. A record per `(file, destination)` is appended to the run log as it is verified.
+5. When a destination's write pass completes, its **verify pass** begins: every file
+   re-read sequentially with `FILE_FLAG_NO_BUFFERING` and compared against the canonical
+   hash. One pass per destination, each starting as soon as its own writes finish — the
+   laptop's NVMe is verifying while the slowest SSD is still writing.
+6. A record per `(file, destination)` is appended to the run log as each verify read
+   completes — never before.
 
 **All I/O is unbuffered in both directions.** Writes, because a buffered write leaves data
 in RAM after the program believes it landed, which makes the milestone unmeasurable; reads,
@@ -114,17 +128,40 @@ Keeping it off the critical path is the single largest available win against the
 The guarantee is **preserved but deferred**: any disagreement is still detected in phase
 2, just after the milestone rather than before it.
 
-### 2. Verification must defeat both caches
+### 2. Verification must defeat both caches, and runs as a second pass
 
 Writing a file and immediately reading it back proves nothing — Windows serves it from
-the page cache, and you have compared a buffer to itself. `FILE_FLAG_NO_BUFFERING`
-handles that, but a verify running immediately behind the write front then reads out of
-the **SSD's own DRAM cache** (512 MB–1 GB), which is subtler and harder to notice.
+the page cache, and you have compared a buffer to itself. So every verify read uses
+`FILE_FLAG_NO_BUFFERING`, and verification runs as a **sequential second pass per
+destination**: write everything, then read everything back.
 
-So the verify **lags the write front by a fixed byte window (~4 GB)**. That flushes the
-device cache so the read genuinely hits NAND, while keeping nearly all of the overlap —
-reads on these devices run ~3× sustained write speed, so verification hides behind the
-write almost entirely.
+The two-pass shape was settled at design review, replacing an interleaved scheme where a
+verifier trailed the write front by a ~4 GB byte window. Three things decided it:
+
+- **The primary metric cannot tell the difference.** The slowest SSD must absorb N of
+  writes and N of reads under any schedule, so time-to-LANDED is `N/w + N/r` either way
+  — and clean sequential passes sidestep whatever a controller loses to a mixed
+  read/write stream.
+- **The secondary metric can.** Under two-pass the CFexpress reader goes idle at the end
+  of the write feed, which is what lets phase 2's SDXC read start during phase 1's
+  verify pass. The interleaved scheme holds the reader busy to the end of everything —
+  writes finish later because they contend with verify reads throughout — so the early
+  start does not exist there.
+- **Less machinery.** No lag-window coordination between writer and verifier, and resume
+  simplifies — see decision 13.
+
+On a big day the pass structure alone defeats the page cache: hundreds of gigabytes flow
+through between a file's write and its verify read. On a small day (a few GB) it does
+not, which is why `FILE_FLAG_NO_BUFFERING` stays mandatory — it defeats the OS cache at
+any size. What it cannot defeat on a small day is the **SSD's own onboard cache**, which
+may still hold just-written data. That residual is accepted and recorded here rather
+than engineered away.
+
+The phase 2 overlap carries one measurable risk to the primary metric: three SSD verify
+streams plus the SDXC read can brush the hub's usable bandwidth on the biggest days,
+slipping LANDED by single-digit percent. Accepted rather than throttled — Windows offers
+no clean way to deprioritize one USB stream, and the report's per-destination sustained
+rates will show whether the contention is ever real.
 
 Unbuffered writes matter for a second reason: buffered writes make the metric
 unmeasurable, because the program can exit with gigabytes still sitting in RAM.
@@ -410,10 +447,11 @@ A file counts as done only for a **specific destination** — the run log record
 `(file, destination) → verified`, not `file → done` — so a crash partway through fan-out
 means redoing that file on one disk, not redoing the run.
 
-The **tail of the log is not trusted.** Records inside the verify lag window (~4 GB)
-describe files that may have been in flight when the crash happened, so those are
-re-verified rather than believed. Everything earlier is trusted. This is what lets the log
-be merely flushed-per-record rather than perfectly durable to the last byte.
+The **log is trusted up to its last intact line.** A verified record is appended only
+after that file's verify read completed, so nothing in the log ever describes work still
+in flight — the only artifact a crash can leave is a torn final line, which is discarded.
+(The interleaved verify this design originally had needed a rule distrusting a ~4 GB tail
+of the log on resume; the two-pass verify of decision 2 removed it.)
 
 Interrupted writes leave no ambiguity, because writes are temp-then-rename: a partial file
 never carries the real name. Pre-flight sweeps orphaned temps.
@@ -465,7 +503,7 @@ about already settled.
   I/O          bytes        rate
     read      336.6 GB    1,113 MB/s
     written   224.4 GB      890 MB/s
-    total     561.0 GB     1.21 GB/s        10.0× amplification
+    total     561.0 GB     1.65 GB/s        10.0× amplification
 
   Per destination        moved     sustained
     laptop  C:\        112.2 GB   1,842 MB/s
@@ -476,9 +514,9 @@ about already settled.
   Phase              wall     I/O
     pre-flight       0:04        —
     1  ingest        4:12   504.9 GB
-    2  corroborate   3:31    56.1 GB   ⎫ concurrent
-    3  geotag        0:12     0.1 GB   ⎭
-    total            7:43   561.0 GB
+    2  corroborate   3:31    56.1 GB   ⎫ overlapped 1's verify
+    3  geotag        0:12     0.1 GB   ⎭ pass, and each other
+    total            5:41   561.0 GB
 
   ►  SAFE TO EJECT AND STORE
 ```
@@ -701,7 +739,8 @@ new evidence rather than fresh taste.
 | Proposal | Why not |
 |---|---|
 | Local-time date folders | UTC is a deliberate conviction, not an oversight. The early-morning-east-of-UTC consequence is understood and accepted |
-| Verifying immediately after each write | Reads out of the OS page cache, then out of the SSD's own DRAM cache — proves nothing about what is on the disk. Replaced by the lagged verify, decision 2 |
+| Verifying immediately after each write | Reads out of the OS page cache, then out of the SSD's own DRAM cache — proves nothing about what is on the disk. Replaced by the sequential verify pass, decision 2 |
+| A verifier trailing the write front by a ~4 GB lag window | The original design here, replaced at design review. Equal on the primary metric at best (`N/w + N/r` under any schedule), pays mixed read/write penalties, and keeps the CFexpress reader busy to the end — forfeiting phase 2's early start. Decision 2 |
 | Reading both cards before writing anything | Puts the ~11.6-minute SDXC read on the critical path for a guarantee that can be delivered after it without being weakened. Decision 1 |
 | Skipping a file whose two source copies disagree | Leaves the one file known to have a problem in *zero* backups — the exact inversion of the goal. Decision 3 |
 | A `_NNN` suffix assigned per offload batch, coordinated across destinations | Superseded by decision 5. Timestamp-prefixed names are a pure function of the photo, so no coordination is needed and collisions are pathological |
