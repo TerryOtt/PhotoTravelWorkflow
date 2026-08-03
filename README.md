@@ -19,6 +19,15 @@ Built for one specific rig — a Canon EOS R5 writing uncompressed CR3 to two ca
 simultaneously, on Windows — and the design says so wherever that assumption is load
 bearing.
 
+## Documentation
+
+| Document | Its reader |
+|---|---|
+| [`docs/DESIGN.md`](docs/DESIGN.md) | someone changing the design |
+| [`docs/REVIEWING.md`](docs/REVIEWING.md) | someone about to put a change on `main` |
+| [`docs/UPDATING.md`](docs/UPDATING.md) | someone about to bump a dependency — or leave on a trip |
+| [`docs/WRITING.md`](docs/WRITING.md) | someone writing or reviewing a document |
+
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
