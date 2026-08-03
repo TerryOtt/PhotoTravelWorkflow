@@ -298,8 +298,32 @@ the faster one as the phase 1 source. CFexpress lands near 65 ms against UHS-II'
 and is correct by construction: phase 1 always runs off the fast card regardless of which
 reader is in which port. A config override exists for the day that surprises us.
 
-If only one card is present, phase 1 runs on it and phase 2 reports the day as
-uncorroborated rather than refusing to work.
+**A single card at offload is an equipment failure, not a mode.** The camera has two
+slots for a reason and every frame is shot to both (`CONOPS.md`, the shooting-day
+contract), so this tool is always run with two authoritative sources — if pre-flight
+finds one card, something upstream is wrong: the other card still in the camera, a
+reader gone dead, a card gone bad. The run itself proceeds, because refusing would
+enforce a habit by leaving the day with zero backups — phase 1 runs on whichever card
+is present, phase 2 reports every file uncorroborated, and decision 22's gate keeps the
+SSDs mounted. But it proceeds behind a boxed warning printed before anything else,
+naming whichever card is absent, sized to be impossible to read past while you are
+still standing at the desk:
+
+```
+╔════════════════════════════════════════════════════════════╗
+║  ONLY ONE CARD FOUND — SDXC is missing                     ║
+║                                                            ║
+║  Every frame is shot to both cards. If this offload has    ║
+║  only one, a card, a reader, or the camera has failed.     ║
+║  Check the rig before walking away.                        ║
+║                                                            ║
+║  Continuing — one verified source beats none. The archive  ║
+║  SSDs will NOT eject until the missing card corroborates.  ║
+╚════════════════════════════════════════════════════════════╝
+```
+
+The warning at launch and the held eject at the end are the same statement made twice:
+this run is not the normal one, and the night must not end looking as though it were.
 
 ### 8. One command, almost no arguments
 
@@ -567,7 +591,7 @@ with anything above it. Its forms:
 |---|---|
 | Phase 1 verified everywhere, all ejects clean | `EJECTED — SAFE TO STORE` |
 | Phase 1 verified everywhere, an eject refused | `SAFE TO STORE — EJECT SSD-B BY HAND (volume in use)` |
-| Phase 1 verified everywhere, corroboration incomplete | `SAFE, NOT EJECTED — INSERT SDXC AND RE-RUN` |
+| Phase 1 verified everywhere, corroboration incomplete | `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` |
 | Anything unverified anywhere | `NOT SAFE — 12 files unverified on SSD-C` |
 | Phase 1 clean, mismatches far above baseline | append `— BUT CHECK YOUR SDXC CARD (47 mismatches)` |
 
@@ -847,8 +871,8 @@ resolved and every absence reported, sidecars written. "Complete" is the bar, no
 matched" — a mismatch resolved by deletion-and-tombstone and a file that only ever
 existed on one card are settled states; only unexamined files hold the gate. If
 corroboration could not finish — the SDXC card was never seen tonight, or phase 2 was
-interrupted — the SSDs stay mounted and the report says exactly what to do: insert the
-SDXC card and re-run, or eject by hand. Re-runs converge (decision 13), so the normal
+interrupted — the SSDs stay mounted and the report says exactly what to do: ensure the
+SDXC card is inserted and re-run, or eject by hand. Re-runs converge (decision 13), so the normal
 recovery is plugging in what was missing and running again; the tool corroborates the
 remainder and ejects the moment certainty arrives.
 
@@ -906,6 +930,7 @@ new evidence rather than fresh taste.
 | A verifier trailing the write front by a ~4 GB lag window | The original design here, replaced at design review. Equal on the primary metric at best (`N/w + N/r` under any schedule), pays mixed read/write penalties, and keeps the CFexpress reader busy to the end — forfeiting phase 2's early start. Decision 2 |
 | `FILE_FLAG_NO_BUFFERING` on the write side | Also original here, replaced at design review: it demands sector-multiple writes, which a raw file's partial final sector cannot meet without a pad-and-truncate dance — for no guarantee beyond what `FILE_FLAG_WRITE_THROUGH` already provides. Decision 2 |
 | Reading both cards before writing anything | Puts the ~11.6-minute SDXC read on the critical path for a guarantee that can be delivered after it without being weakened. Decision 1 |
+| Refusing to run when only one card is present | Enforces the two-source contract by leaving the day with zero backups — the exact inversion of the goal. The boxed warning at launch and the held eject at the end carry the enforcement instead. Decision 7 |
 | Skipping a file whose two source copies disagree | Leaves the one file known to have a problem in *zero* backups — the exact inversion of the goal. Decision 3 |
 | A `_NNN` suffix assigned per offload batch, coordinated across destinations | Superseded by decision 5. Timestamp-prefixed names are a pure function of the photo, so no coordination is needed and collisions are pathological |
 | A timestamp prefix replacing the camera's filename | Unnecessary — prefixing rather than replacing keeps both the original name and shooting order. Decision 5 |

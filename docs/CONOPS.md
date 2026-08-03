@@ -23,7 +23,7 @@ matters traces back to that person.
 | The last line says | You do |
 |---|---|
 | `EJECTED — SAFE TO STORE` | Pull the SSDs — they are already ejected — put them in the safe, go to bed. |
-| `SAFE, NOT EJECTED — INSERT SDXC AND RE-RUN` | Raws are safe on all four copies; certainty work remains. Do what it says. |
+| `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` | Raws are safe on all four copies; certainty work remains. Do what it says. |
 | `SAFE TO STORE — EJECT <X> BY HAND` | Everything is done; one volume would not release. Eject it from the tray and store. |
 | `NOT SAFE — …` | Something did not finish. Eject nothing; run `photoday` again and it continues where it stopped. |
 
@@ -47,7 +47,13 @@ the deal:
 - **Both cards are formatted in-camera at the start of each shooting day.** This is what
   makes a card equal a day, which is what makes pre-flight's estimate exact and the
   file-set resume check trustworthy.
-- **The camera writes every frame to both slots** (CFexpress + SDXC), uncompressed.
+- **The camera writes every frame to both slots** (CFexpress + SDXC), uncompressed —
+  and both cards come to the readers at every offload. Two authoritative sources is
+  the standing assumption, and the camera has two slots for exactly this reason. A
+  run that finds only one card treats it as an equipment failure, not a mode: it
+  continues, because one verified source beats none, but behind an unmissable boxed
+  warning at launch, and the SSDs stay unejected until the missing card corroborates
+  ([`DESIGN.md`](DESIGN.md) decisions 7 and 22).
 - **The GPS logger runs all day**, and its tracks land in the configured GPX directory
   before the evening run (or are pointed at with `--gpx`).
 - **The camera runs on UTC, and its clock is right** — checked at trip start and after
