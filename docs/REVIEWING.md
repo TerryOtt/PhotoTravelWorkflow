@@ -168,7 +168,7 @@ The policy is not licence to relitigate. Specifically:
 
 ## Tests: three of them, and each has to be able to fail
 
-[`DESIGN.md`](DESIGN.md) decision 18 sets the scope deliberately narrow — the phase 2
+[`DESIGN.md`](DESIGN.md) decision 18 sets the scope deliberately narrow — the phase 3
 deletion path, the naming function, one end-to-end happy path. Everything else is untested
 on purpose.
 

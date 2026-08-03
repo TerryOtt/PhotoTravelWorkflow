@@ -14,8 +14,9 @@ matters traces back to that person.
 1. Load both camera cards into the readers on the Thunderbolt hub. Confirm the three
    archive SSDs are plugged into it.
 2. Run **`photoday`**.
-3. Read the pre-flight summary — file count, gigabytes, four destinations confirmed
-   distinct, estimated time. That one line is what earns walking away.
+3. Read the pre-flight summary — file count identical on both cards, gigabytes, four
+   destinations confirmed distinct, estimated time. That one line is what earns walking
+   away.
 4. Go to dinner.
 5. Back at the desk, read the **last line of the report first**. It is the verdict, and
    it is the only place its phrases ever appear ([`DESIGN.md`](DESIGN.md) decision 14):
@@ -60,8 +61,9 @@ the deal:
 - **The camera writes every frame to both slots** (CFexpress + SDXC), uncompressed —
   and both cards come to the readers at every offload. Two authoritative sources is
   the standing assumption, and the camera has two slots for exactly this reason. A
-  run that finds only one card refuses to start: that is an equipment failure, not a
-  mode ([`DESIGN.md`](DESIGN.md) decision 7). The deliberate exception is below,
+  run that finds only one card refuses to start, and so does a run whose two cards no
+  longer hold the same files: either is an equipment failure, not a mode
+  ([`DESIGN.md`](DESIGN.md) decisions 7 and 27). The deliberate exception is below,
   under *When a card is truly gone*.
 - **The GPS logger runs all day**, and its tracks land in the configured GPX directory
   before the evening run (or are pointed at with `--gpx`). A night with no tracks at
@@ -111,7 +113,7 @@ SSDs eject the moment nothing remains.
 |---|---|
 | Run crashed mid-copy | `photoday` again. It resumes at the first unfinished file. |
 | Forgot to plug in a card | Pre-flight refuses in the first ten seconds, before anything is written. Plug it in, `photoday` again. |
-| CFexpress filled or failed mid-day — some frames exist only on the SDXC | Nothing special — phase 2 finds them, ingests them with full verification, and the report names the card that missed them. Nothing ejects until they are on all four copies. |
+| CFexpress filled or failed mid-day — some frames exist only on the SDXC | Pre-flight refuses: the cards no longer hold the same files, and the refusal says which holds what. Remove the card that stopped and re-run `photoday --allow-single-source` — the complete card lands the whole day, never corroborated. |
 | Laptop slept / power died | Same as a crash. The archives cannot be left half-written — a partial file never carries a real name. |
 | An SSD is missing at offload — dead, lost, still in the safe | Pre-flight refuses. `photoday --without <label>` runs the night on the destinations that remain; `photoday sync <that disk>` brings it current when it returns, from the laptop copy — no cards needed. |
 | No GPX tracks on the laptop — forgot the copy, or the logger died | Pre-flight refuses. Copy the tracks in (or point `--gpx` at them). If none exist tonight, `photoday --no-gpx` lands the raws untagged; when tracks turn up, re-run before the next format, or `photoday sync` each copy after it. |
@@ -130,7 +132,7 @@ photoday --allow-single-source
 ```
 
 The surviving card becomes the sole source of truth, and which card survived makes no
-difference — CFexpress or SDXC, the situation is equally bad. **Phase 2 never runs**,
+difference — CFexpress or SDXC, the situation is equally bad. **Phase 3 never runs**,
 because corroboration is a comparison and there is no second source to compare
 against. The day is recorded as never corroborated, the verdict says so in words, and
 the SSDs still eject once every file from the surviving card is verified on all four
