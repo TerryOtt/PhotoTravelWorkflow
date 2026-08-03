@@ -31,7 +31,8 @@ deferred* — see [Phase 1 reads one card](#1-phase-1-reads-the-cfexpress-card-o
 
 ## Inputs
 
-- **Camera:** Canon EOS R5, uncompressed RAW (CR3), ~40–50 MB per frame.
+- **Camera:** Canon EOS R5 — the only body — uncompressed RAW (CR3), ~40–50 MB per
+  frame, clock intended to run on UTC (decision 23).
 - **Cards:** one CFexpress Type B (512 GB), one SDXC UHS-II (512 GB). Every frame is
   written to **both** slots by the camera. Both cards are formatted in-camera at the
   start of each shooting day.
@@ -530,6 +531,7 @@ about already settled.
   SSD-C   SanDisk E61  2312A9…    1,247 written · 1,247 verified   OK
 
   Corroboration   1,246 matched · 1 mismatch · 0 uncorroborated
+  Timezone        1,247 files +00:00 — camera on UTC as intended
   Geotag          1,198 tagged · 49 outside track
   Eject           SSD-A ✓ · SSD-B ✓ · SSD-C ✓
 
@@ -854,6 +856,40 @@ remainder and ejects the moment certainty arrives.
 is accounted for on that disk.** The tray icon can never say that.
 
 `--no-eject` disables it for the rare night the SSDs should stay mounted.
+
+### 23. Timezone: derived per photo, intended UTC, deviation flagged
+
+Settled at design review, from three operator facts: the only body is an R5, the R5
+records `OffsetTimeOriginal` on every frame, and the standing intent is to run every
+camera on UTC.
+
+- **UTC capture time is always derived per photo** — EXIF wall time minus the recorded
+  offset. A camera accidentally left on a home timezone therefore still folders
+  correctly: the offset is recorded, the arithmetic self-corrects, nothing is misfiled.
+- **Deviation from the UTC intent is flagged, never "fixed."** The report counts files
+  by recorded offset; anything not `+00:00` gets its own line — the dates are right,
+  but the camera is not configured as intended and tonight is the night to fix the
+  menu.
+- **A readable EXIF with no offset goes to `_unfiled`** (decision 21). The R5 always
+  writes one, so its absence means a malformed file, not a policy question. There is
+  deliberately no `--utc-offset` flag — RawGeotag needed one for a body that recorded
+  no zone, and that body is gone.
+
+**What none of this can catch: a wall clock that is wrong as an absolute instant.** A
+camera set to UTC whose clock reads two hours off derives a wrong UTC from honest
+arithmetic — wrong date folders, shifted geotags, no error anywhere, because the
+metadata itself is lying. Two defenses, both partial: the operator habit in
+`CONOPS.md`'s shooting-day contract, and one heuristic in the report — when phase 3's
+misses are *systematic*, photos falling outside the track by a near-constant offset,
+the report says so in words rather than printing a bare count:
+
+```
+Geotag   0 tagged · 1,247 outside track — misses look systematic (~+2:00): check the camera clock
+```
+
+A scattered miss pattern is a logging gap; a uniform one is a clock. The distinction is
+computable, and it is the difference between finding out tonight and finding out on
+Lightroom's map three weeks later.
 
 ## Considered and rejected
 

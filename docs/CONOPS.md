@@ -39,17 +39,24 @@ numbers. Read it with the other eye, or in the morning.
 The tool's guarantees rest on habits it cannot enforce. They are the operator's half of
 the deal:
 
+- **The fleet is one body — a Canon EOS R5.** The tool leans on that: CR3 is the only
+  format, every frame records its timezone offset, and both slots receive every shot. A
+  new or replacement body is a **design event**, not a config change — its EXIF and
+  dual-slot behavior get verified at home before any trip trusts it
+  ([`DESIGN.md`](DESIGN.md) decision 23).
 - **Both cards are formatted in-camera at the start of each shooting day.** This is what
   makes a card equal a day, which is what makes pre-flight's estimate exact and the
   file-set resume check trustworthy.
 - **The camera writes every frame to both slots** (CFexpress + SDXC), uncompressed.
 - **The GPS logger runs all day**, and its tracks land in the configured GPX directory
   before the evening run (or are pointed at with `--gpx`).
-- **The camera's clock and timezone are set correctly** — checked at trip start and
-  after every zone crossing. This is the one input failure the tool cannot detect: a
-  wrong clock shifts every UTC date folder and every geotag by the same amount, all of
-  it looking perfectly normal. Thirty seconds with the camera menu is the entire
-  defense.
+- **The camera runs on UTC, and its clock is right** — checked at trip start and after
+  every zone crossing. The two halves fail differently. A camera left on some other
+  *timezone* is harmless: the recorded offset lets every date self-correct, and the
+  report flags the deviation. A *clock* that is wrong as an instant cannot be detected
+  from metadata at all — it shifts every date folder and every geotag uniformly while
+  looking perfectly normal. The report's systematic-miss heuristic may catch it after
+  the fact; thirty seconds with the camera menu is the real defense.
 
 ## One application at a time
 
