@@ -63,7 +63,9 @@ the deal:
   mode ([`DESIGN.md`](DESIGN.md) decision 7). The deliberate exception is below,
   under *When a card is truly gone*.
 - **The GPS logger runs all day**, and its tracks land in the configured GPX directory
-  before the evening run (or are pointed at with `--gpx`).
+  before the evening run (or are pointed at with `--gpx`). A night with no tracks at
+  all is declared, never assumed — pre-flight refuses an empty GPX directory unless
+  `--no-gpx` says so ([`DESIGN.md`](DESIGN.md) decision 26).
 - **The camera runs on UTC, and its clock is right** — checked at trip start and after
   every zone crossing. The two halves fail differently ([`DESIGN.md`](DESIGN.md)
   decision 23): a wrong *timezone* self-corrects — the recorded offset puts every frame
@@ -111,6 +113,7 @@ SSDs eject the moment nothing remains.
 | CFexpress filled or failed mid-day — some frames exist only on the SDXC | Nothing special — phase 2 finds them, ingests them with full verification, and the report names the card that missed them. Nothing ejects until they are on all four copies. |
 | Laptop slept / power died | Same as a crash. The archives cannot be left half-written — a partial file never carries a real name. |
 | An SSD is missing at offload — dead, lost, still in the safe | Pre-flight refuses. `photoday --without <label>` runs the night on the destinations that remain; `photoday sync <that disk>` brings it current when it returns, from the laptop copy — no cards needed. |
+| No GPX tracks on the laptop — forgot the copy, or the logger died | Pre-flight refuses. Copy the tracks in (or point `--gpx` at them). If none exist tonight, `photoday --no-gpx` lands the raws untagged; when tracks turn up, re-run before the next format, or `photoday sync` each copy after it. |
 | Cards already reformatted before corroboration finished | Nothing to recover — the run closes out on its own at the next offload and the report says which files stayed uncorroborated. They were still verified on all four copies. |
 
 Fatal errors are deliberate ([`DESIGN.md`](DESIGN.md) decision 18): the tool stops and

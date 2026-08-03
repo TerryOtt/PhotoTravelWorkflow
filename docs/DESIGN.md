@@ -394,6 +394,9 @@ photoday                            the nightly command
                              otherwise refuses when one is missing; repeatable;
                              sync the disk when it returns
   --gpx <PATH>               override when tracks aren't in the usual place
+  --no-gpx                   proceed with no tracks at all — raws land as normal,
+                             no sidecars are written; pre-flight otherwise refuses
+                             when the GPX directory holds none
   --max-gap-seconds <S>      refuse to interpolate across a longer hole [default: 60]
   --max-gap-meters <M>       refuse to interpolate across a wider hole [default: 100]
   --force-xmp[=<DEST>]       overwrite existing XMP; archives only unless a
@@ -432,7 +435,7 @@ present — `--without` is the declared exception (decision 25) — distinct phy
 devices, writable, and with capacity ≥ N plus margin; both cards present —
 `--allow-single-source` is the deliberate exception (decision 7) — and
 the fast one readable and enumerated; sleep inhibited (`SetThreadExecutionState`); GPX
-parsed.
+tracks present and parsed — `--no-gpx` is the declared exception (decision 26).
 
 **It also checks Windows Defender exclusions.** Real-time scanning of several hundred
 gigabytes of freshly written files across four volumes is a large and invisible tax on
@@ -457,7 +460,8 @@ correlates timestamps against the GPX index and writes a few thousand 3 KB sidec
 
 This eliminates a full re-read of the day that a standalone geotagging pass would cost,
 without putting anything on phase 1's critical path. Sidecar generation failure is never
-fatal and is always backfillable.
+fatal and is always backfillable; the one fatal near geotagging is pre-flight's, before
+anything runs — an empty GPX directory is refused unless declared away (decision 26).
 
 ### 11. The laptop copy is a working copy — after the trip
 
@@ -825,7 +829,7 @@ Exit codes, kept deliberately coarse:
 |---|---|
 | 0 | Phase 1 verified everywhere, no source mismatches |
 | 1 | Fatal — the run did not complete; reason printed |
-| 2 | Completed, but something wants your attention; the report names it — a mismatch, a deletion, a stray or unfiled file, a refused eject, a run missing a source (decision 7) or a destination (decision 25) |
+| 2 | Completed, but something wants your attention; the report names it — a mismatch, a deletion, a stray or unfiled file, a refused eject, a run missing a source (decision 7), a destination (decision 25), or its tracks (decision 26) |
 
 **Testing is three things**, and stops there:
 
@@ -895,8 +899,10 @@ overwrite those same settings — the one data loss this tool could cause outsid
 deletion path. Together they are correct in both regimes without anyone having to
 remember which one they are in.
 
-Regeneration also completes phase 3 crash recovery: sidecars missing on an archive, for
-any reason, are rebuilt by sync with no dedicated machinery.
+Regeneration also completes phase 3 recovery: sidecars missing on any destination, for
+any reason — a crash, a `--no-gpx` night (decision 26) — are rebuilt by sync with no
+dedicated machinery. Pointed at the laptop copy for that purpose, sync's copy step
+simply finds nothing to do and regeneration is all that runs.
 
 ### 21. A file whose EXIF cannot be read lands in `_unfiled`, not on the floor
 
@@ -961,7 +967,8 @@ only when nothing remains for the current cards: every file verified on all four
 destinations, phase 2 run to completion against the SDXC card with every mismatch
 resolved, every absence reported, and every file found only on the SDXC ingested and
 verified like any other (decision 4), phase 3 run to completion — a file outside the
-track is a settled outcome, not a hold. "Complete" is the bar, not "all
+track is a settled outcome, not a hold, and a `--no-gpx` run has no tagging work to
+hold for (decision 26). "Complete" is the bar, not "all
 matched": a mismatch resolved by deletion-and-tombstone and a file that only ever
 existed on one card are settled states, as are `waived`, a single-source run's
 declaration that no second card exists to examine (decision 7), and `forfeited`, the
@@ -1080,6 +1087,46 @@ returns, and an 11pm JSON edit in a hotel room is the exact failure decision 8 e
 to prevent. Refusing with no gate blocks every remaining night of a trip the moment one
 SSD dies: the same inversion of the goal that decision 7 rejects on the card side.
 
+### 26. Tracks missing at offload are declared, not skipped
+
+The third member of a family: a missing card (decision 7), a missing destination
+(decision 25), and now missing tracks. Same grammar each time — refusal in the first
+ten seconds by default, and proceeding requires saying so on the command line, so the
+degraded night is always possible and can never happen by accident.
+
+If pre-flight finds no GPX files — `gpx_dir` empty, or missing outright — it refuses:
+
+```
+NO TRACKS FOUND — C:\Travel\GPX holds no GPX files.
+Copy tonight's tracks in (or point --gpx at them), or re-run with --no-gpx
+to land the raws without sidecars and backfill them when tracks turn up.
+```
+
+An empty directory almost always means the tracks were never copied off the logger, or
+`gpx_dir` points somewhere stale — both fixed in a minute while still standing at the
+desk. Proceeding behind a warning instead would make an untagged night routine, noticed
+only when Lightroom's map comes up empty weeks later — the posture decision 7 already
+rejects.
+
+**`--no-gpx`** declares the genuine case: the logger is dead or its data is unreachable
+tonight. Phase 3 does not run — raws land in their `YYYY\YYYY-MM-DD` folders exactly as
+always, and no sidecar is written anywhere. Phases 1 and 2 are untouched, so LANDED
+means what it always means, and the eject gate holds for nothing: there is no tagging
+work outstanding (decision 22). The verdict is deliberately unmarked, unlike decisions
+7 and 25 — those flags scar it because they narrow what it certifies, while sidecars
+were never in its subject (decisions 12 and 14). The report body carries the line —
+`0 sidecars written — ran with --no-gpx` — and the exit code is 2 (decision 18).
+
+Unlike decision 7's waived corroboration, nothing is permanently lost. Capture times
+are already stashed in the manifest (decision 10), so sidecars need no card: tracks
+that turn up before the next format are applied by a plain re-run, which converges and
+tags what is untagged (decision 13); after the format, `sync` regenerates them on every
+destination from the manifest and the tracks (decision 20), the laptop included.
+
+The fatal is about *zero* tracks, nothing subtler. Tracks that exist but fail to cover
+a frame remain per-file outcomes — outside track, a count in the report body — and no
+flag is involved.
+
 ## Considered and rejected
 
 Recorded so a later reviewer does not spend effort re-proposing them. Reopening one needs
@@ -1096,6 +1143,7 @@ new evidence rather than fresh taste.
 | Reading both cards before writing anything | Puts the ~11.6-minute SDXC read on the critical path for a guarantee that can be delivered after it without being weakened. Decision 1 |
 | A single-card run that either always refuses or always proceeds | Refusing outright leaves a one-card night with zero backups; proceeding behind a warning — this design's first answer — makes routine what must never be routine. `--allow-single-source` is the narrow gate between them. Decision 7 |
 | Editing the config when a destination is missing | The config describes the rig, not tonight's subset — the entry would need editing back, and an 11pm config edit is the failure decision 8 exists to prevent. `--without` declares the absence per run. Decision 25 |
+| Warning and proceeding when the GPX directory is empty | Empty almost always means tracks never copied off the logger, or a stale `gpx_dir` — both fixed in a minute at the desk. A warning makes an untagged night routine, noticed when Lightroom's map comes up empty weeks later. `--no-gpx` declares the genuine case. Decision 26 |
 | Skipping a file whose two source copies disagree | Leaves the one file known to have a problem in *zero* backups — the exact inversion of the goal. Decision 3 |
 | A `_NNN` suffix assigned per offload batch, coordinated across destinations | Superseded by decision 5. Timestamp-prefixed names are a pure function of the photo, so no coordination is needed and collisions are pathological |
 | A timestamp prefix replacing the camera's filename | Unnecessary — prefixing rather than replacing keeps both the original name and shooting order. Decision 5 |
