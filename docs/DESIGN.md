@@ -65,7 +65,7 @@ the previous day.
 
 | Phase | Mandatory? | Work | Ends with |
 |---|---|---|---|
-| **1 · Pre-flight: card content match** | Enumeration always — the *match* needs two cards, and one card must be declared (decisions 27, 7) | Find the cards, speed-test to pick the ingest source, walk each CR3 listing, assert the two agree name for name and size for size | One agreed file set, and **N** |
+| **1 · Pre-flight: camera card contents** | **Always** — enumeration is where **N** comes from; a second card adds the match, not the walk (decisions 27, 7) | Find the cards, speed-test to pick the ingest source, walk each CR3 listing — and with two cards, assert they agree name for name and size for size | One file set, and **N** |
 | **2 · Pre-flight: destinations and GPX** | Always — `--without` and `--no-gpx` narrow what it asserts, never skip it (decisions 25, 26, 16) | Resolve destinations by serial, assert four distinct, writable, capacity ≥ N; parse GPX; inhibit sleep; sweep orphaned temps; print the ETA | You can walk away |
 | **3 · Ingest & verify** | **Always — this phase is the product** | Read CFexpress once → SHA256 + EXIF → fan out to 4 → unbuffered read-back verify per destination | **LANDED** |
 | **4 · Corroborate** | Two cards only — a single-source run has nothing to compare (decision 7) | Read SDXC fully, compare hashes, delete + tombstone mismatches | Card health report |
@@ -73,11 +73,13 @@ the previous day.
 
 **Phases 1 and 2 are both pre-flight**, and together they are the ten seconds that decide
 whether you can leave. They are split because they answer different questions and fail
-differently: phase 1 establishes *what tonight is* — the file set, and the proof that the
-two cards agree about it — while phase 2 checks whether the rig can take it. The order is
-forced rather than chosen: **N** is phase 1's output and phase 2's input, since a capacity
-assertion needs a number to compare against. It also puts the fatal that means *equipment
-failure* ahead of the ones that merely mean *go fetch something*.
+differently: phase 1 establishes *what tonight is* — walking the camera cards, which is
+where the file set and **N** come from, and with two cards proving both hold that one set
+— while phase 2 checks whether the rig can take it. Both always run; what a second card
+adds to phase 1 is the match, not the walk. The order is forced rather than chosen: **N**
+is phase 1's output and phase 2's input, since a capacity assertion needs a number to
+compare against. It also puts the fatal that means *equipment failure* ahead of the ones
+that merely mean *go fetch something*.
 
 **Phases 4 and 5 do not wait for LANDED.** The moment the CFexpress reader goes idle —
 the end of phase 3's write feed, since backpressure keeps the reader busy until roughly
@@ -456,10 +458,12 @@ The worst outcome for a walk-away tool is returning from dinner to a run that di
 minutes in. Before anything is written, pre-flight asserts — in the two phases whose
 order the data forces rather than taste:
 
-**Phase 1, the cards.** Both present — `--allow-single-source` (decision 7) and a
-remainder resume (decision 13) are the deliberate exceptions — the faster one readable
-and enumerated as the phase 3 source, and wherever a run does have two, both enumerated
-and holding one identical listing (decision 27). Its output is the file set and **N**.
+**Phase 1, the camera card contents.** Walking them is what produces the file set and
+**N**, so it happens at any card count. The assertions layered on that walk: both cards
+present — `--allow-single-source` (decision 7) and a remainder resume (decision 13) are
+the deliberate exceptions — the faster one readable and serving as the phase 3 source,
+and wherever a run does have two, both listings identical name for name and size for
+size (decision 27).
 
 **Phase 2, the rig.** All four destinations present — `--without` is the declared
 exception (decision 25) — distinct physical devices, writable, and with capacity ≥ N
@@ -1235,14 +1239,14 @@ flag is involved.
 ### 27. Both cards must present the same listing before any byte moves
 
 Carried over from photoendofdaygo, this pipeline's predecessor, where it proved itself
-in the field. **This is phase 1**, and it comes before pre-flight's rig checks because
-what it produces — one agreed file set, and N — is the thing those checks are measured
-against. Whenever a run has two cards it enumerates the CR3 listing of **both**, sorts
-each by card-relative path — the key phase 4 pairs on (decision 4) — and compares them
-entry by entry: same names, same sizes. A directory read, not a data read; seconds,
-inside pre-flight's ten. The listings matching exactly is phase 3's precondition — a
-pair that has diverged is an equipment failure announced while the fix is a reach into
-the camera bag:
+in the field. **This is phase 1's assertion.** Phase 1 walks the camera card contents at
+any card count — that walk is where the file set and N come from — and a second card is
+what gives it something to prove. It comes before pre-flight's rig checks because what
+it produces is what those checks are measured against. The comparison sorts each listing
+by card-relative path — the key phase 4 pairs on (decision 4) — and goes entry by entry:
+same names, same sizes. A directory read, not a data read; seconds, inside pre-flight's
+ten. The listings matching exactly is phase 3's precondition — a pair that has diverged
+is an equipment failure announced while the fix is a reach into the camera bag:
 
 ```
 CARDS DISAGREE — the two cards do not hold the same files.
