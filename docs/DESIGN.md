@@ -64,7 +64,7 @@ the previous day.
 |---|---|---|
 | **0 · Pre-flight** (~10 s) | Enumerate the fast card, validate destinations, parse GPX, inhibit sleep, print ETA | You can walk away |
 | **1 · Ingest & verify** | Read CFexpress once → SHA256 + EXIF → fan out to 4 → lagged unbuffered read-back verify | **LANDED** |
-| **2 · Corroborate** | Read SDXC, compare hashes, delete + tombstone mismatches | Card health report |
+| **2 · Corroborate** | Read SDXC fully, compare hashes, ingest what phase 1 never saw, delete + tombstone mismatches | Card health report |
 | **3 · Geotag** | Correlate stashed capture times to GPX, write sidecars to all 4 | Lightroom-ready |
 
 **Phase 2 does not wait for LANDED.** The moment the CFexpress reader goes idle — the end
@@ -127,8 +127,9 @@ painless (short reads at EOF are legal).
 
 ### 1. Phase 1 reads the CFexpress card only
 
-Optimistic and greedy. The SDXC card contributes no bytes to the output — it is a
-corroborating hash — and reading it costs ~11.6 minutes at UHS-II speeds on a big day.
+Optimistic and greedy. In the normal run the SDXC card contributes no bytes to the
+output — it is a corroborating hash — and reading it costs ~11.6 minutes at UHS-II
+speeds on a big day.
 Keeping it off the critical path is the single largest available win against the metric.
 
 The guarantee is **preserved but deferred**: any disagreement is still detected in phase
@@ -203,18 +204,41 @@ Two safeguards on the deletion:
   whenever, and it makes the irreversible step reversible for the window where it
   matters.
 
-### 4. Corroboration has three outcomes, not two
+### 4. Corroboration has four outcomes, not two
 
 | SDXC state | Meaning | Action |
 |---|---|---|
 | present, hash matches | corroborated | keep, mark verified |
 | present, hash differs | genuine mismatch | delete from all four, tombstone |
 | **absent** | **uncorroborated** | **keep**, report separately |
+| **present, never ingested** | **the source card missed it** | **ingest from the SDXC** — full phase 1 treatment — report loudly |
 
 Conflating *absent* with *mismatched* is the one way this design could lose a real day's
 shooting — if a card errors mid-day and the camera carries on with the other slot, a
 naive "delete anything uncorroborated" rule deletes everything after that point. Matched
 512 GB cards make this unlikely, but the branch costs almost nothing.
+
+The fourth row is the same mid-day failure mirrored onto the **source** card, and it is
+the one case the ingest set cannot defend by itself. If the CFexpress fills or errors
+and the camera carries on writing the SDXC slot alone, the afternoon's frames exist
+only on a card phase 1 never reads — no rule keyed on ingested files can even see them.
+So phase 2 **enumerates the SDXC completely** rather than looking up the files phase 1
+ingested, and anything found that was never ingested goes through the full phase 1
+pipeline sourced from the SDXC: hashed, EXIF-read (or `_unfiled`, decision 21), fanned
+out to all four destinations, verified. Nothing new is built for this — it is the same
+machinery pointed at the other card, which decision 7 already allows as a phase 1
+source.
+
+Two consequences worth stating. These files land **after LANDED** — the milestone
+speaks for the source card's contents, and it is decision 22's eject gate that speaks
+for both cards: it does not open until SDXC-only files are verified everywhere too. And
+they get their own loud line in the report rather than folding into a count, because
+frames the fast card never had indict that card exactly as a mismatch spike indicts the
+SDXC.
+
+The residual is honest: a card reformatted before phase 2 ever enumerated it takes any
+never-seen frames with it — the tool cannot account for bytes it never saw. The launch
+refusal (decision 7) and the held eject (decision 22) exist to keep that window short.
 
 A run reporting far more mismatches than the 1–2 baseline is a dying card, and the
 summary should say so in those words rather than making the number speak for itself.
@@ -300,14 +324,10 @@ reader is in which port. A config override exists for the day that surprises us.
 
 **A single card at offload is an equipment failure, not a mode.** The camera has two
 slots for a reason and every frame is shot to both (`CONOPS.md`, the shooting-day
-contract), so this tool is always run with two authoritative sources — if pre-flight
-finds one card, something upstream is wrong: the other card still in the camera, a
-reader gone dead, a card gone bad. The run itself proceeds, because refusing would
-enforce a habit by leaving the day with zero backups — phase 1 runs on whichever card
-is present, phase 2 reports every file uncorroborated, and decision 22's gate keeps the
-SSDs mounted. But it proceeds behind a boxed warning printed before anything else,
-naming whichever card is absent, sized to be impossible to read past while you are
-still standing at the desk:
+contract), so this tool is always run with two authoritative sources. If pre-flight
+finds one card, something upstream is wrong — the other card still in the camera, a
+reader gone dead, a card gone bad — and the default is to **refuse to run**, in the
+first ten seconds, while the fix is still a reach into the camera bag:
 
 ```
 ╔════════════════════════════════════════════════════════════╗
@@ -315,15 +335,37 @@ still standing at the desk:
 ║                                                            ║
 ║  Every frame is shot to both cards. If this offload has    ║
 ║  only one, a card, a reader, or the camera has failed.     ║
-║  Check the rig before walking away.                        ║
+║  Check the rig.                                            ║
 ║                                                            ║
-║  Continuing — one verified source beats none. The archive  ║
-║  SSDs will NOT eject until the missing card corroborates.  ║
+║  Refusing to run. If one card is truly all there is        ║
+║  tonight, re-run with --allow-single-source.               ║
 ╚════════════════════════════════════════════════════════════╝
 ```
 
-The warning at launch and the held eject at the end are the same statement made twice:
-this run is not the normal one, and the night must not end looking as though it were.
+Proceeding requires saying so: **`--allow-single-source`**. Under the flag, whichever
+card is present becomes the sole source of truth — CFexpress or SDXC makes no
+difference, the two cases are equally bad and are treated identically. Phase 1 runs on
+that card and **phase 2 does not run at all** — not deferred, eliminated: corroboration
+is a comparison, and no second source exists to compare against. Every file is
+recorded `waived` rather than corroborated (decision 12), and the eject gate treats
+waived as settled (decision 22) — the SSDs still eject once the
+card's contents are verified on all four destinations and tagged, because holding them
+for a card the operator has declared absent would hold the night hostage to nothing.
+The verdict carries the scar (decision 14), the exit code is 2 (decision 18), and if
+the missing card ever does turn up, a re-run converges: same file set, corroboration
+finishes, waived upgrades to matched (decision 13).
+
+One case is exempt because it is not a single-source run at all: a resume whose only
+outstanding work is corroboration (decision 13). Both sources existed that night and
+the ingest card already gave everything it had, so the lone SDXC in the reader is not a
+lone source — it is the exact remainder. The file-set check is what tells the two
+apart, and no flag is required.
+
+Two simpler postures were rejected. Refusing outright, with no escape, leaves a
+one-card night with zero backups — the exact inversion of the goal. Proceeding
+automatically behind a warning — this design's first answer, replaced the same day —
+makes routine what must never be routine. The flag is the narrow gate between them:
+the run is always possible, and it can never happen by accident.
 
 ### 8. One command, almost no arguments
 
@@ -343,6 +385,8 @@ photoday                            the nightly command
                              output file exactly, in seconds
   --jobs <N>                 CPU pool for hashing/EXIF/XMP [default: logical CPUs]
   --fail-on-source-mismatch  abort rather than warn when the two cards disagree
+  --allow-single-source      proceed when only one card is present — it becomes
+                             the sole source of truth; corroboration is waived
   --gpx <PATH>               override when tracks aren't in the usual place
   --max-gap-seconds <S>      refuse to interpolate across a longer hole [default: 60]
   --max-gap-meters <M>       refuse to interpolate across a wider hole [default: 100]
@@ -379,8 +423,10 @@ seconds, so drift surfaces while you are still standing at the desk.
 
 The worst outcome for a walk-away tool is returning from dinner to a run that died two
 minutes in. Before anything is written, pre-flight asserts: all four destinations
-present, distinct physical devices, writable, and with capacity ≥ N plus margin; the fast
-card readable and enumerated; sleep inhibited (`SetThreadExecutionState`); GPX parsed.
+present, distinct physical devices, writable, and with capacity ≥ N plus margin; both
+cards present — `--allow-single-source` is the deliberate exception (decision 7) — and
+the fast one readable and enumerated; sleep inhibited (`SetThreadExecutionState`); GPX
+parsed.
 
 **It also checks Windows Defender exclusions.** Real-time scanning of several hundred
 gigabytes of freshly written files across four volumes is a large and invisible tax on
@@ -474,8 +520,13 @@ its own kind of failure. A self-hash lets verify distinguish *your photos are da
 from *this manifest is damaged, your photos are probably fine*. The three archives each
 carry their own manifest of the same day, so they also cross-check against each other.
 
-`corroborated` carries phase 2's three outcomes — `matched`, `absent`, or `null` while
-still pending. A file deleted for a genuine mismatch stays in the list as a **tombstone**
+`corroborated` carries phase 2's verdict per file — `matched`, `absent`, `waived`, or
+`null` while still pending. `absent` means the *other* card was examined and never
+held the file, whichever card sourced it; `source_card` records which one did, so a
+file phase 2 ingested from the SDXC (decision 4's fourth outcome) appears as
+`"source_card": "sdxc"` with `"corroborated": "absent"`. `waived` is the single-source
+run's mark (decision 7): no second card existed to consult — by declaration, not
+examination. A file deleted for a genuine mismatch stays in the list as a **tombstone**
 (`"status": "deleted"` with both competing hashes, the reason and a timestamp) so a
 `verify` years later reports *clean* rather than flagging a missing file nobody remembers
 deleting.
@@ -554,7 +605,7 @@ about already settled.
   SSD-B   Samsung T9   S5H9NT…    1,247 written · 1,247 verified   OK
   SSD-C   SanDisk E61  2312A9…    1,247 written · 1,247 verified   OK
 
-  Corroboration   1,246 matched · 1 mismatch · 0 uncorroborated
+  Corroboration   1,246 matched · 1 mismatch · 0 uncorroborated · 0 SDXC-only
   Timezone        1,247 files +00:00 — camera on UTC as intended
   Geotag          1,198 tagged · 49 outside track
   Eject           SSD-A ✓ · SSD-B ✓ · SSD-C ✓
@@ -594,6 +645,7 @@ with anything above it. Its forms:
 | Phase 1 verified everywhere, corroboration incomplete | `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` |
 | Anything unverified anywhere | `NOT SAFE — 12 files unverified on SSD-C` |
 | Phase 1 clean, mismatches far above baseline | append `— BUT CHECK YOUR SDXC CARD (47 mismatches)` |
+| Run under `--allow-single-source`, phase 1 verified everywhere | append `— SINGLE SOURCE, NEVER CORROBORATED` |
 
 Eject can modulate the safe verdict's wording; it can never turn SAFE into NOT SAFE.
 
@@ -752,7 +804,7 @@ Exit codes, kept deliberately coarse:
 |---|---|
 | 0 | Phase 1 verified everywhere, no source mismatches |
 | 1 | Fatal — the run did not complete; reason printed |
-| 2 | Completed, but something wants your attention (mismatches, deletions, unfiled files, a refused eject) |
+| 2 | Completed, but something wants your attention (mismatches, deletions, unfiled files, a refused eject, a single-source run) |
 
 **Testing is three things**, and stops there:
 
@@ -838,6 +890,7 @@ The complete per-file defect set, in one place:
 |---|---|---|
 | two-card hash mismatch | continues | deleted everywhere, tombstoned, quarantined in `_runs` (decision 3) |
 | SDXC copy absent | continues | kept, reported uncorroborated (decision 4) |
+| present on the SDXC only | continues | ingested from the SDXC through the full phase 1 pipeline, reported (decision 4) |
 | EXIF unreadable | continues | written and verified to `_unfiled`, reported (this decision) |
 | anything environmental | **fatal** | — (decision 18) |
 
@@ -867,9 +920,12 @@ decision 14 for how the verdict phrases it.
 **Eject is also the certainty gate — deliberate, settled at design review.** It fires
 only when nothing remains for the current cards: every file verified on all four
 destinations, phase 2 run to completion against the SDXC card with every mismatch
-resolved and every absence reported, sidecars written. "Complete" is the bar, not "all
+resolved, every absence reported, and every file found only on the SDXC ingested and
+verified like any other (decision 4), sidecars written. "Complete" is the bar, not "all
 matched" — a mismatch resolved by deletion-and-tombstone and a file that only ever
-existed on one card are settled states; only unexamined files hold the gate. If
+existed on one card are settled states — as is `waived`, a single-source run's
+declaration that no second card exists to examine (decision 7); only unexamined files
+hold the gate. If
 corroboration could not finish — the SDXC card was never seen tonight, or phase 2 was
 interrupted — the SSDs stay mounted and the report says exactly what to do: ensure the
 SDXC card is inserted and re-run, or eject by hand. Re-runs converge (decision 13), so the normal
@@ -877,7 +933,9 @@ recovery is plugging in what was missing and running again; the tool corroborate
 remainder and ejects the moment certainty arrives.
 
 **An SSD this tool has ejected is therefore a physical claim: every file from both cards
-is accounted for on that disk.** The tray icon can never say that.
+is accounted for on that disk** — literal, because phase 2 enumerates the SDXC rather
+than merely looking up what phase 1 ingested (decision 4). The tray icon can never say
+that.
 
 `--no-eject` disables it for the rare night the SSDs should stay mounted.
 
@@ -930,7 +988,7 @@ new evidence rather than fresh taste.
 | A verifier trailing the write front by a ~4 GB lag window | The original design here, replaced at design review. Equal on the primary metric at best (`N/w + N/r` under any schedule), pays mixed read/write penalties, and keeps the CFexpress reader busy to the end — forfeiting phase 2's early start. Decision 2 |
 | `FILE_FLAG_NO_BUFFERING` on the write side | Also original here, replaced at design review: it demands sector-multiple writes, which a raw file's partial final sector cannot meet without a pad-and-truncate dance — for no guarantee beyond what `FILE_FLAG_WRITE_THROUGH` already provides. Decision 2 |
 | Reading both cards before writing anything | Puts the ~11.6-minute SDXC read on the critical path for a guarantee that can be delivered after it without being weakened. Decision 1 |
-| Refusing to run when only one card is present | Enforces the two-source contract by leaving the day with zero backups — the exact inversion of the goal. The boxed warning at launch and the held eject at the end carry the enforcement instead. Decision 7 |
+| A single-card run that either always refuses or always proceeds | Refusing outright leaves a one-card night with zero backups; proceeding behind a warning — this design's first answer — makes routine what must never be routine. `--allow-single-source` is the narrow gate between them. Decision 7 |
 | Skipping a file whose two source copies disagree | Leaves the one file known to have a problem in *zero* backups — the exact inversion of the goal. Decision 3 |
 | A `_NNN` suffix assigned per offload batch, coordinated across destinations | Superseded by decision 5. Timestamp-prefixed names are a pure function of the photo, so no coordination is needed and collisions are pathological |
 | A timestamp prefix replacing the camera's filename | Unnecessary — prefixing rather than replacing keeps both the original name and shooting order. Decision 5 |

@@ -50,10 +50,9 @@ the deal:
 - **The camera writes every frame to both slots** (CFexpress + SDXC), uncompressed —
   and both cards come to the readers at every offload. Two authoritative sources is
   the standing assumption, and the camera has two slots for exactly this reason. A
-  run that finds only one card treats it as an equipment failure, not a mode: it
-  continues, because one verified source beats none, but behind an unmissable boxed
-  warning at launch, and the SSDs stay unejected until the missing card corroborates
-  ([`DESIGN.md`](DESIGN.md) decisions 7 and 22).
+  run that finds only one card refuses to start: that is an equipment failure, not a
+  mode ([`DESIGN.md`](DESIGN.md) decision 7). The deliberate exception is below,
+  under *When a card is truly gone*.
 - **The GPS logger runs all day**, and its tracks land in the configured GPX directory
   before the evening run (or are pointed at with `--gpx`).
 - **The camera runs on UTC, and its clock is right** — checked at trip start and after
@@ -98,13 +97,39 @@ SSDs eject the moment nothing remains.
 | What happened | What to do |
 |---|---|
 | Run crashed mid-copy | `photoday` again. It resumes at the first unfinished file. |
-| Forgot to plug in the SDXC card | Raws still landed from CFexpress. Insert the SDXC card, `photoday` again; it corroborates and ejects. |
+| Forgot to plug in a card | Pre-flight refuses in the first ten seconds, before anything is written. Plug it in, `photoday` again. |
+| CFexpress filled or failed mid-day — some frames exist only on the SDXC | Nothing special — phase 2 finds them, ingests them with full verification, and the report names the card that missed them. Nothing ejects until they are on all four copies. |
 | Laptop slept / power died | Same as a crash. The archives cannot be left half-written — a partial file never carries a real name. |
 | An SSD stayed in the safe last night | `photoday sync <that disk>` backfills it from the laptop copy. |
 | Cards already reformatted before corroboration finished | Nothing to recover — the run closes out on its own at the next offload and the report says which files stayed uncorroborated. They were still verified on all four copies. |
 
 Fatal errors are deliberate ([`DESIGN.md`](DESIGN.md) decision 18): the tool stops and
 says why rather than improvising. The recovery is always the same re-run.
+
+### When a card is truly gone
+
+Lost, dead, left in a hotel five towns back — the run can still happen, but only by
+saying so:
+
+```
+photoday --allow-single-source
+```
+
+The surviving card becomes the sole source of truth, and which card survived makes no
+difference — CFexpress or SDXC, the situation is equally bad. **Phase 2 never runs**,
+because corroboration is a comparison and there is no second source to compare
+against. The day is recorded as never corroborated, the verdict says so in words, and
+the SSDs still eject once every file from the surviving card is verified on all four
+copies ([`DESIGN.md`](DESIGN.md) decision 7).
+
+Two boundaries keep the flag honest:
+
+- **It is for a card that is *gone*, not one that is elsewhere.** If the second card
+  exists, plug it in instead — and if a "gone" card turns up later, run `photoday`
+  again with both cards in; corroboration completes after the fact.
+- **A resume that only needs to finish corroboration is not a single-source run** and
+  needs no flag — that night had two sources, and the tool tells the two situations
+  apart on its own ([`DESIGN.md`](DESIGN.md) decisions 7 and 13).
 
 ## Before a trip, at home
 
