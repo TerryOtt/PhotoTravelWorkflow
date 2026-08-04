@@ -7,6 +7,27 @@ photographer and one rig.
 **The design is settled and written down.** Do not re-derive it, and do not quietly
 diverge from it — if a decision looks wrong, say so explicitly and cite what changed.
 
+## Start every session here
+
+**Before answering anything, read these two, in this order:**
+
+1. **[`docs/DESIGN.md`](docs/DESIGN.md) — *Where this stands***. What is built, what is
+   not, and which open questions need hardware or measurement rather than code. It is
+   kept current deliberately; if it looks stale, fixing it comes before whatever was
+   asked.
+2. **Every file in this project's memory directory**, not just the `MEMORY.md` index.
+   The index auto-loads and the contents do not, so a session that reads only the index
+   knows what it does not know — which is worse than useless when the gap is a
+   measurement that turned out to be wrong.
+
+That order matters: the first gets you the project, the second gets you how this
+project is worked on — the tooling habits, the measurement standard's history, and the
+rig's spare hardware. Terry should not have to ask for either.
+
+**And if a summary contradicts what he remembers, say so immediately.** Three separate
+numbers in this project turned out to be artifacts of how they were gathered rather than
+facts about the hardware; each was caught because he pushed back on one that looked off.
+
 ## Read before you write
 
 | Before you… | Read | Its standing order |
