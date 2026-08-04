@@ -1,9 +1,9 @@
 //! `photoday` — the end-of-day offload.
 //!
-//! The command surface is settled in `docs/DESIGN.md` decision 8 and transcribed here;
-//! the five phases behind it are not built yet. Parsing is real rather than stubbed so
-//! that `--help` answers honestly, and so the surface `CONOPS.md` and `UPDATING.md`
-//! already tell the operator to type cannot drift from the design while the phases land.
+//! The command surface is settled in `docs/DESIGN.md` decision 8 and transcribed here. All
+//! five phases are built, and the run ends by ejecting the archive SSDs (decision 22) — so
+//! this file is now the order those phases run in and the one place decision 14's verdict is
+//! printed, rather than a parser waiting for an implementation.
 
 use std::collections::BTreeMap;
 use std::num::NonZero;
@@ -20,7 +20,7 @@ use geotag::track::GapLimits;
 use photoday::pipeline::Destination;
 use photoday::runlog::RunLog;
 use photoday::{
-    cards, config, destinations, manifest, marker, naming, phase4, phase5, pipeline, power,
+    cards, config, destinations, eject, manifest, marker, naming, phase4, phase5, pipeline, power,
     preflight, verify,
 };
 
@@ -151,11 +151,12 @@ fn dispatch(cli: &Cli) -> Result<ExitCode> {
     }
 }
 
-/// The nightly command: pre-flight, then phase 3.
+/// The nightly command, end to end: pre-flight, phase 3, corroboration, geotag, eject.
 ///
-/// Phases 4 and 5 are not built, so this stops at LANDED and says so. That is an honest
-/// place to stop rather than an arbitrary one — LANDED *is* the product (decision 14),
-/// and everything after it is explicitly gravy.
+/// **LANDED is announced the moment it happens, in the middle of this function**, because it
+/// *is* the product (decision 14) and everything after it is explicitly gravy. The verdict,
+/// though, is printed once at the very end — phases 4 and 5 still write to the archives, and
+/// eject cannot be attempted until they are done.
 fn offload(args: &Offload) -> Result<ExitCode> {
     let config = config::load()?;
     let awake = power::StayAwake::request();
@@ -239,6 +240,12 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     let geotag = geotag_phase(&plan, &targets, &outcome, args)?;
     report_geotag(geotag.as_ref());
 
+    // Decision 22: last, because phases 4 and 5 still write to the archives. The volumes
+    // must be released only once nothing remains to put on them.
+    let released = eject_phase(&plan, &outcome, args);
+    report_eject(released.as_deref(), args);
+    verdict(&outcome, released.as_deref(), corroboration.as_ref(), args);
+
     Ok(if outcome.landed() && outcome.unfiled.is_empty() {
         ExitCode::SUCCESS
     } else {
@@ -257,6 +264,132 @@ fn source_card(plan: &preflight::Preflight) -> &'static str {
         "cfexpress"
     } else {
         "single"
+    }
+}
+
+/// One destination's eject result, kept with its label for the verdict.
+struct Released {
+    label: String,
+    outcome: eject::Outcome,
+}
+
+/// Decision 22: eject when nothing remains for the current cards.
+///
+/// **The gate is "complete", not "all matched".** A mismatch resolved by
+/// deletion-and-tombstone is settled, and so is a `waived` verdict on a declared
+/// single-source night — only work the current cards could still answer for holds it. Phase
+/// 4 aborting takes the `?` path long before here, so reaching this function at all means
+/// corroboration finished.
+///
+/// Returns `None` when nothing was attempted, which the verdict distinguishes from an eject
+/// that was tried and refused.
+fn eject_phase(
+    plan: &preflight::Preflight,
+    outcome: &pipeline::Outcome,
+    args: &Offload,
+) -> Option<Vec<Released>> {
+    if args.no_eject || !outcome.landed() {
+        return None;
+    }
+
+    let released: Vec<Released> = plan
+        .rig
+        .survey
+        .found
+        .iter()
+        .filter(|resolved| resolved.ejectable())
+        .map(|resolved| Released {
+            label: resolved.label.clone(),
+            // A destination resolved by serial always has a device; if it somehow does not,
+            // that is a refusal to report rather than a reason to fail the run.
+            outcome: match resolved.device.as_ref() {
+                Some(device) => eject::eject(&resolved.volume, device).unwrap_or_else(|error| {
+                    eject::Outcome::Held {
+                        reason: format!("{error:#}"),
+                    }
+                }),
+                None => eject::Outcome::Held {
+                    reason: "the volume reports no physical device to power down".into(),
+                },
+            },
+        })
+        .collect();
+
+    Some(released)
+}
+
+/// Decision 14's verdict: the last line, and its phrases appear nowhere else in the report.
+fn verdict(
+    outcome: &pipeline::Outcome,
+    released: Option<&[Released]>,
+    corroborated: Option<&phase4::Report>,
+    args: &Offload,
+) {
+    println!();
+
+    if !outcome.landed() {
+        println!("►  NOT SAFE — see the unverified counts above");
+        return;
+    }
+
+    // What an ejected disk is a claim *about* differs between a two-card night and a
+    // declared single-source one, and decision 22 says the verdict must not let the same
+    // eject imply more than it proved.
+    let claim = if corroborated.is_some() {
+        "every file from both cards is accounted for"
+    } else {
+        "every file from the one card present is accounted for — corroboration was waived"
+    };
+
+    let Some(released) = released else {
+        if args.no_eject {
+            println!("►  SAFE TO STORE — eject withheld by --no-eject; {claim}");
+        } else {
+            println!("►  SAFE TO STORE — nothing to eject; {claim}");
+        }
+        return;
+    };
+
+    let stuck: Vec<&Released> = released
+        .iter()
+        .filter(|r| !r.outcome.is_ejected())
+        .collect();
+
+    if stuck.is_empty() {
+        println!("►  EJECTED — SAFE TO STORE. {claim}.");
+        return;
+    }
+
+    let names: Vec<&str> = stuck.iter().map(|r| r.label.as_str()).collect();
+    println!(
+        "►  SAFE TO STORE — EJECT {} BY HAND. {claim}.",
+        names.join(", ")
+    );
+}
+
+fn report_eject(released: Option<&[Released]>, args: &Offload) {
+    println!();
+    let Some(released) = released else {
+        if args.no_eject {
+            println!("  Eject    withheld by --no-eject");
+        }
+        return;
+    };
+
+    for r in released {
+        match &r.outcome {
+            eject::Outcome::Ejected => println!("  Eject    {:<8} powered down", r.label),
+            // Worth its own wording: the bytes are flushed and detached either way, and an
+            // operator who reads "failed" for this would worry about the wrong thing.
+            eject::Outcome::Dismounted { reason } => println!(
+                "  Eject    {:<8} dismounted, not powered down — safe to unplug\n           {reason}",
+                r.label
+            ),
+            eject::Outcome::Held { reason } => println!(
+                "  Eject    {:<8} still mounted — eject it from the tray\n           {reason}",
+                r.label
+            ),
+        }
     }
 }
 
@@ -427,16 +560,11 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration, runs_root: &Path) {
 
     println!();
     println!("  run log  {}", runs_root.join("run.jsonl").display());
-    println!();
-    println!(
-        "►  {}",
-        if outcome.landed() {
-            "SAFE TO STORE — corroboration and geotagging follow; eject is not built yet, \
-             so nothing has been ejected"
-        } else {
-            "NOT SAFE — see the unverified counts above"
-        }
-    );
+
+    // No verdict here, deliberately. Decision 14 puts the verdict on the *last* line and
+    // says its phrases appear nowhere else, so announcing one at LANDED — before
+    // corroboration, geotagging and eject have had their say — would give the operator two
+    // places to look and a chance to read the wrong one.
 }
 
 /// Plan the entire run and write nothing (decision 8).

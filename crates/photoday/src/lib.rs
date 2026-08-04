@@ -12,6 +12,7 @@
 pub mod cards;
 pub mod config;
 pub mod destinations;
+pub mod eject;
 pub mod hash;
 pub mod manifest;
 pub mod marker;

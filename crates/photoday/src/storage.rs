@@ -78,7 +78,7 @@ impl Volume {
     /// backslash you get a handle to the volume's root *directory*, and every IOCTL
     /// below then fails with a parameter error rather than anything that names the
     /// cause.
-    fn device_path(&self) -> &str {
+    pub fn device_path(&self) -> &str {
         self.guid_path.trim_end_matches('\\')
     }
 
