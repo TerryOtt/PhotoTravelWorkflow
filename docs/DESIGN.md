@@ -2410,6 +2410,27 @@ exist to detect. **Compare like with like or the history is noise.** Each sample
 the link generation, for decision 32's reason: a card at 38 MB/s on a USB 2.0 port and a
 dying card at 38 MB/s are the same number and opposite actions.
 
+**A destination's health signal is its verify rate, not its write rate.** Measured across two
+full runs two hours apart on 2026-08-04, same 201.3 GB to the same four destinations:
+
+| Pass | First run | Second run | |
+|---|---|---|---|
+| Write | 7 m 47 s — 431 MB/s | 10 m 47 s — **311 MB/s** | **−28 %** |
+| Verify | 5 m 41 s | 5 m 47 s | −2 % |
+
+Per destination the verify windows reproduce within seconds — 3 m 16 s against 3 m 18 s,
+5 m 37 s against 5 m 39 s. **Writes are not reproducible and reads are.** The drives had
+absorbed 201 GB two hours earlier and were taking another 201 GB, so their SLC caches were
+full and garbage collection was behind; reads have no equivalent state to be in. This is the
+same effect that made `examples/write-contention.rs` untrustworthy.
+
+**So a write-rate history would record phantom degradation** — a healthy drive looks 28 %
+slower simply because it was written to recently, which is larger than the decline the check
+is hunting. Store `write_mb_s` for the record, warn on `verify_mb_s`. Same lesson as
+`uptime_min` one paragraph up: **a throughput sample means nothing without the state the
+device was in when it was taken**, and for a destination that state is how much it has
+recently absorbed.
+
 **Card samples and destination samples are never compared to each other, and neither is
 compared across kinds of measurement.** A card sample is a *burst* — a brief pre-flight
 read. A destination sample is *sustained*, derived from a whole run's worth of bytes. The
@@ -2445,6 +2466,8 @@ new evidence rather than fresh taste.
 |---|---|
 | A fleet-median card speed threshold | Healthy cards here differ by more than 2× on one reader (938 vs ~1,135 MB/s), so a bound loose enough to accept them cannot catch a card that has halved. Decision 32 compares a card to its own history instead |
 | Blocking the run on a slow card | A slow card is still a correct card, and the guarantees are about bytes, not speed. Refusing a night's offload over a speed regression manufactures the emergency the tool exists to prevent. Decision 32 warns in the report |
+| Parquet, or any columnar format, for the throughput history | Raised by the operator and rejected on arithmetic before it was proposed. Columnar formats exist for data that will not fit in memory; this is six samples per run — two cards, four destinations — at ~30 travel days a year with two offloads a day. **360 samples a year, roughly 540 KB of JSON per decade**, and decision 33 bounds the list per device so the file stays under ~50 KB regardless. The query engine is a linear scan over a `Vec`. It would also spend the property decision 17 paid two minutes a run to keep: `history.json` opens in a text editor on any machine in 2031, where Parquet needs a specific library that may not still be around. Binary costs `git diff` and hand-repair too. Decision 33 |
+| JSON Lines for the throughput history | The global preference sends append-only logs to JSONL so a row can be added without rewriting the file — and it does not apply here, which is worth stating so the rule is not applied mechanically. Decision 33's history is *bounded* per device, so old samples are dropped and the file is rewritten atomically every run: a ring buffer, not an append log. The run log beside it *is* JSONL, because that one is genuinely append-only and has to survive a crash mid-write (decision 12) |
 | Local-time date folders | UTC is a deliberate conviction, not an oversight. The early-morning-east-of-UTC consequence is understood and accepted |
 | A `date_folders` config setting | A knob whose only legal value is its default — UTC foldering is the conviction above, not a preference |
 | Ingesting non-CR3 files into `_unfiled` as a catch-all | Machinery for formats the operator never shoots. `_unfiled` exists for a defective CR3, not as a junk drawer; the report names strays instead. Decision 24 |

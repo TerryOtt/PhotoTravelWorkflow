@@ -9,6 +9,41 @@ The operator is one photographer, on travel, running this at the end of a shooti
 tired, in a hotel room or cruise cabin, with dinner waiting. Every design decision that
 matters traces back to that person.
 
+## How often this actually happens, measured
+
+**Counted from the Lightroom catalog on 2026-08-04 rather than estimated**, over **2015–2025**.
+The era boundary is the operator's, not the data's: travel got better in 2015 and **he intends
+to keep it there**, so those years are both the record and the plan. Before 2015 is a different
+photographic life averaging 6.4 shooting days a year; 2012–2014 is missing from the tree
+entirely.
+
+| | |
+|---|---|
+| Trips per year | **2.0** |
+| Travel days per year | **15.0** mean, **40** in the busiest year (2022) |
+| Mean trip | **7.5 days** |
+| Longest trip | **16 days** |
+
+*Trips are runs of consecutive shooting days tolerating a one-day gap, of three days or
+more. Single days are excluded as local shooting rather than travel — and there are 48 of
+those, so including them would have doubled the count and meant something else entirely.*
+
+**The shape matters more than the count, and it is what makes this document necessary.**
+The nightly ritual runs in bursts of roughly eight consecutive nights and then not again for
+six months. **The operator is never practiced.** Night one of every trip is performed by
+someone who last did it half a year ago, at the end of a day that started before sunrise,
+with dinner waiting. That is the argument for decision 8's bare command with no arguments,
+for refusing rather than assuming, and for a verdict that is the last line and appears
+nowhere else — none of which is taste.
+
+**One capacity consequence, worth knowing before a long trip.** Sixteen days at the big-day
+figure of ~200 GB is **3.2 TB against 4 TB archive drives — 80 % full**. At the ordinary
+50 GB day it is a comfortable 800 GB. So a fortnight of heavy shooting very nearly fills an
+archive SSD: **one trip per drive is the real design point**, not a generous margin.
+
+*Re-run the count when it matters: it is a directory walk of the year folders in the
+Lightroom tree, clustering `YYYY-MM-DD` names into consecutive runs.*
+
 ## The nightly ritual
 
 1. Load both camera cards into the readers on the Thunderbolt hub. Plug the three archive
