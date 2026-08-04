@@ -88,6 +88,33 @@ the card half never. **When two runs agree, change the other variable.**
 [`docs/REVIEWING.md`](docs/REVIEWING.md) — *Measurements are evidence, and evidence has a
 bar* — is the standing order and the full account.
 
+## Persist a finding when it lands, not when the session ends
+
+**A finding that exists only in the conversation is one lost connection from gone**, and
+Terry should never have to ask for it. He has had to more than once, which is the reason
+this is written down.
+
+**Write it down at the moment it is established, before starting the next thing.** Not
+batched, not at a natural pause, not when reminded. These are the triggers — any one of them
+means stop and record:
+
+- **A number that contradicts a recorded number.** The old one is now wrong and will be
+  quoted by someone.
+- **A measurement that opens or closes a question**, including a negative result. "The TB5
+  hub does not help" is as valuable as a win and less likely to be re-derived.
+- **An instrument found to be untrustworthy.** The most urgent kind: an unmarked broken probe
+  will be believed later.
+- **A hardware fact** — a card, reader, port, link or topology behaving other than assumed.
+- **A mistake whose lesson generalises.** The reasoning failure, not the incident.
+
+**Where it goes:** `docs/` when it belongs to the project — a decision, a measurement, a
+standing order. The memory directory when it is about the rig, the workflow, or how to work
+with Terry. Both when a fact has a habit attached to it. `MEMORY.md` gets a one-line pointer;
+it is an index and never the content.
+
+**And a commit is not finished until it is pushed** — the same rule as everywhere else here,
+for the same reason. GitHub is the backup and the laptop is usually on the road.
+
 ## Dependency versions: ask crates.io, never recall
 
 **Confirm every version with `cargo search <crate> --limit 1` before it lands in

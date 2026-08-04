@@ -123,6 +123,15 @@ pub struct Deletion {
 pub enum Corroborated {
     /// The other card agreed.
     Matched,
+    /// **The two cards disagreed**, confirmed on a re-read of both copies, and the frame
+    /// was quarantined and deleted everywhere. Always paired with [`Status::Deleted`] and
+    /// a [`Deletion`].
+    ///
+    /// This exists because the alternatives both lie. `Matched` would claim an agreement
+    /// that never happened, and `None` means *pending* — so without it a deleted frame is
+    /// indistinguishable from one phase 4 never examined, which is the exact conflation
+    /// this enum was written to prevent.
+    Mismatched,
     /// **By declaration**: a single-source run had no second card to consult
     /// (decision 7).
     Waived,
@@ -275,6 +284,71 @@ pub fn update(
     Manifest::seal(body)?.write(&path)
 }
 
+/// What phase 4 concluded about one file, ready to be written into a manifest.
+///
+/// A struct rather than a bare `(String, Corroborated)` because a mismatch carries the two
+/// competing hashes with it, and a tombstone without them records that something was
+/// deleted while losing the only evidence of why.
+#[derive(Debug, Clone)]
+pub struct Outcome {
+    /// The file name as the manifest holds it — a bare `1402Z_0001.CR3`, not a path.
+    pub name: String,
+    pub corroborated: Corroborated,
+    /// Present only for a confirmed mismatch, which is what turns the entry into a
+    /// tombstone.
+    pub deletion: Option<Deletion>,
+}
+
+/// Record phase 4's verdicts against the manifest already in `folder`.
+///
+/// **Phase 3 writes every entry with `corroborated: None`, meaning genuinely *pending***
+/// (decision 12), and this is what resolves it. Kept separate from [`update`] because the
+/// two do different jobs: `update` merges a run's new files, while this revisits files
+/// already recorded and answers a question that was left open. Folding them together would
+/// mean phase 4 had to reconstruct entries it has no business knowing about — bytes,
+/// capture time, verified timestamp — purely to avoid a second write.
+///
+/// A named file that is not in the manifest is skipped rather than treated as an error: the
+/// manifest holds only what *verified*, so a frame that failed read-back is legitimately
+/// absent while still having been ingested.
+///
+/// Returns how many entries were changed, which the caller compares against what it asked
+/// for — a silent shortfall would mean the manifest and the run disagree about what landed.
+pub fn corroborate(folder: &Path, outcomes: &[Outcome]) -> Result<usize> {
+    let path = path_in(folder);
+    let mut body = Manifest::read(&path)
+        .with_context(|| {
+            format!(
+                "reading {} to record corroboration — phase 3 wrote it minutes ago, so a \
+                 manifest that cannot be read now means something changed underneath the run",
+                path.display()
+            )
+        })?
+        .body;
+
+    let mut changed = 0;
+    for outcome in outcomes {
+        let Some(entry) = body.files.iter_mut().find(|held| held.name == outcome.name) else {
+            continue;
+        };
+
+        entry.corroborated = Some(outcome.corroborated);
+        if let Some(deletion) = &outcome.deletion {
+            // The tombstone of decision 12: the entry stays in the list so a `verify`
+            // years from now reports *clean* rather than flagging a missing file nobody
+            // remembers deleting.
+            entry.status = Status::Deleted;
+            entry.deletion = Some(deletion.clone());
+        }
+        changed += 1;
+    }
+
+    // Re-sealed rather than edited in place: the checksum covers the body, so any change
+    // to a verdict has to re-derive it or the manifest fails its own integrity check.
+    Manifest::seal(body)?.write(&path)?;
+    Ok(changed)
+}
+
 /// SHA-256 of the body, routed through `Value` so writer and reader hash the same bytes.
 fn checksum_of(body: &Body) -> Result<String> {
     let value = serde_json::to_value(body).context("canonicalizing the manifest body")?;
@@ -402,16 +476,135 @@ mod tests {
         assert_eq!(deletion.other_sha256, "bbbb");
     }
 
-    /// The three non-matched verdicts stay distinct on disk, because conflating them is
-    /// how a record stops meaning anything years later.
+    /// The verdicts stay distinct on disk, because conflating them is how a record stops
+    /// meaning anything years later.
     #[test]
     fn the_corroboration_verdicts_are_distinct_strings() {
         for (verdict, spelled) in [
             (Corroborated::Matched, "\"matched\""),
+            (Corroborated::Mismatched, "\"mismatched\""),
             (Corroborated::Waived, "\"waived\""),
             (Corroborated::Forfeited, "\"forfeited\""),
         ] {
             assert_eq!(serde_json::to_string(&verdict).unwrap(), spelled);
         }
+    }
+
+    /// Phase 3 leaves corroboration genuinely pending; phase 4 is what resolves it.
+    #[test]
+    fn corroborate_resolves_a_pending_entry_and_reseals() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+
+        // As phase 3 writes it: corroboration genuinely pending, not merely absent.
+        let mut files = body().files;
+        files[0].corroborated = None;
+        let name = files[0].name.clone();
+
+        update(
+            scratch.path(),
+            "2026-08-03",
+            "OWC",
+            body().runs[0].clone(),
+            files,
+        )
+        .expect("writing the manifest");
+
+        assert!(
+            Manifest::read(&path_in(scratch.path())).unwrap().body.files[0]
+                .corroborated
+                .is_none(),
+            "the fixture must start pending or this proves nothing"
+        );
+
+        let changed = corroborate(
+            scratch.path(),
+            &[Outcome {
+                name: name.clone(),
+                corroborated: Corroborated::Matched,
+                deletion: None,
+            }],
+        )
+        .expect("recording corroboration");
+
+        assert_eq!(changed, 1);
+        // Re-read rather than inspected in memory: the seal has to survive the rewrite, so
+        // this also proves the checksum was re-derived rather than left stale.
+        let back = Manifest::read(&path_in(scratch.path())).expect("the manifest still verifies");
+        assert_eq!(back.body.files[0].corroborated, Some(Corroborated::Matched));
+        assert_eq!(back.body.files[0].status, Status::Present);
+    }
+
+    /// A mismatch must leave a tombstone that still carries *why*, and must not be
+    /// recordable as `Matched` or left looking pending.
+    #[test]
+    fn a_mismatch_becomes_a_tombstone_carrying_both_hashes() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+        update(
+            scratch.path(),
+            "2026-08-03",
+            "OWC",
+            body().runs[0].clone(),
+            body().files,
+        )
+        .expect("writing the manifest");
+
+        corroborate(
+            scratch.path(),
+            &[Outcome {
+                name: body().files[0].name.clone(),
+                corroborated: Corroborated::Mismatched,
+                deletion: Some(Deletion {
+                    source_sha256: "aaaa".into(),
+                    other_sha256: "bbbb".into(),
+                    reason: "the two cards disagreed".into(),
+                    deleted_utc: "2026-08-04T18:44:02Z".into(),
+                }),
+            }],
+        )
+        .expect("recording the mismatch");
+
+        let back = Manifest::read(&path_in(scratch.path())).expect("the manifest still verifies");
+        assert_eq!(back.body.files[0].status, Status::Deleted);
+        assert_eq!(
+            back.body.files[0].corroborated,
+            Some(Corroborated::Mismatched)
+        );
+        let deletion = back.body.files[0].deletion.as_ref().expect("a tombstone");
+        assert_eq!(deletion.source_sha256, "aaaa");
+        assert_eq!(deletion.other_sha256, "bbbb");
+    }
+
+    /// A frame that failed read-back never reached the manifest, so phase 4 naming it is
+    /// not an error — but the count must reveal the shortfall rather than hide it.
+    #[test]
+    fn a_name_the_manifest_does_not_hold_is_skipped_and_counted() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+        update(
+            scratch.path(),
+            "2026-08-03",
+            "OWC",
+            body().runs[0].clone(),
+            body().files,
+        )
+        .expect("writing the manifest");
+
+        let changed = corroborate(
+            scratch.path(),
+            &[
+                Outcome {
+                    name: body().files[0].name.clone(),
+                    corroborated: Corroborated::Matched,
+                    deletion: None,
+                },
+                Outcome {
+                    name: "never_verified.CR3".into(),
+                    corroborated: Corroborated::Matched,
+                    deletion: None,
+                },
+            ],
+        )
+        .expect("recording corroboration");
+
+        assert_eq!(changed, 1, "the absent file must not be counted as changed");
     }
 }
