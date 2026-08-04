@@ -78,8 +78,15 @@ wrong figure in `DESIGN.md`'s wall-clock table, and it is more dangerous than a 
 estimate because it arrives with supporting data: the bad number was defended with a flat
 32× request-size sweep, which reads as proof the *device* is the limit when a starved
 device reads flat too. Before quoting any throughput number, say what else was touching
-the bus. [`docs/REVIEWING.md`](docs/REVIEWING.md) — *Measurements are evidence, and
-evidence has a bar* — is the standing order and the full account.
+the bus.
+
+**And clearing a confound is not finding the cause.** That same figure was re-measured
+quiet, then on a clean filesystem, then cold — every objection answered, the number barely
+moving — and the real fault was a **bad card** the whole time, which a swap into the same
+reader exposed in ten minutes at 2.8×. The reader half of that test had been run twice and
+the card half never. **When two runs agree, change the other variable.**
+[`docs/REVIEWING.md`](docs/REVIEWING.md) — *Measurements are evidence, and evidence has a
+bar* — is the standing order and the full account.
 
 ## Dependency versions: ask crates.io, never recall
 

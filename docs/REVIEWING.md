@@ -215,13 +215,38 @@ the *device* is the limit. It is not: **a device starved of bus bandwidth also r
 at every request size**, because each size gets the same small share of a saturated link.
 The evidence fit both explanations and the one already believed was chosen.
 
+**The sequel is worse, and it ran for months.** That same card was re-measured on a quiet
+bus and came back **unchanged**, which looked like the end of it: the methodology had been
+wrong and the number right. Two further contaminants were then found and removed — a
+corrupted filesystem, and heat — and the number still barely moved. Every objection had
+been answered. **The card was faulty, and a different card in the same reader read 2.8×
+faster.**
+
+> **Clearing a confound is not the same as finding the cause.** A valid objection that
+> points away from the real fault is more dangerous than no objection, because answering
+> it feels like progress and buys the wrong theory more credibility each time.
+
+**What should have caught it years earlier is embarrassingly simple.** Card-versus-reader
+has exactly two tests — same card in a different reader, and a different card in the same
+reader. The first was run **twice**, both times agreeing, and each agreement was read as
+confirmation. The second was never run at all. **When two runs agree, you have learned
+what that variable does; the information is now entirely in the one you have not changed.**
+
 So, before a number goes in a document or a commit message:
 
 - **State what else was touching the bus.** If a run was going, say so or re-take it.
 - **A flat response to a swept parameter is not proof of a device limit.** Ask what else
   produces flatness — saturation does.
+- **Name the component you are blaming, then ask what would exonerate it.** If the answer
+  is a swap you have not made, the number is not evidence about that component yet.
+- **Change the variable you have not changed.** Re-running the test that already agreed
+  adds no information, however clean the conditions get.
 - **Prefer the shape that distinguishes.** Solo, then in company;
   `examples/contention.rs` exists for exactly that and reports what each device lost.
+- **Read the second pass.** Storage measured straight after a bulk write reports its
+  garbage collection, not its speed — one card here climbed 176 → 213 MB/s through a first
+  pass and opened its second at 207. `examples/sustained.rs` shows the curve instead of
+  hiding it in a mean.
 - **Say which device and which link.** On this rig the four destinations differ by 3× and
   the two card readers by 10×, so "the SSD" and "the card" are not units.
 

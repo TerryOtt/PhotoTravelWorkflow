@@ -122,7 +122,7 @@ Phase 3 moves **9N**: 1N read from CFexpress, 4N written, 4N read back to verify
 | Link | Measured | Time at N = 201 GB |
 |---|---|---|
 | CFexpress read (1N) | 675–757 MB/s | ~5 min |
-| SDXC read — phase 4 only (1N) | **62–67 MB/s**, re-measured quiet | **~52 min** |
+| SDXC read — phase 4 only (1N) | **205 MB/s** on a sound card | **~16 min** |
 | OWC, Thunderbolt (2N) | write ~292, read 2,540 | ~13 min |
 | SanDisk / WD, 10 Gbps USB (2N) | write ~292, read ~900 | **~15 min** ← binds |
 | Laptop NVMe (2N) | write ~292, read 3,044 | ~12 min |
@@ -141,21 +141,42 @@ pairs verified. **A later run with the CFexpress moved to a Thunderbolt reader t
 > number in the report — it identified the heterogeneity without anyone having to
 > remember which enclosure was which.
 >
-> **The SDXC row was measured badly, re-measured properly, and came out the same.** The
-> original sweep ran *while a full offload was in flight*, which is not a measurement —
-> and the defence offered for it was invalid, since a bandwidth-starved device reads flat
-> at every request size just as a genuinely slow one does. Re-measured on an idle bus on
-> 2026-08-04: **62–67 MB/s, unchanged**. The methodology was wrong and the number was
-> right; those are separate claims and only the first needed retracting.
+> **The SDXC row was wrong three times, and the last correction was a factor of three.**
+> It began at 62–67 MB/s measured *while a full offload was in flight*, which is not a
+> measurement; the defence offered for it was invalid, since a bandwidth-starved device
+> reads flat at every request size just as a genuinely slow one does. Re-measured on an
+> idle bus it came back **unchanged**, which appeared to settle it — the methodology had
+> been wrong and the number right, and those are separate claims.
 >
-> **The apparent read/write anomaly, however, was entirely an artefact and is now
-> retired.** This section previously noted that the card "reads at roughly half what it
-> writes, which is backwards for flash". It does not: measured like for like on an idle
-> bus, read is 62–67 MB/s and **write is 50 MB/s** — read faster than write, as flash
-> should be. The 117 MB/s write figure it had been compared against came from a robocopy
-> average taken hours earlier under different load, fill and thermal conditions. Two
-> numbers from different worlds are not a comparison, and the "anomaly" was manufactured
-> by treating them as one.
+> **It did not settle it. The card was faulty.** On 2026-08-04 a second SDXC card was read
+> in the *same reader*: **205 MB/s against 73**. Every earlier number described one bad
+> Lexar Professional SILVER PRO, and the reader that had been blamed for months was fine
+> — 205 MB/s is double UHS-I's 104 MB/s ceiling, so it negotiates UHS-II correctly.
+>
+> **What made this hard to see is worth more than the number.** Three contaminants were
+> found and removed — bus load, a corrupted filesystem, and heat — and the figure moved
+> 9%. A valid objection that points away from the actual fault is more misleading than no
+> objection at all, because clearing it feels like progress. The reader was also
+> re-measured repeatedly (two readers, same card, same answer) while **the other variable
+> was never changed**. Repeating the test that already agreed is not converging on an
+> answer.
+>
+> The controlled swap, both cards fresh from an in-camera low-level format on a quiet bus:
+>
+> | Card, same Lexar LRWM04U reader | Read | Write |
+> |---|---|---|
+> | **AngelPro** UHS-II V60 | **205 MB/s** | 105 MB/s |
+> | **Lexar Silver Pro** UHS-II V60, rated 280/160 | **73 MB/s** | 43 MB/s |
+>
+> **Read the second pass, not the first.** The AngelPro's opening pass climbed 176 → 213
+> and never plateaued; a second pass opened at 207 and held. Reading a card straight after
+> a bulk write measures its garbage collection, not its speed.
+>
+> **The read/write "anomaly" is separately retired.** This section once noted the card
+> "reads at roughly half what it writes, which is backwards for flash". It does not: the
+> 117 MB/s write it was held against came from a robocopy average taken hours earlier
+> under different load, fill and thermal conditions. Two numbers from different worlds are
+> not a comparison.
 >
 > **The destinations, by contrast, were measured with nothing else running and do stand.**
 > They read far faster than assumed once asked properly — see `winio::VERIFY_CHUNK`, where
@@ -172,7 +193,7 @@ pairs verified. **A later run with the CFexpress moved to a Thunderbolt reader t
 >
 > | Device | Link | Alone | Together |
 > |---|---|---|---|
-> | SD reader | USB | 64 MB/s | 61 (96%) |
+> | SD path — *the faulty card, see above* | USB | 64 MB/s | 61 (96%) |
 > | CFexpress reader | USB | 504 MB/s | 291 (58%) |
 > | SanDisk | USB | 772 MB/s | 290 (38%) |
 > | WD | USB | 735 MB/s | 289 (39%) |
@@ -203,7 +224,7 @@ pairs verified. **A later run with the CFexpress moved to a Thunderbolt reader t
 >
 > | Device | Link | CF on USB | CF on Thunderbolt |
 > |---|---|---|---|
-> | SD reader | USB | 61 MB/s | 65 |
+> | SD path — *the faulty card, see above* | USB | 61 MB/s | 65 |
 > | CFexpress | USB → **TB** | 291 | **1,112** |
 > | SanDisk | USB | 290 | **417** |
 > | WD | USB | 289 | **417** |
@@ -261,10 +282,12 @@ pairs verified. **A later run with the CFexpress moved to a Thunderbolt reader t
 > against 3,065 for the OWC alone, which is higher as it must be, and ≈26.8 Gbps is about
 > where a TB4 PCIe tunnel tops out.
 >
-> **Two results that change what to do next.** The SD reader gets *slower* with
-> concurrency — 67 MB/s on one thread, 51 on eight — which is the signature of a device
-> with no command queuing, so its speed cannot be improved by how it is asked and the
-> reader itself is the constraint. And **a single USB SSD alone reaches 1,034 MB/s**,
+> **Two results that change what to do next.** The SD path gets *slower* with concurrency
+> — 67 MB/s on one thread, 51 on eight — the signature of a device with no command
+> queuing, so its speed cannot be improved by how it is asked. That much holds; the
+> conclusion drawn from it, that *the reader* was the constraint, was **wrong** — the card
+> was, and a sound card in the same reader does 205 MB/s. And **a single USB SSD alone
+> reaches 1,034 MB/s**,
 > roughly saturating the 10 Gbps tunnel by itself: the drives are nowhere near the limit,
 > the tunnel is, which is what makes a 20 Gbps TB5 tunnel the largest remaining lever on
 > the write pass.
@@ -2047,18 +2070,31 @@ has been shown to catch a single flipped bit in 201 GB and name the file.
   was; see decision 17
 - **retiring RawGeotag** into `photoday geotag` (decision 30), now unblocked by phase 5
 
-**Open questions that need hardware or measurement, not code:**
+**Settled by measurement, 2026-08-04 — recorded because both were open for a while and
+both changed a conclusion:**
 
-- **Is `examples/contention.rs` measuring its own ceiling?** Two Thunderbolt devices
-  summed below one alone, which cannot be right. It reads one thread per device
-  unbuffered, so it may be latency-bound. Until a thread-count sweep says otherwise,
-  the contention numbers above are lower bounds
-- **The SD path reads at ~64 MB/s**, which puts phase 4's corroboration at ~52 minutes
-  on a big day — and decision 22 holds the eject until it finishes, so the night ends
-  ~70 minutes after launch rather than ~18. A faster reader is the largest single
-  improvement available to the *ritual*, as opposed to the metric
+- **The SD path was a faulty card, not the slow reader everyone blamed.** A second SDXC
+  card in the same reader read **205 MB/s against 73**, cutting phase 4's corroboration on
+  a big day from ~46 minutes to ~16. Since decision 22 holds the eject until corroboration
+  finishes, that is **~30 minutes off when the disks can go in the safe**, for the price of
+  retiring a card. **Travel with the AngelPro; the Lexar Silver Pro is out of service.**
+  The reasoning failure that hid it for months is in
+  [`REVIEWING.md`](REVIEWING.md) — *change the variable you have not changed*
+- **`examples/contention.rs` is not measuring its own ceiling**, or not much of one. A
+  thread-count sweep (`examples/threads.rs`) found the single-threaded probe understates by
+  9–14% on fast devices and not at all on slow ones, so every contention number above
+  stands as a slight underestimate. The apparent anomaly — two Thunderbolt devices summing
+  below one alone — was a comparison error, not an instrument fault: the hub's USB traffic
+  rides the same link, and everything together came to 3,344 MB/s against 3,065 for the OWC
+  alone
+
+**Still genuinely open, needing hardware:**
+
 - **A TB5 hub** would raise USB tunnelling from 10 to 20 Gbps, worth perhaps 3 minutes
-  of phase 3
+  of phase 3. Now the largest untested lever, since a single USB SSD alone reaches
+  1,034 MB/s — the drives are nowhere near the constraint, the tunnel is
+- **Is the second Lexar Silver Pro also bad?** Two faulty cards of one model would mean
+  the model rather than the unit, which is worth knowing before buying another
 
 **Two gaps recorded rather than closed.** Neither is a defect today. *No test can prove
 the two file flags are still set*: removing `FILE_FLAG_NO_BUFFERING` changes where bytes
