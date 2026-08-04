@@ -122,7 +122,7 @@ Phase 3 moves **9N**: 1N read from CFexpress, 4N written, 4N read back to verify
 | Link | Measured | Time at N = 201 GB |
 |---|---|---|
 | CFexpress read (1N) | 675–757 MB/s | ~5 min |
-| SDXC read — phase 4 only (1N) | **59–64 MB/s** | **~56 min** |
+| SDXC read — phase 4 only (1N) | 59–64 MB/s — **suspect, see below** | ~56 min |
 | OWC, Thunderbolt (2N) | write ~292, read 2,540 | ~13 min |
 | SanDisk / WD, 10 Gbps USB (2N) | write ~292, read ~900 | **~15 min** ← binds |
 | Laptop NVMe (2N) | write ~292, read 3,044 | ~12 min |
@@ -140,14 +140,23 @@ pairs verified.
 > number in the report — it identified the heterogeneity without anyone having to
 > remember which enclosure was which.
 >
-> **Two numbers here are much worse than estimated and one is much better.** The SDXC
-> reads at ~60 MB/s, not the ~270 the 11.6-minute phase 4 figure in decision 1 implies —
-> off by ~5×, and confirmed flat across a 32× sweep of request sizes and against buffered
-> reads, so it is the device rather than how it is asked. That is entirely post-LANDED
-> and so costs the primary metric nothing, but decision 4's corroboration pass is close
-> to an hour on this rig. Against that, the *destinations* read far faster than assumed
-> once asked properly — see `winio::VERIFY_CHUNK`, where 16 MiB requests beat 1 MiB by a
-> third to a half on every device.
+> **The SDXC row is not trustworthy and is left in only so the correction is visible.**
+> It first read: *"The SDXC reads at ~60 MB/s … confirmed flat across a 32× sweep of
+> request sizes and against buffered reads, so it is the device rather than how it is
+> asked."* **The sweep was run while a full offload was in flight**, so the hub was
+> already carrying a card read plus two SSD writes. A device starved of bandwidth also
+> reads flat at every request size — the flat curve is equally consistent with contention,
+> and the wrong reading was chosen because it fitted the story already in hand. The
+> ~56 minute phase 4 figure inherits the doubt. Re-measure on a quiet hub before anything
+> rests on it.
+>
+> **The destinations, by contrast, were measured with nothing else running and do stand.**
+> They read far faster than assumed once asked properly — see `winio::VERIFY_CHUNK`, where
+> 16 MiB requests beat 1 MiB by a third to a half on every device.
+>
+> **The general rule this cost us: a throughput number is only a measurement if nothing
+> else was using the bus.** Everything in this table was taken on a quiet system except
+> that one row, which is why that one row is the only one carrying a warning.
 >
 > **A 50 GB day scales down cleanly**: roughly 5–6 minutes, bound by the same pair.
 
