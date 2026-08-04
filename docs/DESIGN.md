@@ -1060,6 +1060,36 @@ re-run is `cargo run --release --example hash-rate` — decision 29 added it, an
 `--release` is not optional, since a debug build measures the optimizer rather than the
 CPU.
 
+**What this choice actually costs, measured end to end on 2026-08-04.** The same 3,883
+frames offloaded to all four destinations three times, changing only the hash:
+
+| Hash | Phase 3 | vs SHA-256 |
+|---|---|---|
+| SHA-256 | 20m 57s | — |
+| BLAKE3 | 19m 05s | saves 1m 52s |
+| XXH3 | 17m 58s | saves 2m 59s |
+
+**XXH3 is the row that settles it, and it is not a candidate** — a non-cryptographic
+checksum, the fastest thing anyone could reasonably put here. It buys three minutes on a
+twenty-one minute run, so **no hash choice whatsoever can save more than ~14%**, and
+BLAKE3's share of that is under two minutes. Decision 17 trades those two minutes for an
+archive a stranger can verify in 2031 with `sha256sum` and no copy of this tool. That is
+not a close call, and it is now a priced one rather than an asserted one.
+
+Note how much smaller this is than the in-memory table above implies. BLAKE3 is 2.2× the
+raw rate and 1.10× the run, because phase 3 spends most of its time on I/O that no hash
+touches. **Beware quoting the memory-bandwidth figures as though they were run times.**
+
+> **The measurement found a better lever than the hash, and it is in `winio.rs` rather
+> than here.** `unbuffered_sha256` reads a chunk, hashes it, then reads the next —
+> nothing is in flight during the hash — so a destination's verify rate is
+> `1/(1/read + 1/hash)` rather than `min(read, hash)`. That is why SHA-256 costs 27–54%
+> of each device's read ceiling. **Overlapping the read and the hash would recover more
+> than switching to BLAKE3 does, while keeping SHA-256 entirely**: on the WD, 490 MB/s
+> against a 747 ceiling, where BLAKE3 reaches only 582. Decision 15's claim that hashing
+> "disappears" across cores is true *between* destinations and false *within* one
+> destination's pass. Not yet built.
+
 > **Re-measured 2026-08-03, when decision 29 pinned the crate versions.** The table
 > previously read 2,252 / 529 / 5,023 MB/s and recorded no versions, which is the gap
 > that made a re-run necessary rather than merely diligent. `sha3` and `blake3` reproduce
@@ -1822,7 +1852,8 @@ new evidence rather than fresh taste.
 | Fatal-out on a file whose EXIF cannot be read | The original decision 18 reading, replaced at design review: fatal does not fail safe there — one corrupt file would cost the whole night's backup while nobody is watching. Decision 21 |
 | Go for the pipeline, shelling out to `rawgeotag.exe` for phase 5 | Defensible, and rejected on the validated CR3, GPX and XMP assets. Decision 17 |
 | SHA3-256 instead of SHA-256 | Litigated on measurement, not taste: **4.3× slower on the rig** — 529 MB/s against SHA-256's 2,252 — and the gap is structural, since SHA-NI accelerates SHA-1 and SHA-256 while Keccak has no instruction to select. Nothing is bought for it here. SHA-256 is not deprecated and has no practical attack; SHA-3 was standardized as a structural *alternative* to SHA-2, not a replacement for a broken primitive, and its one clear advantage — length-extension immunity — is a MAC property that never arises when hashing files for integrity. **This hash detects bit rot, a dying card and a flaky reader, not a motivated adversary.** Paying 4.3× on every byte, five times per photo, to hedge against a break in Merkle–Damgård is the wrong trade for a data workflow tool. If SHA-2 ever does weaken, decision 28 already routes the replacement additively. Decision 17 |
-| BLAKE3 instead of SHA-256 | Measured in the same run and genuinely faster — 5,023 MB/s, 2.2× SHA-NI SHA-256 — and still rejected, on longevity rather than speed. `sha256sum` ships with every operating system, so a person in 2031 holding this disk and no copy of this tool can still recompute a manifest by hand; BLAKE3 needs a specific binary they may not have. For a format whose premise is proving itself decades later on an unknown machine, universal recomputability outranks throughput that is already not the bottleneck. Decisions 17, 28 |
+| BLAKE3 instead of SHA-256 | Measured in the same run and genuinely faster — 5,023 MB/s, 2.2× SHA-NI SHA-256 — and still rejected, on longevity rather than speed. `sha256sum` ships with every operating system, so a person in 2031 holding this disk and no copy of this tool can still recompute a manifest by hand; BLAKE3 needs a specific binary they may not have. **Re-tested end to end on 2026-08-04 and the price is now known: 1m 52s on a 20m 57s run.** Decisions 17, 28 |
+| XXH3, or any faster checksum | Never a candidate — non-cryptographic, and it detects accidental corruption only. Measured on 2026-08-04 purely to bound the question, and it does: the fastest plausible hash saves 2m 59s of a 20m 57s run, so **no hash choice can be worth more than ~14%** and the argument closes. Decision 17 |
 | Carrying RawGeotag's `TESTING.md` whole | A stricter regime than decision 18 calls for; its one load-bearing principle is folded into `REVIEWING.md` |
 | `crossbeam-channel` for phase 3's fan-out | `std::sync::mpsc` has been crossbeam internally since Rust 1.67, and `sync_channel` is the bounded backpressure decision 15 describes. Nothing needs `select!` or multiple consumers. Decision 29 |
 | `windows-sys` instead of `windows` | Saves compile time and gives up `windows::core::Error`'s `std::error::Error` impl at exactly the call sites — `DeviceIoControl`, SetupAPI, device eject — where raw FFI fails at runtime against a disk bound for the safe. Decision 29 |
