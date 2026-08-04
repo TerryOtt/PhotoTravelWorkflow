@@ -25,10 +25,28 @@ numbers, and an uncontrolled run produces a figure that looks like the others an
    that has already caught this project out once.
 5. **Both cards in their readers, tracks in the GPX directory.**
 
-## Reboot
+## Reboot — then let the machine settle
 
 For a cold page cache. Without it, an earlier run's data is still in RAM and the verify
 pass reads memory rather than media for some unknowable fraction of the day.
+
+> **Then wait, because the reboot this procedure requires puts you in the worst measurement
+> window it has.** Established 2026-08-04, when three unrelated oddities in one evening
+> turned out to share a cause: the Thunderbolt enclosure bridged to USB instead of PCIe at
+> 11–15 minutes after boot and never once in ten cycles at 103–112 minutes; the SD card read
+> 168 MB/s at 17 minutes and 212 MB/s flat at 117; and phase 4 reported five transient read
+> errors from that same card between 26 and 52 minutes. **Every anomaly was inside the first
+> hour. Every clean reading was two hours in.**
+>
+> A freshly booted Windows is a busy one — Defender catching up, the indexer, prefetch,
+> services still starting — and this project's own standing order is that a number taken
+> while something else is using the bus is not a measurement.
+>
+> **Waiting is nearly free, which is what makes this an easy fix rather than a tradeoff.**
+> Windows settling reads its own files, not the 201 GB of raws on the cards and
+> destinations, so the cache the reboot just cleared stays cleared. **Give it 20 minutes,
+> and re-run `full-run-check.ps1` after the wait rather than before** — the enclosure's bus
+> type is exactly the thing that changes during it.
 
 ## Resuming the session after the reboot
 
