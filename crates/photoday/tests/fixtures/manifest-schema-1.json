@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "checksum": "e1a3425ae18f5964d313894d47829ceadadd782eb866699c8436cd47d8d3cc2c",
+  "body": {
+    "date_utc": "2022-09-27",
+    "destination": "OWC",
+    "runs": [
+      {
+        "run_id": "2022-09-27T18-22-04Z",
+        "files_added": 2,
+        "bytes_added": 94371840
+      }
+    ],
+    "files": [
+      {
+        "name": "1402Z_0001.CR3",
+        "status": "present",
+        "sha256": "9f2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809",
+        "bytes": 47185920,
+        "captured_utc": "2022-09-27T14:02:05Z",
+        "source_card": "cfexpress",
+        "run_id": "2022-09-27T18-22-04Z",
+        "verified_utc": "2022-09-27T18:23:31Z",
+        "corroborated": "matched"
+      },
+      {
+        "name": "1611Z_2087.CR3",
+        "status": "deleted",
+        "sha256": "aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+        "bytes": 47185920,
+        "captured_utc": "2022-09-27T16:11:44Z",
+        "source_card": "cfexpress",
+        "run_id": "2022-09-27T18-22-04Z",
+        "verified_utc": "2022-09-27T18:31:02Z",
+        "deletion": {
+          "source_sha256": "aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888",
+          "other_sha256": "99997777555533331111ffffddddbbbb99997777555533331111ffffdddd0000",
+          "reason": "the two cards disagreed",
+          "deleted_utc": "2022-09-27T18:44:02Z"
+        }
+      }
+    ]
+  }
+}

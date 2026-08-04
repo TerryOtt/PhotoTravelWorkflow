@@ -13,6 +13,7 @@ pub mod cards;
 pub mod config;
 pub mod destinations;
 pub mod hash;
+pub mod manifest;
 pub mod naming;
 pub mod pipeline;
 pub mod power;

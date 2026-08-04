@@ -591,6 +591,7 @@ dependencies = [
  "sha2",
  "sha3",
  "tempfile",
+ "thiserror 2.0.19",
  "walkdir",
  "windows",
 ]
