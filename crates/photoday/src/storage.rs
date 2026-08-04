@@ -57,6 +57,15 @@ pub struct Volume {
     /// **Reassigned by every format**, which is exactly what makes it the identity of a
     /// *card generation* (decision 13) and useless as the identity of a disk.
     pub volume_serial: u32,
+
+    /// `GetDriveTypeW` said `DRIVE_REMOVABLE`.
+    ///
+    /// **Do not use this to find camera cards, and do not trust it to mean anything
+    /// about the medium.** Measured on the real rig: of two identical Canon cards in two
+    /// readers on one hub, one enumerates removable and the other fixed — and all three
+    /// archive SSDs enumerate fixed. It describes the enclosure's firmware. Decision 7
+    /// finds cards by the presence of `DCIM`, and its correction note records what
+    /// filtering on this field would have cost.
     pub removable: bool,
     pub total_bytes: u64,
     pub free_bytes: u64,

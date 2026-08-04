@@ -366,6 +366,18 @@ GUID changed, that disk was reformatted and you want to hear about it loudly.
 Serials also make the distinct-device assertion exact, where four volume GUIDs could be
 four partitions on two disks.
 
+> **Measured against the rig on 2026-08-03, and it holds.** All three archive SSDs report
+> real, distinct serials — `6479_A751_AF00_3CFF.` (OWC), `2138FB400347` (SanDisk),
+> `2143EC400323` (WD) — on three distinct physical disks. So the identity scheme works on
+> the hardware it was designed for, which was not a given: a USB bridge that declined to
+> report a serial would have left this decision resting on the volume GUID alone.
+>
+> Two things the same run taught, both now enforced in code. **Serials are stored
+> verbatim** — the OWC's really does end in a period, and tidying that away is how two
+> devices become one string. And **the distinctness check is real work, not ceremony**:
+> the laptop alone presents four volumes on one physical disk, which is exactly the
+> shape this assertion exists to reject.
+
 Each destination also carries a `.photoday-destination.json` marker at its root, itself
 schema-versioned and readable by every later build (decision 28). An archive pulled from
 the safe in 2031 can then prove what it is and verify itself on a machine that has never
@@ -377,8 +389,33 @@ An in-camera format at the start of every shooting session assigns a new volume 
 so a card's volume GUID changes at least daily; and cheap readers report generic or
 empty hardware serials, so the reader is not reliably identifiable either.
 
-So pre-flight finds removable volumes containing `DCIM`, reads ~64 MB from each, and uses
-the faster one as the phase 3 source. CFexpress lands near 65 ms against UHS-II's 240 ms
+So pre-flight finds **volumes containing `DCIM`** that are not configured destinations,
+reads ~64 MB from each, and uses the faster one as the phase 3 source.
+
+> **Corrected 2026-08-03 against the real rig, and this one would have stopped the tool
+> dead.** The rule here said *removable* volumes containing `DCIM`. Both cards were put
+> in their readers and enumerated, and they disagree:
+>
+> | Card volume | `GetDriveTypeW` | Disk serial reported |
+> |---|---|---|
+> | `D:` `EOS_DIGITAL` | **`DRIVE_REMOVABLE`** | `000000000009` |
+> | `F:` `EOS_DIGITAL` | **`DRIVE_FIXED`** | `0123456789ABCDEF` |
+>
+> Same camera, same hub, two reader bridges that answer differently — and all three
+> archive SSDs report `DRIVE_FIXED` as well. A rule filtering on removability finds one
+> card, and decision 7's own refusal then fires: *ONLY ONE CARD FOUND*, on a night when
+> both are sitting in their readers. Removability describes the enclosure's firmware, not
+> the medium, and it is not usable evidence about anything.
+>
+> **`DCIM` is the discriminator, and the configured destinations are the exclusion.** A
+> volume the config already names is a destination and can never be a card, which closes
+> the only way `DCIM` alone could go wrong.
+>
+> The same run confirmed this decision's other premise by measurement rather than by
+> assumption: **both readers report fake serials.** `0123456789ABCDEF` is the more
+> dangerous of the two precisely because it looks plausible — two readers could easily
+> report it and collide. Cards are identified by measurement because they cannot be
+> identified any other way. CFexpress lands near 65 ms against UHS-II's 240 ms
 — unambiguous. Costs two seconds, needs no configuration, survives buying a new reader,
 and is correct by construction: phase 3 always runs off the fast card regardless of which
 reader is in which port. A config override exists for the day that surprises us.

@@ -9,6 +9,7 @@
 //! that decision 6 resolves a destination by is phase 2's problem and never this
 //! phase's. A destination arrives here as a label and a path.
 
+pub mod config;
 pub mod hash;
 pub mod naming;
 pub mod pipeline;
