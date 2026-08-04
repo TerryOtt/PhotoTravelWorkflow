@@ -49,7 +49,23 @@ the deal:
   stills. A non-CR3 file on a card is a contract violation: the tool does not back it
   up, and the report names it so the decision about it happens before the next
   in-camera format, not after ([`DESIGN.md`](DESIGN.md) decision 24).
-- **Both cards are formatted in-camera at the start of every shooting session.** There
+- **Cards are formatted in the camera body. Only ever, by anything.** Not by Windows,
+  not by a disk utility, not by a repair tool, and not by this tool — which never writes
+  to a card at all (`DESIGN.md` non-goals). The camera writes the exact filesystem
+  geometry it expects, and the widely-held view among photographers is that this is the
+  single best defence against card corruption. Whether or not every part of that folklore
+  survives scrutiny, **it is the operator's standing rule and it binds everything here**:
+  a card that misbehaves goes back in the body and gets formatted, rather than being
+  handed to `chkdsk /f` or a Windows format.
+
+  **This binds diagnostics too, and that was learned the hard way.** On 2026-08-04 a
+  throughput probe wrote a gigabyte to a live card to measure it, failed partway with
+  `os error 1392`, and left the volume dirty with corruption in its own directory. The
+  product's non-goal would have prevented it; a tool written to investigate the product
+  ignored the rule the product obeys. **If a measurement needs to write, it writes
+  somewhere that is not a camera card.**
+
+  **The rhythm:** both cards are formatted at the start of every shooting session. There
   may be several sessions in a day — a midday return to the hotel often means offload,
   reformat, and back out for the evening — and a session never spans more than one
   local-time day. The format is what makes a card equal a session — and it stamps each
