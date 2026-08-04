@@ -131,6 +131,53 @@ Phase 3 moves **9N**: 1N read from CFexpress, 4N written, 4N read back to verify
 pairs verified. **A later run with the CFexpress moved to a Thunderbolt reader took
 18 min 06 s**, and the shape of that gain matters more than its size — see below.
 
+### The current number: 16 m 55 s, on the rig that actually travels
+
+**Measured 2026-08-04 on the CalDigit Element 5**, which is the hub Terry takes with him —
+every figure above was taken on the desk dock, and so described a rig that never leaves the
+house. Same shoot, same four destinations, exit 0, all 15,532 pairs verified.
+
+| Phase | Duration |
+|---|---|
+| Pre-flight + write pass | 8 m 22 s |
+| Verify pass | 8 m 13 s |
+| **LANDED** | **16 m 35 s** |
+| Geotag (phase 5) | ~20 s |
+| **Total** | **16 m 55 s** |
+
+**The verify pass is entirely the two USB drives**, and this is derived from `verified_utc`
+in the run log rather than from a probe — the run measuring itself:
+
+| Destination | Verify window | Effective rate |
+|---|---|---|
+| laptop (NVMe) | 2 m 55 s | 1,150 MB/s |
+| OWC (Thunderbolt) | 3 m 07 s | 1,077 MB/s |
+| **SanDisk (USB)** | **8 m 12 s** | **409 MB/s** |
+| **WD (USB)** | **8 m 12 s** | **409 MB/s** |
+
+The laptop and OWC finish in about three minutes and then **sit idle for five** while the USB
+pair grinds on. Together those two reach 818 MB/s against a 935 MB/s tunnel ceiling measured
+independently on a quiet bus — 87%, which is what saturation looks like once protocol
+overhead is paid. **Half the run is two drives sharing one 10 Gbps pipe.**
+
+**The fix is an enclosure, not a laptop, and the OWC is the proof.** It is a
+`USB4 Router (1.0)` carrying a **PCIe** tunnel rather than the USB one, which is why it
+verified at 1,077 MB/s and held 95 % of its solo write rate under load while the USB pair
+collapsed. TB4 offers ~3.3 GB/s of aggregate PCIe and exactly one device uses it today.
+Moving both archive SSDs into OWC Express 1M2-class enclosures would take them off the
+contended tunnel entirely — recovering the same ~3.5 minutes a new laptop would, at a
+fraction of the cost, and sidestepping the USB4 v1 host rather than trying to outspend it.
+
+**A caution for whoever reads the CPU next.** The processor sits at 3–4 % through the verify
+pass, which tempts two wrong conclusions. It does *not* mean hashing is free: read and hash
+are serialised, so the idle CPU is the signature of work that could overlap and does not —
+roughly 15–20 % of the pass, and the reason the SHA-256-versus-XXH3 experiment appeared to
+measure the hash when it was really measuring the serialisation. And it does *not* mean
+phase 4 should run concurrently with verify: the SD reader shares that same saturated
+tunnel, so corroborating early would take ~215 MB/s straight out of the two destinations
+that already bind phase 3 — trading metric #1 for metric #2, which the priority order
+forbids. **CPU headroom was never the constraint.**
+
 > **This table replaces an estimate that was optimistic, and the reason it was wrong is
 > worth more than the correction.** It read *"Each SSD, write + verify — 400–800 MB/s
 > sustained — 8–16 min ← binds"*, and treated the three archive drives as
@@ -2195,7 +2242,38 @@ The hub does deliver PCIe headroom on devices that were never binding: the OWC w
 1,333 → 1,825 MB/s in company, the Thunderbolt CFexpress reader 1,112 → 1,153. Neither is
 on the critical path, so neither moves the wall clock.
 
-**Nothing on the hardware list is open.** What remains is code.
+**But the money question moved rather than closed: buy an enclosure, not a laptop.** The OWC
+is a `USB4 Router (1.0)` carrying a **PCIe** tunnel instead of the USB one, which is why it
+verified at 1,077 MB/s and kept 95 % of its solo write rate under load while the two USB
+drives sat at 409. TB4 offers ~3.3 GB/s of aggregate PCIe and one device uses it. Putting
+both archive SSDs in OWC Express 1M2-class enclosures takes them off the contended tunnel
+entirely — the same ~3.5 minutes a new laptop would buy, for a fraction of the price, and it
+sidesteps the USB4 v1 host rather than trying to outspend it.
+
+**One correction worth keeping, because it sounds wrong:** Thunderbolt 4 is **not** a superset
+of USB 3.2. USB4/TB4 tunnels USB 3.2 **Gen 2x1 — 10 Gbps** — and Gen 2x2 is not tunnelled at
+all. The two are mutually exclusive in the connector: Gen 2x2 reaches 20 Gbps by using *both*
+USB-C lane pairs for USB3 signalling, and USB4 claims those same lanes for its own link. The
+SanDisk here supports Gen 2x2 and cannot use it on this machine — the one native USB-C port
+enumerates on the **USB 3.1** controller, whose ceiling is 10 Gbps, and the TB4 ports tunnel
+at 10.
+
+**One open hardware question remains, and it is blocked on an instrument rather than on
+hardware:**
+
+- **Are the archive SSDs tunnel-limited or drive-limited when *writing*?** The verify half is
+  settled — 409 MB/s each against 724/703 solo reads, so that half is the tunnel. The write
+  half is not, and `examples/write-contention.rs` cannot currently answer it: it reported
+  every device keeping **>100 %** in company, and its untouched control drifted **24 %**
+  between runs. It measures the solo and together phases with the drives in different states,
+  and its 12 GB sample fits inside an SLC cache that the real 201 GB run exhausts. **Fix the
+  instrument before quoting it.** This decides whether enclosures buy ~3.5 minutes or ~7.
+
+**A run measured on the desk dock is not a measurement of this tool.** Terry travels with the
+Element 5 and had been testing on the desk dock out of convenience, so every wall-clock figure
+before 2026-08-04 described a rig that never leaves the house. The two hubs turned out to be
+equivalent for USB, so nothing had to be retracted — **that was luck, not method. State which
+hub a timing came from.**
 
 **Two gaps recorded rather than closed.** Neither is a defect today. *No test can prove
 the two file flags are still set*: removing `FILE_FLAG_NO_BUFFERING` changes where bytes
