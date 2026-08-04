@@ -244,6 +244,40 @@ Moving both archive SSDs into OWC Express 1M2-class enclosures would take them o
 contended tunnel entirely — recovering the same ~3.5 minutes a new laptop would, at a
 fraction of the cost, and sidestepping the USB4 v1 host rather than trying to outspend it.
 
+### Corroboration ran for the first time, 2026-08-04
+
+**The two-card contract has been in this design since the first draft. That night the code
+delivered it.** Phase 4 was written and unit-tested long before it had a call site, so every
+manifest this tool had ever produced carried `corroborated: null` — a question asked and left
+open. The run that closed it:
+
+```
+═══ LANDED · phase 3 took 13m 04s ═══
+  Corrob   3,883 matched · 0 mismatched
+  Geotag   2,394 tagged · 0 sidecars written · 9,576 left alone (already tagged)
+=== exit=0  wall=1,966.9s (32.78 min) ===
+```
+
+**15,532 manifest entries went from `null` to `matched`**, verified afterwards on all four
+destinations, each manifest re-sealed and re-reading cleanly against its own checksum. Every
+frame is now written to four devices, read back and hashed from the media, *and* confirmed
+against a second physical card.
+
+**The destructive path was correctly never reached** — 0 mismatched, `status: present`
+throughout, no tombstones, no quarantine directory created. It remains exercised only by unit
+tests, which is the right place for it: manufacturing a mismatch would mean writing to a
+camera card, and nothing here does that.
+
+**Two figures worth keeping.** Corroboration took **~19.5 minutes** at ~170 MB/s from the SD
+card — 83 % of that card's 205 MB/s raw rate, the same read-then-hash serialisation tax the
+verify pass pays. And LANDED came at **13 m 04 s** on a convergence run against 16 m 35 s
+fresh, because a convergence run still reads and hashes all 201 GB from the card and only
+skips the writing. That gap is decision 13's log-driven resume measuring its own absence.
+
+**Phase 5 demonstrated something nobody was testing:** `0 sidecars written · 9,576 left
+alone`. It recognised the previous run's work rather than rewriting every sidecar, which is
+the idempotence decision 12's convergence rhythm depends on.
+
 **A caution for whoever reads the CPU next.** The processor sits at 3–4 % through the verify
 pass, which tempts two wrong conclusions. It does *not* mean hashing is free: read and hash
 are serialised, so the idle CPU is the signature of work that could overlap and does not —
@@ -2267,7 +2301,7 @@ stale, fix it before doing anything else.*
 | `preflight` | phases 1 and 2, including decision 27's card-equivalency gate |
 | `pipeline` | phase 3 — read once, fan out, write through, verify unbuffered (decisions 2, 5, 10) |
 | `manifest`, `marker`, `verify` | the durable artifact and `photoday verify <DEST>` (decisions 12, 20, 28) |
-| `phase4` | corroboration, **built and tested but not wired to the CLI** (decisions 3, 4) |
+| `phase4` | corroboration — **wired and proven on the rig**: 3,883 matched, 0 mismatched (decisions 3, 4) |
 | `phase5` | geotag, wired and running (decisions 16, 23, 26) |
 
 A full run lands in ~18 minutes and every `(file, destination)` pair verifies. `verify`
@@ -2275,8 +2309,10 @@ has been shown to catch a single flipped bit in 201 GB and name the file.
 
 **Still to build:**
 
-- **wiring phase 4 to the CLI**, which needs the manifest corroboration pass — marking
-  `matched` and writing tombstones (decisions 4, 12)
+- ~~wiring phase 4 to the CLI~~ — **done 2026-08-04.** `manifest::corroborate` resolves the
+  pending entries, and a single-source run records *waived* rather than leaving the record
+  ambiguous. The tombstone path is unit-tested and has never fired on real hardware, which is
+  correct: forcing a mismatch would mean writing to a camera card
 - **eject** (decision 22): `FSCTL_LOCK_VOLUME` with backoff, dismount,
   `CM_Request_Device_Eject`. The one part of the storage layer that dismounts a live
   volume, so deliberately not built alongside the read-only queries
