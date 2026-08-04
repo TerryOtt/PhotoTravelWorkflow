@@ -128,7 +128,8 @@ Phase 3 moves **9N**: 1N read from CFexpress, 4N written, 4N read back to verify
 | Laptop NVMe (2N) | write ~292, read 3,044 | ~12 min |
 
 **The whole run took 20 min 27 s**, and every one of the 15,532 `(file, destination)`
-pairs verified.
+pairs verified. **A later run with the CFexpress moved to a Thunderbolt reader took
+18 min 06 s**, and the shape of that gain matters more than its size — see below.
 
 > **This table replaces an estimate that was optimistic, and the reason it was wrong is
 > worth more than the correction.** It read *"Each SSD, write + verify — 400–800 MB/s
@@ -225,6 +226,31 @@ pairs verified.
 > "cheap readers report generic serials" is therefore a fact about *readers*, not about
 > cards — it does not change the decision, since a card's volume serial still changes at
 > every format, but the reasoning should not be read as universal.
+>
+> **And the shared thing is not a controller at all — it is a tunnel.** From the device
+> tree: this machine has exactly two xHCI controllers and both are the laptop's; the hub
+> enumerates as a `USB4 Router`, not as a USB controller, with a `Generic SuperSpeed USB
+> Hub` behind it. The dock's USB ports are reached by **USB tunnelling over USB4**, and
+> USB4 v1 / TB4 tunnels a single USB 3.2 Gen 2x1 connection — **10 Gbps by
+> specification** — shared by every USB device on the dock however many ports it has. No
+> hub of this generation avoids that; USB4 v2 / TB5 raises the tunnel to 20 Gbps.
+>
+> The natural objection is that a 16-port gigabit switch has a non-blocking backplane, so
+> dividing 10 Gbps among 10 Gbps ports looks like a design failure. It is not: USB has
+> **no peer-to-peer path**, every transfer is host↔device, so downstream ports inherently
+> share the upstream — and here that upstream is a spec-capped tunnel rather than a
+> backplane.
+>
+> **The full run came in at 18 min 06 s, and the verify pass did not improve — correctly.**
+> The card is not read during verification, so the USB pair was *already* only two streams
+> sharing the tunnel; moving the CFexpress off USB cannot help a pass it never
+> participated in. Only the write pass, running three USB streams, had anything to gain.
+> A prediction of 14–15 minutes applied the gain to both halves and was wrong for exactly
+> that reason.
+>
+> **So the two passes have different bottlenecks and must be tuned separately.** Removing
+> a stream from the USB tunnel helps only the write pass. Verification needs a wider
+> tunnel, or fewer USB destinations.
 >
 > ⚠ **These contention figures are under suspicion, and the instrument is the suspect.**
 > Two Thunderbolt devices measured 2,445 MB/s together while the OWC alone measured
