@@ -139,6 +139,33 @@ pub fn survey_against(config: &Config, volumes: &[Volume]) -> Survey {
     survey
 }
 
+/// Whether two spellings name the same volume.
+///
+/// **A config holds `{d10e8b02-…}` while Windows reports
+/// `\\?\Volume{d10e8b02-…}\`, and comparing those as strings is never equal.** That bug
+/// shipped into the first real run and made every archive disk report *REFORMATTED —
+/// update the config's volume_guid* on a rig where nothing had been reformatted. It was
+/// harmless to the data and corrosive to the tool: a warning that fires regardless of
+/// the truth is the warning you learn to read past, which is precisely what decision 12
+/// says destroys the only thing this tool exists to provide.
+///
+/// So the comparison is on the braced GUID both forms contain, and either side may be
+/// written either way.
+fn same_volume(a: &str, b: &str) -> bool {
+    fn guid(text: &str) -> Option<&str> {
+        let start = text.find('{')?;
+        let end = text[start..].find('}')? + start + 1;
+        Some(&text[start..end])
+    }
+
+    match (guid(a), guid(b)) {
+        (Some(a), Some(b)) => a.eq_ignore_ascii_case(b),
+        // Neither form contains a GUID, so fall back to the whole string rather than
+        // silently calling two unrelated things equal.
+        _ => a.eq_ignore_ascii_case(b),
+    }
+}
+
 /// One destination, or why it could not be found.
 ///
 /// The error is a plain `String` rather than an `anyhow::Error` because it is not a
@@ -177,7 +204,9 @@ fn locate(destination: &Destination, volumes: &[Volume]) -> Result<Resolved, Str
 
             let (volume, device, matched) = match by_serial {
                 Some((volume, device)) => {
-                    let matched = if volume_guid == Some(volume.guid_path.as_str()) {
+                    let matched = if volume_guid
+                        .is_some_and(|stored| same_volume(stored, &volume.guid_path))
+                    {
                         Match::Exact
                     } else {
                         Match::SerialAtNewVolume {
@@ -243,6 +272,44 @@ mod tests {
 
     fn config(json: &str) -> Config {
         serde_json::from_str(json).expect("valid test config")
+    }
+
+    /// **The regression test for the false REFORMATTED warning.** A config holds a bare
+    /// braced GUID; Windows reports `\\?\Volume{…}\`. Comparing those as strings was
+    /// never equal, so every archive disk claimed to have been reformatted on a rig
+    /// where nothing had. The first assertion here is the one that failed.
+    #[test]
+    fn a_config_guid_and_a_volume_path_naming_one_volume_compare_equal() {
+        let bare = "{d10e8b02-e4f2-476a-af89-78eacb8a7f38}";
+        let path = r"\\?\Volume{d10e8b02-e4f2-476a-af89-78eacb8a7f38}\";
+
+        assert!(
+            same_volume(bare, path),
+            "the bug: these are the same volume"
+        );
+        assert!(same_volume(path, bare), "and the comparison is symmetric");
+        assert!(
+            same_volume(&bare.to_uppercase(), path),
+            "GUIDs are case-insensitive"
+        );
+    }
+
+    /// The fix must not go too far the other way. A genuinely different GUID — which is
+    /// what a real reformat produces — still has to be reported.
+    #[test]
+    fn a_genuinely_different_guid_is_still_a_mismatch() {
+        let stored = r"\\?\Volume{d10e8b02-e4f2-476a-af89-78eacb8a7f38}\";
+        let found = r"\\?\Volume{aaaaaaaa-e4f2-476a-af89-78eacb8a7f38}\";
+
+        assert!(!same_volume(stored, found));
+    }
+
+    /// Two strings carrying no GUID at all fall back to comparing themselves, rather
+    /// than both yielding "no GUID" and being called equal.
+    #[test]
+    fn strings_without_guids_are_not_all_equal_to_each_other() {
+        assert!(!same_volume("something", "something else"));
+        assert!(same_volume("something", "SOMETHING"));
     }
 
     /// A device the config names and the hardware does not have is *reported*, not

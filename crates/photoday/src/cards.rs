@@ -28,6 +28,11 @@ use crate::winio::unbuffered_sample;
 /// being something you notice. Roughly one and a half frames from an R5.
 pub const SAMPLE_BYTES: u64 = 64 * 1024 * 1024;
 
+/// Read and discarded before the clock starts, to bring the reader out of any idle
+/// state. Small enough to cost nothing, large enough to force a real device access
+/// rather than only a file open.
+const WAKE_BYTES: u64 = 4 * 1024 * 1024;
+
 /// A camera card, as found.
 #[derive(Debug, Clone)]
 pub struct Card {
@@ -103,8 +108,22 @@ pub fn measure(card: &Card) -> Result<Speed> {
     let files = cr3_files(&card.dcim)
         .with_context(|| format!("listing {} to time it", card.dcim.display()))?;
 
-    // Timing starts after the walk, so the directory enumeration — which is metadata
-    // work on the filesystem, not throughput — stays out of the number.
+    // **Wake the device before starting the clock.** This is not a refinement; without
+    // it the measurement is wrong enough to pick the wrong card, which is what happened
+    // on the first real run: the CFexpress had been idle 30 minutes and came back at
+    // 33 MB/s against the SDXC's 236, so phase 3 chose the slow card. The arithmetic
+    // gives it away — 64 MiB at 33 MB/s is 2.0 s, where the device itself needs about
+    // 65 ms, so nearly all of it was a reader waking up inside the timed window.
+    //
+    // A reader that has just been plugged in, or has sat idle while the other card was
+    // being read, is the *normal* state at the start of a run rather than an edge case.
+    if let Some(first) = files.first() {
+        let _ = unbuffered_sample(first, WAKE_BYTES);
+    }
+
+    // Timing starts after the walk and the wake, so neither the directory enumeration —
+    // which is filesystem metadata work, not throughput — nor the device's first stir
+    // lands in the number.
     let start = Instant::now();
     let mut bytes = 0u64;
 
