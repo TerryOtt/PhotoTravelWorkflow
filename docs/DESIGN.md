@@ -49,6 +49,36 @@ was already comfortably inside the window before any of it started.
 verdict, walk away, and sleep. Wall clock only re-enters the argument if a run approaches the
 bar — a much larger shoot, or hardware degrading toward it.
 
+### Total runtime is not the figure of merit, and comparing it would miss the point
+
+**The exposure window is.** It opens the moment the shutter is first pressed and closes when
+four validated, byte-identical copies exist. Everything before that instant is time during
+which a single card failure loses a day's work, and *that* is the quantity this design
+attacks. The Go predecessor this tool replaces took, by the operator's recollection, **20–30
+minutes** for this same 3,883-frame day — a figure he offers as memory rather than
+measurement, so treat it as an order of magnitude.
+
+`photoday` reaches **LANDED at 16 m 35 s** and runs about **33 minutes** in total. Two honest
+comparisons follow, and they are different claims:
+
+- **Against the predecessor**, the exposure window closes several minutes earlier — and the
+  predecessor's whole run had to finish, because it had no earlier milestone to offer.
+- **Against a naïve reading of this tool**, waiting for the run to *complete* would mean
+  breathing out at 33 minutes instead of 16. **The restructuring is worth ~15 minutes of
+  anxiety on its own**, and costs nothing, because the deferred work was never what the
+  operator was waiting for.
+
+**So a reviewer comparing total runtimes would conclude this project bought nothing, and
+would be wrong.** Total runtime went sideways *on purpose*: corroboration and geotagging were
+moved to *after* the guarantee rather than before it, which lengthens the run while shortening
+the only interval that carries risk. Decision 1 is the same trade in miniature — the SDXC read
+is deferred rather than skipped, preserving the guarantee while keeping ~20 minutes off
+LANDED.
+
+**This is the answer to "the new tool takes as long as the old one, so what was the point?"**
+The point is that the operator can stop worrying at the halfway mark, and everything after it
+is gravy that happens while he eats.
+
 This is not a "correctness at any cost" design. Where certainty and wall clock conflict,
 the tie is broken in favor of wall clock *provided the guarantee is preserved, only
 deferred* — see [Phase 3 reads one card](#1-phase-3-reads-the-cfexpress-card-only).
