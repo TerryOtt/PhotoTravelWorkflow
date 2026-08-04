@@ -2303,6 +2303,7 @@ stale, fix it before doing anything else.*
 | `manifest`, `marker`, `verify` | the durable artifact and `photoday verify <DEST>` (decisions 12, 20, 28) |
 | `phase4` | corroboration — **wired and proven on the rig**: 3,883 matched, 0 mismatched (decisions 3, 4) |
 | `phase5` | geotag, wired and running (decisions 16, 23, 26) |
+| `eject` | lock with backoff, dismount, power down — **proven on both bus types** (decision 22) |
 
 A full run lands in ~18 minutes and every `(file, destination)` pair verifies. `verify`
 has been shown to catch a single flipped bit in 201 GB and name the file.
@@ -2313,9 +2314,10 @@ has been shown to catch a single flipped bit in 201 GB and name the file.
   pending entries, and a single-source run records *waived* rather than leaving the record
   ambiguous. The tombstone path is unit-tested and has never fired on real hardware, which is
   correct: forcing a mismatch would mean writing to a camera card
-- **eject** (decision 22): `FSCTL_LOCK_VOLUME` with backoff, dismount,
-  `CM_Request_Device_Eject`. The one part of the storage layer that dismounts a live
-  volume, so deliberately not built alongside the read-only queries
+- ~~eject~~ — **built and proven on the rig, 2026-08-04.** Both bus types power down
+  completely, the disk leaving the disk list rather than merely unmounting: Thunderbolt in
+  **2.1 s**, USB in **2.9 s**, neither needing the lock retry. The card readers are untouched,
+  as decision 22 says they should be
 - **the report** of decision 14 — the verdict shape exists in outline, not in full
 - **`sync`** (decision 20), the recovery path `--without` implies
 - **log-driven resume** (decision 13). Convergence already works, via decision 5's
