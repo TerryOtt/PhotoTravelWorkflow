@@ -122,7 +122,7 @@ Phase 3 moves **9N**: 1N read from CFexpress, 4N written, 4N read back to verify
 | Link | Measured | Time at N = 201 GB |
 |---|---|---|
 | CFexpress read (1N) | 675–757 MB/s | ~5 min |
-| SDXC read — phase 4 only (1N) | 59–64 MB/s — **suspect, see below** | ~56 min |
+| SDXC read — phase 4 only (1N) | **62–67 MB/s**, re-measured quiet | **~52 min** |
 | OWC, Thunderbolt (2N) | write ~292, read 2,540 | ~13 min |
 | SanDisk / WD, 10 Gbps USB (2N) | write ~292, read ~900 | **~15 min** ← binds |
 | Laptop NVMe (2N) | write ~292, read 3,044 | ~12 min |
@@ -140,15 +140,21 @@ pairs verified.
 > number in the report — it identified the heterogeneity without anyone having to
 > remember which enclosure was which.
 >
-> **The SDXC row is not trustworthy and is left in only so the correction is visible.**
-> It first read: *"The SDXC reads at ~60 MB/s … confirmed flat across a 32× sweep of
-> request sizes and against buffered reads, so it is the device rather than how it is
-> asked."* **The sweep was run while a full offload was in flight**, so the hub was
-> already carrying a card read plus two SSD writes. A device starved of bandwidth also
-> reads flat at every request size — the flat curve is equally consistent with contention,
-> and the wrong reading was chosen because it fitted the story already in hand. The
-> ~56 minute phase 4 figure inherits the doubt. Re-measure on a quiet hub before anything
-> rests on it.
+> **The SDXC row was measured badly, re-measured properly, and came out the same.** The
+> original sweep ran *while a full offload was in flight*, which is not a measurement —
+> and the defence offered for it was invalid, since a bandwidth-starved device reads flat
+> at every request size just as a genuinely slow one does. Re-measured on an idle bus on
+> 2026-08-04: **62–67 MB/s, unchanged**. The methodology was wrong and the number was
+> right; those are separate claims and only the first needed retracting.
+>
+> **The apparent read/write anomaly, however, was entirely an artefact and is now
+> retired.** This section previously noted that the card "reads at roughly half what it
+> writes, which is backwards for flash". It does not: measured like for like on an idle
+> bus, read is 62–67 MB/s and **write is 50 MB/s** — read faster than write, as flash
+> should be. The 117 MB/s write figure it had been compared against came from a robocopy
+> average taken hours earlier under different load, fill and thermal conditions. Two
+> numbers from different worlds are not a comparison, and the "anomaly" was manufactured
+> by treating them as one.
 >
 > **The destinations, by contrast, were measured with nothing else running and do stand.**
 > They read far faster than assumed once asked properly — see `winio::VERIFY_CHUNK`, where
