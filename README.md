@@ -13,11 +13,11 @@ All four copies are backups and none of them is a working copy — they are inte
 by construction, and editing happens at home from a NAS rather than from anything this
 tool writes.
 
-**Status: partly implemented.** Phase 3 — read each frame once, fan out to four
-destinations, write through to media, read every byte back unbuffered, log what is
-proven — is built and tested. The pre-flight phases, the Windows storage-identity layer
-they rest on, and phases 4 and 5 are still to come; the CLI parses and then exits. The
-design is settled and written up in
+**Status: it works end to end, for the part that matters.** Pre-flight and phase 3 are
+built, and have landed a real 3,883-frame, 201 GB shooting day onto four destinations in
+20 minutes with every one of the 15,532 `(file, destination)` pairs read back off the
+media and verified. Corroboration, geotagging, the report and eject are still to come.
+The design is settled and written up in
 [`docs/DESIGN.md`](docs/DESIGN.md) — numbered decisions, each with its reasoning,
 covering the phase structure, why verification has to defeat both the OS page cache and
 the SSD's own DRAM cache, how filenames stay deterministic across four destinations, and

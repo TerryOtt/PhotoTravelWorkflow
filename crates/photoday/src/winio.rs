@@ -43,9 +43,28 @@ const FILE_FLAG_NO_BUFFERING: u32 = 0x2000_0000;
 /// would cost a `DeviceIoControl` to learn a number that is never larger than this.
 const SECTOR: usize = 4096;
 
-/// How much to pull per unbuffered read. A sector multiple, as the flag requires, and
-/// large enough that a 45 MB frame costs ~45 syscalls rather than ~11,000.
-const VERIFY_CHUNK: usize = 1024 * 1024;
+/// How much to pull per unbuffered read. A sector multiple, as the flag requires.
+///
+/// **16 MiB, chosen by measurement rather than by feel.** `FILE_FLAG_NO_BUFFERING`
+/// disables OS read-ahead, so nothing is in flight behind a request and throughput
+/// becomes a function of request size against device latency. Swept on all four real
+/// destinations, 1 MiB against 16 MiB:
+///
+/// | Device | 1 MiB | 16 MiB |
+/// |---|---|---|
+/// | SanDisk, 10 Gbps USB | 662 MB/s | 947 MB/s |
+/// | WD, 10 Gbps USB | 663 MB/s | 899 MB/s |
+/// | OWC, Thunderbolt | 1,976 MB/s | 2,540 MB/s |
+/// | laptop NVMe | 2,130 MB/s | 3,044 MB/s |
+///
+/// A third to nearly half again, on every device, for a constant. 32 MiB measured no
+/// better than 16 and sometimes worse, so this is the knee rather than the ceiling.
+///
+/// The same sweep also settled a question decision 2 left open: **unbuffered is not a
+/// throughput sacrifice.** Buffered reads with full OS read-ahead came in *below* even
+/// the 1 MiB unbuffered figure on all four devices — 634, 625, 1,609 and 1,718 MB/s.
+/// The cache bypass that makes verification mean something is also the faster path.
+const VERIFY_CHUNK: usize = 16 * 1024 * 1024;
 
 /// The prefix every in-flight write carries, and the one pre-flight's orphan sweep
 /// keys on (decision 13). A partial file never wears the real name, so anything left

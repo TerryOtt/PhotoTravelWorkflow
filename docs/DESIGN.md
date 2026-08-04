@@ -116,17 +116,40 @@ Let **N** = one copy of the day's raws. A big day is N ≈ 188 GB; a normal one 
 Phase 3 moves **9N**: 1N read from CFexpress, 4N written, 4N read back to verify. Only
 **7N crosses the Thunderbolt hub**, because the laptop's copy is internal.
 
-| Link | Realistic sustained | Time at N = 188 GB |
-|---|---|---|
-| CFexpress read (1N) | 1,000–1,700 MB/s | 2–3 min |
-| TB4 hub aggregate (7N) | ~3 GB/s usable | ~7 min |
-| Each SSD, write + verify (2N) | 400–800 MB/s sustained | **8–16 min** ← binds |
-| Laptop NVMe, write + verify (2N) | 2,000+ MB/s | ~3 min |
+**Measured on the rig, 2026-08-03**, against the real 2022-09-27 shoot — 3,883 frames,
+201.3 GB, offloaded to all four destinations and read back:
 
-These run concurrently, so the floor is the maximum, not the sum: **~2–4 min for a
-50 GB day, ~8–16 min for a 188 GB day**, bound by the slowest SSD's *sustained* write
-once its SLC cache is exhausted — which a continuous 188 GB write will certainly
-exhaust.
+| Link | Measured | Time at N = 201 GB |
+|---|---|---|
+| CFexpress read (1N) | 675–757 MB/s | ~5 min |
+| SDXC read — phase 4 only (1N) | **59–64 MB/s** | **~56 min** |
+| OWC, Thunderbolt (2N) | write ~292, read 2,540 | ~13 min |
+| SanDisk / WD, 10 Gbps USB (2N) | write ~292, read ~900 | **~15 min** ← binds |
+| Laptop NVMe (2N) | write ~292, read 3,044 | ~12 min |
+
+**The whole run took 20 min 27 s**, and every one of the 15,532 `(file, destination)`
+pairs verified.
+
+> **This table replaces an estimate that was optimistic, and the reason it was wrong is
+> worth more than the correction.** It read *"Each SSD, write + verify — 400–800 MB/s
+> sustained — 8–16 min ← binds"*, and treated the three archive drives as
+> interchangeable. **They are not: the fleet is one Thunderbolt enclosure and two 10 Gbps
+> USB drives**, and the USB pair sets the pace for the entire run. No amount of speed on
+> the OWC or the laptop's internal NVMe can recover it, which is exactly why decision 14
+> prints a per-destination line and calls naming the slowest device the most useful
+> number in the report — it identified the heterogeneity without anyone having to
+> remember which enclosure was which.
+>
+> **Two numbers here are much worse than estimated and one is much better.** The SDXC
+> reads at ~60 MB/s, not the ~270 the 11.6-minute phase 4 figure in decision 1 implies —
+> off by ~5×, and confirmed flat across a 32× sweep of request sizes and against buffered
+> reads, so it is the device rather than how it is asked. That is entirely post-LANDED
+> and so costs the primary metric nothing, but decision 4's corroboration pass is close
+> to an hour on this rig. Against that, the *destinations* read far faster than assumed
+> once asked properly — see `winio::VERIFY_CHUNK`, where 16 MiB requests beat 1 MiB by a
+> third to a half on every device.
+>
+> **A 50 GB day scales down cleanly**: roughly 5–6 minutes, bound by the same pair.
 
 ### Phase 3 in detail
 
