@@ -87,14 +87,19 @@ Editing never touches any of them. The path home is:
 
 | When | What happens |
 |---|---|
-| During a trip | **this tool only** — four copies, verified, one of them ejected into the safe each night |
+| During a trip | **this tool only** — four copies, verified, the SSDs ejected into the safe each night |
 | Home again | **one of the four** is copied to the NAS — any of them will do |
 | Editing | on the desktop, from the NAS — never from a copy this tool wrote |
 
-That last row is what makes the four interchangeable rather than merely similar: the
+That middle row is what makes the four interchangeable rather than merely similar: the
 NAS source is whichever copy is convenient, so no copy can be allowed to drift from the
 others. `verify` holds all four to that standard ([`DESIGN.md`](DESIGN.md) decisions 11
-and 20), and Lightroom never opens anything this tool produces.
+and 20).
+
+**Lightroom never opens one of the four — but it does read the NAS copy of one**, which
+is why the sidecars have to be exactly what Lightroom expects and why the folder layout
+is Lightroom's own (decision 31). The four are protected from editing; they are not
+irrelevant to it.
 
 ## Offloading more than once a day
 
@@ -169,9 +174,23 @@ whichever is easiest to reach — an SSD out of the safe, or the laptop's. They 
 interchangeable by construction, and `photoday verify <path>` will say so about any of
 them before you trust one.
 
+**Import into Lightroom with *Add*, never *Copy*.** This is the step the whole directory
+layout exists to serve, and getting it wrong is slow rather than wrong-looking, so it is
+easy to do by habit and never notice:
+
+| Import mode | What Lightroom does | Cost |
+|---|---|---|
+| **Add** — *leave files where they are* | catalogs them in place | **the fast path — use this** |
+| Copy | moves them into `YYYY\YYYY-MM-DD` itself, on the NAS | **10× slower, at least** |
+
+The files are already in `YYYY\YYYY-MM-DD` when they reach the NAS, because `photoday`
+wrote them that way — that is the entire reason for the layout
+([`DESIGN.md`](DESIGN.md) decision 31). Asking Lightroom to *Copy* makes it redo an
+arrangement that is already correct, at ten times the price.
+
 Nothing edits a copy this tool wrote. The archives go back to the safe byte-stable, and
 the laptop's copy stays byte-stable too — so a `verify` years from now is meaningful on
-all four rather than on three.
+all four rather than on three. Lightroom only ever sees the NAS copy.
 
 ## Years later
 

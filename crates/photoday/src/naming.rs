@@ -18,6 +18,12 @@ use chrono::{DateTime, Utc};
 /// `2026/2026-08-03/1422Z_0001.CR3` — the path a photo takes inside every
 /// destination root.
 ///
+/// **The two-level shape is not arbitrary and is not free to change** (decision 31): it
+/// is the layout the Lightroom catalog is already configured to use, and writing it
+/// directly is what lets the import at home run as *Add* rather than *Copy* — measured
+/// in the field at more than 10x faster. Flattening or restyling this silently returns
+/// the operator to the slow import.
+///
 /// The date folder comes from the **UTC** capture instant (decision 23 derives that
 /// instant per photo from EXIF wall time minus the recorded offset, so no timezone
 /// logic survives this far). Only the time of day goes in the file name, because the
@@ -92,7 +98,9 @@ fn sequence_number(stem: &str) -> &str {
 /// `_unfiled/<run-id>/<original name>` — decision 21's home for a CR3 whose EXIF
 /// cannot be read, or which carries no UTC offset to resolve (decision 23).
 ///
-/// Outside the `YYYY/` tree so Lightroom never sees it, and under a per-run subfolder
+/// Outside the `YYYY/` tree — which is load-bearing rather than tidy, because
+/// Lightroom's import points at the year folders, so a frame parked outside them stays
+/// out of the catalog (decision 31). Under a per-run subfolder
 /// so name collisions are impossible without any collision logic at all. The camera's
 /// name is kept verbatim: there is no capture time to build a better one from, and that
 /// is precisely why the file is here.

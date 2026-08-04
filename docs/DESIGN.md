@@ -58,10 +58,17 @@ Plus a JSON manifest per destination making each copy self-describing.
 
 **All four copies are backups, and they are interchangeable.** None of them is a working
 copy, none is edited, and all four are expected to stay byte-identical forever — the
-laptop's included. Editing happens at home on a different machine entirely: an archive
-SSD is copied to a NAS, and the desktop edits from there. So no copy this tool writes is
-ever opened by Lightroom, and the fourth copy exists for the same reason as the other
-three.
+laptop's included. Editing happens at home on a different machine entirely: one of the
+four is copied to a NAS, and the desktop edits from there. The fourth copy exists for the
+same reason as the other three.
+
+**Lightroom never opens one of these four — but it does read a copy of one.** The
+distinction matters in both directions: nothing edits a destination, so none of them may
+drift (decision 11); and the sidecars this tool writes are eventually parsed by Lightroom
+from the NAS, which is why they have to be exactly what Lightroom expects rather than
+merely XMP-conformant. That is what the engine's validation against Lightroom Classic's
+own output is for (decision 17), and it is why the directory layout is Lightroom's too
+(decision 31).
 
 The only asymmetry is physical, and it is about how a destination is *found* rather than
 what it is for: three are removable devices identified by disk serial (decision 6) and
@@ -1677,6 +1684,42 @@ subcommand that reintroduced it would reintroduce the gate it implies.
 **Until then the duplication is live and must be treated as such:** a change to
 `crates/geotag` that fixes a real defect has to be applied to RawGeotag's copy by hand,
 or the trip tool silently keeps the bug. `CLAUDE.md` says so where a session will see it.
+
+### 31. `YYYY\YYYY-MM-DD` is Lightroom's layout, and the reason is import speed
+
+The shape of the output tree has been stated since the first draft and defended nowhere,
+which made it look like taste. It is not: **it is the layout the Lightroom catalog is
+already configured to use, and writing it directly is what makes the import at home fast.**
+
+Lightroom's import offers two relevant modes. *Copy* has Lightroom move the files into
+its configured `YYYY\YYYY-MM-DD` structure on the NAS as part of importing. *Add* leaves
+files where they are and simply catalogs them. **Copy is agonizingly slow — measured in
+the field at more than 10× the cost of the alternative**, which is to put the files on
+the NAS already in that structure and import with *Add*.
+
+So this tool writes the final layout, the NAS copy inherits it unchanged, and the import
+is the fast path by construction. The tool is doing the file arrangement that Lightroom
+would otherwise do far more slowly, and it is doing it during a phase that is already
+writing every byte anyway — the arrangement costs nothing here because the write has to
+happen regardless.
+
+**Three consequences worth stating, because they turn a preference into an interface:**
+
+- **The layout is not free to change.** It is pinned to another program's configuration,
+  and changing it here would silently return the operator to the slow import. A future
+  reader who finds `YYYY\YYYY-MM-DD` arbitrary should read this decision before
+  "simplifying" it — that is exactly why it is now written down.
+- **`_unfiled` sitting outside the `YYYY\` tree is load-bearing** (decision 21), not
+  merely tidy. The import points at the year folders, so a file parked outside them is
+  invisible to it — which is the correct treatment for a frame whose capture time could
+  not be read, since it has no date folder to belong to.
+- **The date must be the one Lightroom would have chosen**, which is why decision 23's
+  per-photo UTC derivation matters beyond foldering: a frame in the wrong day folder is
+  not merely misfiled here, it is misfiled in the catalog too, and the catalog is the
+  thing that is hard to correct later.
+
+Recorded 2026-08-03, from the operator, after the layout had gone undefended through the
+entire design.
 
 ## Considered and rejected
 
