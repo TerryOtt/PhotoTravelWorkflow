@@ -51,6 +51,14 @@ In strict priority order. Nearly every decision in `DESIGN.md` traces back to on
 2. **Wall clock to run complete** — corroboration, geotags, report. Worth shrinking,
    **never at any cost to the first.**
 
+**Both are thresholds, not gradients, and both are already met.** The bar is "done before
+dinner is over" — 60–90 minutes — and the run measures under 17. **So do not trade anything
+for wall clock**: not clarity, not a safety check, not an afternoon of engineering. A
+three-minute saving is 3 % of a window with 45 minutes of slack, and reads as a real trade
+only when the metric is mistaken for a gradient. Optimise for whether Terry can trust the
+verdict, walk away, and sleep. Wall clock re-enters the argument only if a run approaches the
+bar. `DESIGN.md` — *Both metrics are thresholds* — has the full version.
+
 ## Binding constraints
 
 1. **Pure Rust.** No ExifTool, no C-library bindings. Microsoft's `windows` crate is not

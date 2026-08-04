@@ -25,6 +25,30 @@ below traces back to one of these:
 Everything after LANDED — GPS sidecars, second-card corroboration — is gravy, and is
 explicitly allowed to take longer as long as it does not delay that milestone.
 
+### Both metrics are thresholds, not gradients — and both are already met
+
+**The requirement is "finished before dinner is over," and dinner is 60–90 minutes.** The run
+measured 16 m 55 s on 2026-08-04. **There is nothing left to win here**, and every further
+minute is worth approximately zero.
+
+That has a consequence worth stating plainly, because the metrics above invite the opposite
+reading: **do not trade anything for wall clock while the run is this far under the bar.** Not
+clarity, not a safety check, not the hash's readability in 2031, not an afternoon of
+engineering time. Decision 17 is the worked example — SHA-256 costs at most three minutes
+against the fastest possible alternative, which is 3 % of a window that has 45 minutes of
+slack in it, in exchange for an archive a stranger can verify with `sha256sum`. Framed as a
+gradient that looks like a real trade. Framed against the threshold it is not a trade at all.
+
+**The failure mode this is written to prevent is optimizing past the point of value**, which
+is easy to do because throughput is measurable and confidence is not. On 2026-08-04 an
+afternoon went into hubs, ports, cards and tunnels; it found one genuinely faulty card and one
+free 2.7× improvement — and none of it mattered as much as wiring phase 4, because the tool
+was already comfortably inside the window before any of it started.
+
+**What to optimize instead, once the threshold is met:** whether the operator can trust the
+verdict, walk away, and sleep. Wall clock only re-enters the argument if a run approaches the
+bar — a much larger shoot, or hardware degrading toward it.
+
 This is not a "correctness at any cost" design. Where certainty and wall clock conflict,
 the tie is broken in favor of wall clock *provided the guarantee is preserved, only
 deferred* — see [Phase 3 reads one card](#1-phase-3-reads-the-cfexpress-card-only).
@@ -1274,8 +1298,14 @@ frames offloaded to all four destinations three times, changing only the hash:
 | BLAKE3 | 19m 05s | saves 1m 52s |
 | XXH3 | 17m 58s | saves 2m 59s |
 
-**XXH3 is the row that settles it, and it is not a candidate** — a non-cryptographic
-checksum, the fastest thing anyone could reasonably put here. It buys three minutes on a
+**XXH3 is the row that settles it, and it is not a contender** — *not* because a checksum
+cannot catch a flipped bit, which it can: detecting corruption needs error detection, not
+collision resistance against an adversary, and XXH3 would find a bad byte in a 45 MB raw as
+reliably as SHA-256 does. It is not a contender because its digest is a number only this
+tool's algorithm choice can interpret, where a SHA-256 is a lingua franca every operating
+system ships a verifier for. **It appears here as the speed *bound*, not as an option** — the
+fastest thing anyone could reasonably put in this slot, and therefore the ceiling on what any
+hash choice could ever be worth. It buys three minutes on a
 twenty-one minute run, so **no hash choice whatsoever can save more than ~14%**, and
 BLAKE3's share of that is under two minutes. Decision 17 trades those two minutes for an
 archive a stranger can verify in 2031 with `sha256sum` and no copy of this tool. That is
