@@ -1990,36 +1990,60 @@ new evidence rather than fresh taste.
 - Managing the Lightroom catalog, including renaming historical files.
 - Cloud or offsite replication.
 
-## Open questions
+## Where this stands
 
-None outstanding — the design is complete enough to build from.
+*Kept current deliberately: this section is what lets someone — or some future session —
+pick the work up from the repository alone, without needing to have been here. If it is
+stale, fix it before doing anything else.*
 
-What remains is implementation. The cargo workspace and the dependency set landed with
-decision 29, along with the CLI surface of decision 8 and `examples/hash-rate.rs`; the
-`Cargo.toml` guard is out of `.github/workflows/ci.yml`, so the three checks now run for
-real. The engine is lifted: `crates/geotag` holds capture time, GPX indexing and XMP
-rendering, with the tests that validate them. Phase 3 is built and tested over ordinary
-directories — reader, per-destination fan-out with backpressure, write-through, the
-unbuffered verify pass, and the append-only run log — along with decision 5's naming and
-decision 21's `_unfiled` routing. Still to build:
+**Built and exercised against the real rig** (3,883 frames, 201.3 GB, four destinations):
 
-- phases 1 and 2 on top of the storage layer: the card speed test, the capacity and
-  distinctness assertions, the config loader, the Defender check, and the destination
-  marker of decision 6
-- eject (decision 22) — `FSCTL_LOCK_VOLUME` with its backoff, dismount, and
-  `CM_Request_Device_Eject`; deliberately not built alongside the read-only queries,
-  since it is the one part of this layer that dismounts a live volume
-- wiring phase 3 to the CLI, which needs the config loader and therefore the above; the
-  binary still parses your command and exits 1
-- phases 4 and 5, the manifest of decision 12, and the report of decision 14
-- retiring RawGeotag into `photoday geotag` and archiving that repository (decision 30),
-  which cannot start until phase 5 can do its job
+| | |
+|---|---|
+| `crates/geotag` | the lifted engine — CR3 capture time, GPX indexing, XMP (decision 17) |
+| `storage`, `power` | volume and device identity, sleep inhibit (decisions 6, 9) |
+| `config`, `destinations`, `cards` | the rig, resolved by serial; cards found by `DCIM` and timed (decisions 6, 7, 8) |
+| `preflight` | phases 1 and 2, including decision 27's card-equivalency gate |
+| `pipeline` | phase 3 — read once, fan out, write through, verify unbuffered (decisions 2, 5, 10) |
+| `manifest`, `marker`, `verify` | the durable artifact and `photoday verify <DEST>` (decisions 12, 20, 28) |
+| `phase4` | corroboration, **built and tested but not wired to the CLI** (decisions 3, 4) |
+| `phase5` | geotag, wired and running (decisions 16, 23, 26) |
 
-**Two gaps in phase 3 are recorded rather than closed.** Neither is a defect today and
-both have an owner. *No test can prove the two file flags are still set*: removing
-`FILE_FLAG_NO_BUFFERING` changes where bytes come from, not what they are, so every
-assertion still passes — the constants are load-bearing on inspection only, and the
-comment in `winio.rs` says so where someone might delete one. And *a file that rots
-after a clean run* is not phase 3's to notice; it is exactly what `photoday verify`
-exists for (decision 20), whose own test against a committed schema-1 manifest is
-decision 28's fourth.
+A full run lands in ~18 minutes and every `(file, destination)` pair verifies. `verify`
+has been shown to catch a single flipped bit in 201 GB and name the file.
+
+**Still to build:**
+
+- **wiring phase 4 to the CLI**, which needs the manifest corroboration pass — marking
+  `matched` and writing tombstones (decisions 4, 12)
+- **eject** (decision 22): `FSCTL_LOCK_VOLUME` with backoff, dismount,
+  `CM_Request_Device_Eject`. The one part of the storage layer that dismounts a live
+  volume, so deliberately not built alongside the read-only queries
+- **the report** of decision 14 — the verdict shape exists in outline, not in full
+- **`sync`** (decision 20), the recovery path `--without` implies
+- **log-driven resume** (decision 13). Convergence already works, via decision 5's
+  skip-on-identical-hash, but it re-reads what the run log could have told it
+- **the Defender exclusion check** (decision 9)
+- **overlapping the verify read with its hash** — worth more than the hash choice ever
+  was; see decision 17
+- **retiring RawGeotag** into `photoday geotag` (decision 30), now unblocked by phase 5
+
+**Open questions that need hardware or measurement, not code:**
+
+- **Is `examples/contention.rs` measuring its own ceiling?** Two Thunderbolt devices
+  summed below one alone, which cannot be right. It reads one thread per device
+  unbuffered, so it may be latency-bound. Until a thread-count sweep says otherwise,
+  the contention numbers above are lower bounds
+- **The SD path reads at ~64 MB/s**, which puts phase 4's corroboration at ~52 minutes
+  on a big day — and decision 22 holds the eject until it finishes, so the night ends
+  ~70 minutes after launch rather than ~18. A faster reader is the largest single
+  improvement available to the *ritual*, as opposed to the metric
+- **A TB5 hub** would raise USB tunnelling from 10 to 20 Gbps, worth perhaps 3 minutes
+  of phase 3
+
+**Two gaps recorded rather than closed.** Neither is a defect today. *No test can prove
+the two file flags are still set*: removing `FILE_FLAG_NO_BUFFERING` changes where bytes
+come from, not what they are, so every assertion still passes — the constants are
+load-bearing on inspection only, and the comment in `winio.rs` says so where someone
+might delete one. And *a file that rots after a clean run* is not phase 3's to notice; it
+is what `photoday verify` exists for (decision 20).
