@@ -119,6 +119,14 @@ cleared.** What the script asserts, and why each one is there:
   names the *enclosure* with a different serial and `BusType USB`, the PCIe tunnel did not
   come up — reseat it and re-check. This is silent: the link trains, the router enumerates,
   the volume mounts, every file reads back.
+
+  **This check earns its place here specifically, and the reason is the reboot.** Measured
+  2026-08-04: the fallback happens in the *minutes after a boot* and not afterwards — ten
+  controlled plug cycles hours later came up PCIe every time, with and without the other
+  Thunderbolt device attached, while three of four attempts minutes after boot bridged to
+  USB. **The one procedure that reliably provokes it is the one in this document**, since a
+  cold-cache run begins by rebooting. Reseat until it reports NVMe; it clears on its own
+  once the machine settles.
 - **The CFexpress reader must enumerate the card as NVMe** with its true hardware serial. A
   USB bridge invents one and caps the card at roughly a third of its rate.
 - **The SD reader must sit behind `Generic SuperSpeed USB Hub`**, not plain `Generic USB
