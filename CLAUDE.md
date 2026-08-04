@@ -51,6 +51,15 @@ someone finally ran it. `cargo run --release --example hash-rate` re-runs that o
 Estimates presented as measurements are the specific failure to avoid; if you did not run
 it, say the number is an estimate.
 
+**And a measurement taken while something else was using the same bus is not a
+measurement either** — it describes contention. That one has already cost this project a
+wrong figure in `DESIGN.md`'s wall-clock table, and it is more dangerous than a bare
+estimate because it arrives with supporting data: the bad number was defended with a flat
+32× request-size sweep, which reads as proof the *device* is the limit when a starved
+device reads flat too. Before quoting any throughput number, say what else was touching
+the bus. [`docs/REVIEWING.md`](docs/REVIEWING.md) — *Measurements are evidence, and
+evidence has a bar* — is the standing order and the full account.
+
 ## Dependency versions: ask crates.io, never recall
 
 **Confirm every version with `cargo search <crate> --limit 1` before it lands in
