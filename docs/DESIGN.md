@@ -267,13 +267,32 @@ summary should say so in those words rather than making the number speak for its
 
 ### 5. Filenames are a pure function of the photo
 
-Output filenames prefix the UTC time of capture to the camera's own basename. The date is
-already carried by the directory, so only the time of day is needed:
+Output filenames prefix the UTC time of capture to the camera's sequence number. The date
+is already carried by the directory, so only the time of day is needed:
 
 ```
-2026\2026-08-03\1422Z_50A0001.CR3
-2026\2026-08-03\1422Z_50A0001.xmp
+2026\2026-08-03\1422Z_0001.CR3
+2026\2026-08-03\1422Z_0001.xmp
 ```
+
+**Only the sequence number is kept** — `_50A0001.CR3` becomes `1422Z_0001.CR3`. The rest
+of the camera's stem is the body prefix, and with the fleet fixed at one R5
+(`CONOPS.md`) it is the same three characters on every frame ever shot: it distinguishes
+nothing and costs four characters in every filename in the archive, forever. The
+separator is this tool's rather than borrowed from the camera's leading underscore, so
+the name reads the same way for either shape Canon writes — `IMG_1234.CR3` becomes
+`1422Z_1234.CR3` and not `1422ZIMG_1234.CR3`. All trailing digits are taken rather than a
+fixed four, so a longer counter cannot silently collide; a stem with no trailing digits
+keeps the whole stem, which no camera should produce and which still beats an empty
+sequence.
+
+> **Settled 2026-08-03, when phase 3 made the rule executable.** As written, this
+> decision showed `1422Z_50A0001.CR3` and said only "prefix the UTC time of capture to
+> the camera's own basename" — two different rules that agree on that one example,
+> because the R5's leading underscore is Canon's Adobe-RGB marker and `1422Z` +
+> `_50A0001.CR3` reads as though a separator had been inserted when none had. The
+> ambiguity surfaced the moment code had to choose, and it was settled toward the
+> shorter name. *Considered and rejected* carries the reversal it implies.
 
 The camera's uppercase `.CR3` extension is preserved rather than normalized, so the
 archive stays consistent with everything already in it and with anything that ever lands
@@ -288,7 +307,7 @@ twice, or a crashed run re-offloaded, produces the same name every time.
 It also sorts in shooting order, which the camera's bare filename does not: after a
 mid-day format resets the counter, afternoon `_50A0001` was shot after morning
 `_50A3999`. Minute resolution suffices for that ordering, because within any single
-minute the camera's counter is monotonic, so ties break correctly on the basename.
+minute the camera's counter is monotonic, so ties break correctly on the sequence number.
 
 **Collision handling reduces to one content check.** Two different photos taken in
 different minutes now get different names, so the mid-day-format collision that motivated
@@ -561,7 +580,7 @@ has to rewrite a manifest spanning years.
   ],
   "files": [
     {
-      "name": "1422Z_50A0001.CR3",
+      "name": "1422Z_0001.CR3",
       "status": "present",
       "sha256": "9f2b...",
       "bytes": 47185920,
@@ -706,7 +725,7 @@ about already settled.
   Eject           SSD-A ✓ · SSD-B ✓ · SSD-C ✓
 
   !  1 file deleted from all four copies — source mismatch
-     1611Z_50A2087.CR3 → _runs\2026-08-03T18-22-04\quarantine\
+     1611Z_2087.CR3 → _runs\2026-08-03T18-22-04\quarantine\
 
   I/O          bytes        rate
     read      336.6 GB    1,113 MB/s
@@ -1543,7 +1562,8 @@ new evidence rather than fresh taste.
 | Warning and proceeding when the GPX directory is empty | Empty almost always means tracks never copied off the logger, or a stale `gpx_dir` — both fixed in a minute at the desk. A warning makes an untagged night routine, noticed when Lightroom's map comes up empty weeks later. `--no-gpx` declares the genuine case. Decision 26 |
 | Skipping a file whose two source copies disagree | Leaves the one file known to have a problem in *zero* backups — the exact inversion of the goal. Decision 3 |
 | A `_NNN` suffix assigned per offload batch, coordinated across destinations | Superseded by decision 5. Timestamp-prefixed names are a pure function of the photo, so no coordination is needed and collisions are pathological |
-| A timestamp prefix replacing the camera's filename | Unnecessary — prefixing rather than replacing keeps both the original name and shooting order. Decision 5 |
+| A timestamp prefix replacing the camera's name *entirely* | Still rejected: the sequence number is what breaks ties inside a minute, so discarding it would cost the shooting order this scheme exists to restore. Decision 5 |
+| Keeping the camera's whole basename after the prefix | **Reversed 2026-08-03**, having been decision 5's original reading. It carried the body prefix — three characters identical on every frame a one-body fleet has ever shot — into every filename in the archive, permanently. Only the sequence number survives now. This is a correction rather than taste because `CONOPS.md`'s shooting-day contract is what makes the prefix provably non-distinguishing |
 | A content heuristic for `--force-xmp` (refuse when the XMP carries `crs:` properties) | A destructive flag that sometimes declines is worse than one that is honest. Decision 16's role scoping is explicit targeting, not a guess at intent |
 | A flag to overwrite raw files, or to bypass pre-flight | No case where either is correct; better as structural impossibilities. Decision 16 |
 | Per-device queue depth and overlapped I/O | One buffer-fed blocking writer idles ~1 ms per 45 MB write. Not worth the machinery on speculation — revisit if measurement shows a device going idle. Decision 15 |

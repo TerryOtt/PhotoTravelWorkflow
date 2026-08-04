@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Verified {
     pub run_id: String,
-    /// Relative to the destination root, e.g. `2026/2026-08-03/1422Z_50A0001.CR3`.
+    /// Relative to the destination root, e.g. `2026/2026-08-03/1422Z_0001.CR3`.
     pub name: String,
     /// The destination's config label, which survives a drive-letter change.
     pub destination: String,

@@ -15,7 +15,7 @@ use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
 
-/// `2026/2026-08-03/1422Z_50A0001.CR3` — the path a photo takes inside every
+/// `2026/2026-08-03/1422Z_0001.CR3` — the path a photo takes inside every
 /// destination root.
 ///
 /// The date folder comes from the **UTC** capture instant (decision 23 derives that
@@ -25,7 +25,8 @@ use chrono::{DateTime, Utc};
 ///
 /// Minute resolution is deliberate and sufficient: it restores shooting order that the
 /// camera's bare counter loses when a mid-day format resets it, and within any single
-/// minute the counter is still monotonic, so ties break correctly on the basename.
+/// minute the counter is still monotonic, so ties break correctly on the sequence
+/// number that [`prefixed_name`] keeps.
 pub fn destination_path(captured: DateTime<Utc>, source_file_name: &str) -> PathBuf {
     let year = captured.format("%Y");
     let day = captured.format("%Y-%m-%d");
@@ -35,27 +36,57 @@ pub fn destination_path(captured: DateTime<Utc>, source_file_name: &str) -> Path
         .join(prefixed_name(captured, source_file_name))
 }
 
-/// `_50A0001.CR3` -> `1422Z_50A0001.CR3`.
+/// `_50A0001.CR3` -> `1422Z_0001.CR3`.
 ///
-/// **The camera's name is appended to `HHMMZ` with no separator of our own**, which is
-/// what decision 5's worked example shows: the R5 writes `_50A0001.CR3` — the leading
-/// underscore is Canon's Adobe-RGB marker — and `1422Z` + `_50A0001.CR3` is exactly
-/// `1422Z_50A0001.CR3`. The underscore that makes the name readable is the camera's,
-/// not ours.
+/// **`HHMMZ`, an underscore of ours, and the camera's sequence number — nothing else.**
+/// The rest of the camera's stem is the body prefix, and with the fleet fixed at one R5
+/// (`CONOPS.md`) it is the same three characters on every frame ever shot: it
+/// distinguishes nothing and costs four characters in every filename in the archive.
+/// The sequence number is the part that carries information, because it is what breaks
+/// ties within a minute.
 ///
-/// **The trap that leaves:** a body whose names carry no leading underscore would
-/// produce `1422ZIMG_1234.CR3`, which is legal, deterministic and horrible to read.
-/// That is tolerable only because `CONOPS.md`'s shooting-day contract fixes the fleet
-/// at one R5 and makes a replacement body a design event rather than a config change —
-/// so if a second body ever arrives, this function is on the list of things to settle
-/// before it is trusted, and the answer is probably an explicit separator plus a rule
-/// for not doubling the camera's.
+/// The separator is ours rather than borrowed from the camera, which is what makes this
+/// readable for any body: `IMG_1234.CR3` becomes `1422Z_1234.CR3` and not
+/// `1422ZIMG_1234.CR3`.
 ///
 /// The extension is carried through untouched, uppercase `.CR3` included, so the
 /// archive stays consistent with everything already in it and with any filesystem that
 /// ever cares about case.
 fn prefixed_name(captured: DateTime<Utc>, source_file_name: &str) -> String {
-    format!("{}Z{source_file_name}", captured.format("%H%M"))
+    let (stem, extension) = match source_file_name.rsplit_once('.') {
+        Some((stem, extension)) => (stem, Some(extension)),
+        None => (source_file_name, None),
+    };
+
+    let sequence = sequence_number(stem);
+
+    match extension {
+        Some(extension) => format!("{}Z_{sequence}.{extension}", captured.format("%H%M")),
+        None => format!("{}Z_{sequence}", captured.format("%H%M")),
+    }
+}
+
+/// The trailing run of digits in a camera stem: `_50A0001` -> `0001`, `IMG_1234` ->
+/// `1234`.
+///
+/// Every run of digits is taken rather than a fixed four, so a body with a five-digit
+/// counter keeps all of it rather than silently colliding on the last four.
+///
+/// **A stem with no trailing digits keeps the whole stem instead.** That case should not
+/// occur — every camera numbers its files — but the alternative to a fallback is an
+/// empty sequence, which would name every such frame in a minute identically and push
+/// two distinct photos onto decision 5's collision path for no reason. Losing the
+/// tidiness on a file nobody expects is the cheaper failure.
+fn sequence_number(stem: &str) -> &str {
+    let digits_start = stem
+        .rfind(|character: char| !character.is_ascii_digit())
+        .map_or(0, |last_other| last_other + 1);
+
+    if digits_start == stem.len() {
+        stem
+    } else {
+        &stem[digits_start..]
+    }
 }
 
 /// `_unfiled/<run-id>/<original name>` — decision 21's home for a CR3 whose EXIF
@@ -71,8 +102,8 @@ pub fn unfiled_path(run_id: &str, source_file_name: &str) -> PathBuf {
         .join(source_file_name)
 }
 
-/// `1422Z_50A0001.CR3` -> `1422Z_50A0001_001.CR3`, decision 5's escape hatch for two
-/// genuinely different photos that share a basename within one minute.
+/// `1422Z_0001.CR3` -> `1422Z_0001_001.CR3`, decision 5's escape hatch for two
+/// genuinely different photos that share a sequence number within one minute.
 ///
 /// Pathological rather than impossible, and it should effectively never fire — the
 /// mid-day-format collision that once motivated a whole rename scheme cannot reach it,
@@ -98,7 +129,51 @@ mod tests {
             destination_path(captured, "_50A0001.CR3"),
             PathBuf::from("2026")
                 .join("2026-08-03")
-                .join("1422Z_50A0001.CR3")
+                .join("1422Z_0001.CR3")
+        );
+    }
+
+    /// The body prefix is dropped and the separator is ours, so the name reads the same
+    /// way whichever of Canon's two stem shapes the camera is writing. This is the case
+    /// the previous scheme got ugly on — it produced `1422ZIMG_1234.CR3`.
+    #[test]
+    fn only_the_sequence_number_survives_whatever_shape_the_stem_has() {
+        let captured = "2026-08-03T14:22:37Z".parse::<DateTime<Utc>>().unwrap();
+
+        for stem in ["_50A0001", "IMG_0001", "_MG_0001", "100_0001"] {
+            assert_eq!(
+                prefixed_name(captured, &format!("{stem}.CR3")),
+                "1422Z_0001.CR3",
+                "{stem}"
+            );
+        }
+    }
+
+    /// All the trailing digits, not the last four — a five-digit counter must not
+    /// collide two frames onto one name.
+    #[test]
+    fn a_longer_counter_keeps_all_of_its_digits() {
+        let captured = "2026-08-03T14:22:37Z".parse::<DateTime<Utc>>().unwrap();
+
+        assert_eq!(prefixed_name(captured, "ABC12345.CR3"), "1422Z_12345.CR3");
+        assert_eq!(sequence_number("ABC12345"), "12345");
+    }
+
+    /// The fallback: a stem with no trailing digits keeps the whole stem, because the
+    /// alternative is an empty sequence that names every such frame in a minute alike.
+    #[test]
+    fn a_stem_with_no_trailing_digits_keeps_the_whole_stem() {
+        let captured = "2026-08-03T14:22:37Z".parse::<DateTime<Utc>>().unwrap();
+
+        assert_eq!(prefixed_name(captured, "SCAN.CR3"), "1422Z_SCAN.CR3");
+        assert_eq!(
+            prefixed_name(captured, "IMG_0001A.CR3"),
+            "1422Z_IMG_0001A.CR3"
+        );
+        assert_eq!(
+            sequence_number("0001"),
+            "0001",
+            "an all-digit stem is its own"
         );
     }
 
@@ -115,13 +190,13 @@ mod tests {
             destination_path(before, "_50A0001.CR3"),
             PathBuf::from("2026")
                 .join("2026-08-03")
-                .join("2358Z_50A0001.CR3")
+                .join("2358Z_0001.CR3")
         );
         assert_eq!(
             destination_path(after, "_50A0002.CR3"),
             PathBuf::from("2026")
                 .join("2026-08-04")
-                .join("0001Z_50A0002.CR3")
+                .join("0001Z_0002.CR3")
         );
     }
 
@@ -134,9 +209,9 @@ mod tests {
         let noon = "2026-08-03T12:00:00Z".parse::<DateTime<Utc>>().unwrap();
         let evening = "2026-08-03T23:59:00Z".parse::<DateTime<Utc>>().unwrap();
 
-        assert_eq!(prefixed_name(midnight, "_50A0001.CR3"), "0000Z_50A0001.CR3");
-        assert_eq!(prefixed_name(noon, "_50A0001.CR3"), "1200Z_50A0001.CR3");
-        assert_eq!(prefixed_name(evening, "_50A0001.CR3"), "2359Z_50A0001.CR3");
+        assert_eq!(prefixed_name(midnight, "_50A0001.CR3"), "0000Z_0001.CR3");
+        assert_eq!(prefixed_name(noon, "_50A0001.CR3"), "1200Z_0001.CR3");
+        assert_eq!(prefixed_name(evening, "_50A0001.CR3"), "2359Z_0001.CR3");
     }
 
     /// Seconds are deliberately absent from the name. Two frames in the same minute
@@ -150,8 +225,8 @@ mod tests {
         let first = prefixed_name(early, "_50A0001.CR3");
         let second = prefixed_name(late, "_50A0002.CR3");
 
-        assert_eq!(first, "1422Z_50A0001.CR3");
-        assert_eq!(second, "1422Z_50A0002.CR3");
+        assert_eq!(first, "1422Z_0001.CR3");
+        assert_eq!(second, "1422Z_0002.CR3");
         assert!(first < second, "the counter has to break the tie");
     }
 
@@ -202,12 +277,12 @@ mod tests {
     #[test]
     fn the_collision_suffix_goes_before_the_extension() {
         assert_eq!(
-            with_collision_suffix("1422Z_50A0001.CR3", 1),
-            "1422Z_50A0001_001.CR3"
+            with_collision_suffix("1422Z_0001.CR3", 1),
+            "1422Z_0001_001.CR3"
         );
         assert_eq!(
-            with_collision_suffix("1422Z_50A0001.CR3", 42),
-            "1422Z_50A0001_042.CR3"
+            with_collision_suffix("1422Z_0001.CR3", 42),
+            "1422Z_0001_042.CR3"
         );
     }
 
