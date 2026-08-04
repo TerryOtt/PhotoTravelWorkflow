@@ -1789,8 +1789,12 @@ directories — reader, per-destination fan-out with backpressure, write-through
 unbuffered verify pass, and the append-only run log — along with decision 5's naming and
 decision 21's `_unfiled` routing. Still to build:
 
-- the Windows storage-identity layer, and phases 1 and 2 on top of it: volume and disk
-  serials, the card speed test, capacity and distinctness assertions, the Defender check
+- phases 1 and 2 on top of the storage layer: the card speed test, the capacity and
+  distinctness assertions, the config loader, the Defender check, and the destination
+  marker of decision 6
+- eject (decision 22) — `FSCTL_LOCK_VOLUME` with its backoff, dismount, and
+  `CM_Request_Device_Eject`; deliberately not built alongside the read-only queries,
+  since it is the one part of this layer that dismounts a live volume
 - wiring phase 3 to the CLI, which needs the config loader and therefore the above; the
   binary still parses your command and exits 1
 - phases 4 and 5, the manifest of decision 12, and the report of decision 14

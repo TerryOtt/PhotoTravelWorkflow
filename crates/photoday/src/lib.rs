@@ -12,5 +12,7 @@
 pub mod hash;
 pub mod naming;
 pub mod pipeline;
+pub mod power;
 pub mod runlog;
+pub mod storage;
 pub mod winio;
