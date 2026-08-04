@@ -1583,9 +1583,24 @@ What remains is implementation. The cargo workspace and the dependency set lande
 decision 29, along with the CLI surface of decision 8 and `examples/hash-rate.rs`; the
 `Cargo.toml` guard is out of `.github/workflows/ci.yml`, so the three checks now run for
 real. The engine is lifted: `crates/geotag` holds capture time, GPX indexing and XMP
-rendering, with the tests that validate them. Still to build:
+rendering, with the tests that validate them. Phase 3 is built and tested over ordinary
+directories — reader, per-destination fan-out with backpressure, write-through, the
+unbuffered verify pass, and the append-only run log — along with decision 5's naming and
+decision 21's `_unfiled` routing. Still to build:
 
-- the phase 3 pipeline and the Windows storage-identity layer
-- everything behind the CLI, which currently parses your command and exits 1
+- the Windows storage-identity layer, and phases 1 and 2 on top of it: volume and disk
+  serials, the card speed test, capacity and distinctness assertions, the Defender check
+- wiring phase 3 to the CLI, which needs the config loader and therefore the above; the
+  binary still parses your command and exits 1
+- phases 4 and 5, the manifest of decision 12, and the report of decision 14
 - resolving the duplicated engine, which needs a change in RawGeotag's repository — see
   decision 29's correction note
+
+**Two gaps in phase 3 are recorded rather than closed.** Neither is a defect today and
+both have an owner. *No test can prove the two file flags are still set*: removing
+`FILE_FLAG_NO_BUFFERING` changes where bytes come from, not what they are, so every
+assertion still passes — the constants are load-bearing on inspection only, and the
+comment in `winio.rs` says so where someone might delete one. And *a file that rots
+after a clean run* is not phase 3's to notice; it is exactly what `photoday verify`
+exists for (decision 20), whose own test against a committed schema-1 manifest is
+decision 28's fourth.

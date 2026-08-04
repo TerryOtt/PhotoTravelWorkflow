@@ -9,9 +9,15 @@ license.workspace = true
 # is declared in the workspace manifest and joins this list as the phase that needs it
 # lands — a manifest full of dependencies nothing imports is not a plan, it is noise.
 [dependencies]
+anyhow.workspace = true
+chrono.workspace = true
 clap.workspace = true
 geotag.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 sha2.workspace = true
+tempfile.workspace = true
+walkdir.workspace = true
 
 [dev-dependencies]
 blake3.workspace = true

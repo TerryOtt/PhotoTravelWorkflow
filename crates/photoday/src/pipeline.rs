@@ -1,0 +1,365 @@
+//! Phase 3 — ingest and verify. This phase is the product.
+//!
+//! The shape, from `DESIGN.md`'s *Phase 3 in detail*: one reader pulls each source file
+//! into memory **exactly once**, takes its SHA-256 and its EXIF capture time from that
+//! buffer, and hands it to one queue per destination. Each destination writes everything
+//! through to media, then re-reads everything back unbuffered and compares. A record per
+//! `(file, destination)` is appended to the run log as each verify read completes —
+//! never before.
+//!
+//! # Why there is no rayon here
+//!
+//! Decision 15 sizes phase 3's hashing at 5N and says it must spread across cores. It
+//! does, structurally, without a thread pool: the reader hashes the 1N it reads, and the
+//! four destination threads each hash their own 1N verify stream, which is five
+//! concurrent hash streams on a machine with twenty threads. At the measured
+//! 2,380 MB/s per core (decision 17) a single stream already outruns the CFexpress card
+//! and every SSD in the rig several times over, so a pool would add scheduling and take
+//! nothing off the critical path. `--jobs` governs phase 5, where thousands of small
+//! sidecars actually are CPU- and metadata-bound.
+//!
+//! # Why the channels are `std`
+//!
+//! Decision 29 declined `crossbeam-channel`. `sync_channel(DEPTH)` blocks the sender
+//! when a queue is full, so handing each photo to the four queues in turn makes the
+//! reader wait on the slowest destination — which is the backpressure the design asks
+//! for, falling out of the types rather than being arranged.
+
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::mpsc::{SyncSender, sync_channel};
+use std::thread;
+
+use anyhow::{Context, Result, anyhow};
+use chrono::{DateTime, Utc};
+use geotag::format::RawFormat;
+use geotag::raw::{Capture, MediaParser, capture_time_in_memory};
+
+use crate::hash::{Digest32, hex, sha256};
+use crate::naming::{destination_path, unfiled_path, with_collision_suffix};
+use crate::runlog::{RunLog, Verified};
+use crate::winio::{unbuffered_sha256, write_through};
+
+/// How many photos may sit in one destination's queue before the reader blocks.
+///
+/// The memory bound is this times the frame size — the same buffer is shared by all
+/// four queues, so the live set is the *slowest* queue's backlog, not the sum. Four
+/// 45 MB frames is ~180 MB, which buys enough slack for an SSD to stutter without
+/// letting one lag far enough to matter.
+const DEPTH: usize = 4;
+
+/// A place a copy goes. Resolved by hardware identity in phase 2 (decision 6); by the
+/// time it reaches phase 3 it is a label and a path, which is all this phase needs and
+/// is what makes the phase testable over ordinary directories.
+#[derive(Debug, Clone)]
+pub struct Destination {
+    pub label: String,
+    pub root: PathBuf,
+}
+
+/// What one destination did.
+#[derive(Debug, Clone)]
+pub struct DestinationOutcome {
+    pub label: String,
+    pub written: usize,
+    /// Already present with an identical hash, so not written again (decision 5).
+    pub skipped: usize,
+    pub verified: usize,
+    /// Files whose read-back did not match. Non-empty means `NOT SAFE` (decision 14).
+    pub failed: Vec<String>,
+}
+
+/// What the phase did, in the terms decision 14's report is built from.
+#[derive(Debug, Clone)]
+pub struct Outcome {
+    pub files: usize,
+    pub bytes: u64,
+    /// Files that landed in `_unfiled` because their capture time was unreadable
+    /// (decisions 21, 23).
+    pub unfiled: Vec<String>,
+    pub destinations: Vec<DestinationOutcome>,
+}
+
+impl Outcome {
+    /// LANDED: every file verified on every destination. The one question the verdict
+    /// line answers.
+    pub fn landed(&self) -> bool {
+        self.destinations
+            .iter()
+            .all(|d| d.failed.is_empty() && d.verified == self.files)
+    }
+}
+
+/// One photo, read once and shared by every destination.
+struct Photo {
+    /// Where this goes inside every destination root — identical across all four,
+    /// because the name is a pure function of the photo (decision 5).
+    relative: PathBuf,
+    sha256: Digest32,
+    captured: Option<DateTime<Utc>>,
+    bytes: Vec<u8>,
+}
+
+/// Run phase 3.
+///
+/// `sources` are the CR3 paths phase 1 enumerated on the ingest card, already filtered
+/// to `*.CR3` (decision 24). `source_card` is which card fed the run, recorded per file
+/// so a single-source night is legible afterwards (decision 7).
+pub fn run(
+    sources: &[PathBuf],
+    destinations: &[Destination],
+    run_id: &str,
+    source_card: &str,
+    log: &RunLog,
+) -> Result<Outcome> {
+    if destinations.is_empty() {
+        return Err(anyhow!("phase 3 needs at least one destination"));
+    }
+
+    let mut senders: Vec<SyncSender<Arc<Photo>>> = Vec::with_capacity(destinations.len());
+    let mut receivers = Vec::with_capacity(destinations.len());
+
+    for _ in destinations {
+        let (sender, receiver) = sync_channel::<Arc<Photo>>(DEPTH);
+        senders.push(sender);
+        receivers.push(receiver);
+    }
+
+    thread::scope(|scope| {
+        let workers: Vec<_> = destinations
+            .iter()
+            .zip(receivers)
+            .map(|(destination, receiver)| {
+                scope.spawn(move || {
+                    let mut landed = Vec::new();
+
+                    // Write pass. Everything, before anything is read back — decision 2
+                    // wants two clean sequential passes rather than a mixed stream.
+                    for photo in receiver {
+                        let outcome = place(destination, &photo)?;
+                        landed.push(outcome);
+                    }
+
+                    // Verify pass. Every byte, off the media, with the page cache
+                    // bypassed. Starts the moment this destination's writes finish, so
+                    // the laptop's NVMe verifies while the slowest SSD is still writing.
+                    verify(destination, landed, run_id, source_card, log)
+                })
+            })
+            .collect();
+
+        let read = feed(sources, &senders, run_id);
+
+        // Dropped explicitly and before the joins: the destination threads iterate their
+        // receiver until every sender is gone, so holding these would deadlock the join
+        // below no matter what the reader did.
+        drop(senders);
+
+        let mut outcome = read?;
+        for worker in workers {
+            let done = worker
+                .join()
+                .map_err(|_| anyhow!("a destination thread panicked"))??;
+            outcome.destinations.push(done);
+        }
+
+        Ok(outcome)
+    })
+}
+
+/// The reader: each source file read exactly once, hashed and named from that buffer.
+fn feed(sources: &[PathBuf], senders: &[SyncSender<Arc<Photo>>], run_id: &str) -> Result<Outcome> {
+    let mut parser = MediaParser::new();
+    let mut outcome = Outcome {
+        files: 0,
+        bytes: 0,
+        unfiled: Vec::new(),
+        destinations: Vec::new(),
+    };
+
+    for source in sources {
+        let name = source
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| anyhow!("{} has no usable file name", source.display()))?
+            .to_owned();
+
+        let bytes = std::fs::read(source)
+            .with_context(|| format!("reading {} from the card", source.display()))?;
+
+        // Both from the buffer, so the file is never read twice (decision 10).
+        let sha256 = sha256(&bytes);
+        let captured = capture_instant(&mut parser, &bytes);
+
+        let relative = match captured {
+            Some(at) => destination_path(at, &name),
+            // Decision 21: a defective file is kept, not dropped. It is still hashed,
+            // still written everywhere, still verified — only its placement is
+            // unknowable, and `_unfiled` is where the unnameable go.
+            None => {
+                outcome.unfiled.push(name.clone());
+                unfiled_path(run_id, &name)
+            }
+        };
+
+        outcome.files += 1;
+        outcome.bytes += bytes.len() as u64;
+
+        let photo = Arc::new(Photo {
+            relative,
+            sha256,
+            captured,
+            bytes,
+        });
+
+        // In turn, so a full queue blocks here. That is the backpressure.
+        for sender in senders {
+            if sender.send(Arc::clone(&photo)).is_err() {
+                return Err(anyhow!("a destination stopped accepting work"));
+            }
+        }
+    }
+
+    Ok(outcome)
+}
+
+/// The capture instant, or `None` for anything that cannot supply one.
+///
+/// Every failure mode collapses to the same answer here, and that is not laziness: with
+/// the bytes already in RAM there is no I/O error left to distinguish, so unreadable
+/// EXIF, EXIF with no capture tag, and EXIF with no UTC offset are three ways of saying
+/// *this file cannot be named*, and decision 21 sends all three to the same place.
+fn capture_instant(parser: &mut MediaParser, bytes: &[u8]) -> Option<DateTime<Utc>> {
+    match capture_time_in_memory(parser, bytes, RawFormat::Cr3, None) {
+        Ok(Capture::Resolved { at, .. }) => Some(at),
+        _ => None,
+    }
+}
+
+/// What one destination did with one photo, carried into the verify pass.
+struct Placed {
+    relative: PathBuf,
+    sha256: Digest32,
+    captured: Option<DateTime<Utc>>,
+    bytes: u64,
+    skipped: bool,
+}
+
+/// Write one photo to one destination, or establish that it is already there.
+fn place(destination: &Destination, photo: &Photo) -> Result<Placed> {
+    let mut relative = photo.relative.clone();
+    let mut target = destination.root.join(&relative);
+
+    // Decision 5's one content check. Deciding on the file name alone would get the
+    // common case wrong in the silent direction — a genuinely different photo skipped
+    // because its name matched — so the hash is what decides.
+    for attempt in 1..=MAX_COLLISION_ATTEMPTS {
+        if !target.exists() {
+            break;
+        }
+
+        if unbuffered_sha256(&target)? == photo.sha256 {
+            return Ok(Placed {
+                relative,
+                sha256: photo.sha256,
+                captured: photo.captured,
+                bytes: photo.bytes.len() as u64,
+                skipped: true,
+            });
+        }
+
+        // Two distinct photos sharing a basename within one minute. Pathological, and
+        // this branch should effectively never fire.
+        let name = relative
+            .file_name()
+            .and_then(|name| name.to_str())
+            .ok_or_else(|| anyhow!("{} has no usable file name", relative.display()))?;
+        let renamed = with_collision_suffix(name, attempt);
+
+        relative.set_file_name(renamed);
+        target = destination.root.join(&relative);
+    }
+
+    write_through(&target, &photo.bytes)?;
+
+    Ok(Placed {
+        relative,
+        sha256: photo.sha256,
+        captured: photo.captured,
+        bytes: photo.bytes.len() as u64,
+        skipped: false,
+    })
+}
+
+/// How many suffixed names to try before giving up. Decision 5 calls this branch
+/// pathological; a run that reaches the limit is not a collision, it is a bug.
+const MAX_COLLISION_ATTEMPTS: u32 = 999;
+
+/// The verify pass: every file re-read off the media and compared to the hash taken
+/// from the source buffer.
+fn verify(
+    destination: &Destination,
+    landed: Vec<Placed>,
+    run_id: &str,
+    source_card: &str,
+    log: &RunLog,
+) -> Result<DestinationOutcome> {
+    let mut outcome = DestinationOutcome {
+        label: destination.label.clone(),
+        written: landed.iter().filter(|p| !p.skipped).count(),
+        skipped: landed.iter().filter(|p| p.skipped).count(),
+        verified: 0,
+        failed: Vec::new(),
+    };
+
+    for placed in landed {
+        let target = destination.root.join(&placed.relative);
+        let name = placed.relative.to_string_lossy().replace('\\', "/");
+
+        if unbuffered_sha256(&target)? != placed.sha256 {
+            outcome.failed.push(name);
+            continue;
+        }
+
+        outcome.verified += 1;
+
+        // Only now. A record that preceded its verify read would let resume trust work
+        // that was never proven (decision 13).
+        log.append(&Verified {
+            run_id: run_id.to_owned(),
+            name,
+            destination: destination.label.clone(),
+            sha256: hex(&placed.sha256),
+            bytes: placed.bytes,
+            captured_utc: placed
+                .captured
+                .map(|at| at.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
+            source_card: source_card.to_owned(),
+            verified_utc: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        })?;
+    }
+
+    Ok(outcome)
+}
+
+/// Every `*.CR3` under `root`, sorted, as phase 1 hands them over.
+///
+/// Sorted so a run is deterministic and two cards can be compared listing to listing
+/// (decision 27). The filter is decision 24's: this tool ingests CR3 and nothing else,
+/// and a stray is the report's business rather than the pipeline's.
+pub fn cr3_files(root: &Path) -> Result<Vec<PathBuf>> {
+    let mut found: Vec<PathBuf> = walkdir::WalkDir::new(root)
+        .into_iter()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.file_type().is_file())
+        .map(|entry| entry.into_path())
+        .filter(|path| {
+            path.extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("cr3"))
+        })
+        .collect();
+
+    found.sort();
+    Ok(found)
+}
