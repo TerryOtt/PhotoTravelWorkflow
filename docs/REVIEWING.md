@@ -192,6 +192,41 @@ not already order for you**, or it measures the filesystem rather than the code.
 **If a mutation produces no failure, the test is decorative. Fix it then, while you still
 know what it was meant to catch.**
 
+## Measurements are evidence, and evidence has a bar
+
+**This project decides things by measuring.** Decision 17 picked the hash on a measured
+rate and says to re-run it when the crates or the laptop change; decision 15 sizes
+`--jobs` on measured behavior; the wall-clock table in [`DESIGN.md`](DESIGN.md) is
+measured, and replaced an estimate that was wrong. `examples/` carries the harnesses that
+re-take those numbers. So a bad measurement is not a private mistake — **it gets written
+into a decision and cited afterwards by people who cannot see how it was taken.**
+
+> **A throughput number is a measurement only if nothing else was using the same bus.**
+> Otherwise it describes contention and is worth less than no number at all.
+
+This is not hypothetical. On 2026-08-03 a card's read speed was taken *while a full
+188 GB offload was in flight*, reported as fact, and pushed into the wall-clock table.
+The correction is still visible there.
+
+**What made it survive scrutiny is the part worth internalising.** The figure was not
+merely asserted — it was defended with a request-size sweep, flat at ~60 MB/s across
+1–32 MiB plus a buffered comparison. Flat across a 32× sweep reads as decisive proof that
+the *device* is the limit. It is not: **a device starved of bus bandwidth also reads flat
+at every request size**, because each size gets the same small share of a saturated link.
+The evidence fit both explanations and the one already believed was chosen.
+
+So, before a number goes in a document or a commit message:
+
+- **State what else was touching the bus.** If a run was going, say so or re-take it.
+- **A flat response to a swept parameter is not proof of a device limit.** Ask what else
+  produces flatness — saturation does.
+- **Prefer the shape that distinguishes.** Solo, then in company;
+  `examples/contention.rs` exists for exactly that and reports what each device lost.
+- **Say which device and which link.** On this rig the four destinations differ by 3× and
+  the two card readers by 10×, so "the SSD" and "the card" are not units.
+
+None of this is specific to one rig. The numbers are; the standard is not.
+
 ## A review is always all four
 
 **"Do a deep dive review" means all four of these, every time, without being asked for them
