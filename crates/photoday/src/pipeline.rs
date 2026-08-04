@@ -25,6 +25,7 @@
 //! reader wait on the slowest destination — which is the backpressure the design asks
 //! for, falling out of the types rather than being arranged.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::mpsc::{SyncSender, sync_channel};
@@ -36,6 +37,7 @@ use geotag::format::RawFormat;
 use geotag::raw::{Capture, MediaParser, capture_time_in_memory};
 
 use crate::hash::{Digest32, hex, sha256};
+use crate::manifest;
 use crate::naming::{destination_path, unfiled_path, with_collision_suffix};
 use crate::runlog::{RunLog, Verified};
 use crate::winio::{unbuffered_sha256, write_through};
@@ -312,6 +314,8 @@ fn verify(
         failed: Vec::new(),
     };
 
+    let mut landed_by_folder: BTreeMap<PathBuf, Vec<manifest::Entry>> = BTreeMap::new();
+
     for placed in landed {
         let target = destination.root.join(&placed.relative);
         let name = placed.relative.to_string_lossy().replace('\\', "/");
@@ -323,20 +327,68 @@ fn verify(
 
         outcome.verified += 1;
 
+        let verified_utc = Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+        let captured_utc = placed
+            .captured
+            .map(|at| at.format("%Y-%m-%dT%H:%M:%SZ").to_string());
+
         // Only now. A record that preceded its verify read would let resume trust work
         // that was never proven (decision 13).
         log.append(&Verified {
             run_id: run_id.to_owned(),
-            name,
+            name: name.clone(),
             destination: destination.label.clone(),
             sha256: hex(&placed.sha256),
             bytes: placed.bytes,
-            captured_utc: placed
-                .captured
-                .map(|at| at.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
+            captured_utc: captured_utc.clone(),
             source_card: source_card.to_owned(),
-            verified_utc: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            verified_utc: verified_utc.clone(),
         })?;
+
+        // Collected per folder so each manifest is written once at the end of the pass
+        // rather than rewritten per file — decision 12 wants one atomic write.
+        if let Some(folder) = placed.relative.parent() {
+            landed_by_folder
+                .entry(folder.to_path_buf())
+                .or_default()
+                .push(manifest::Entry {
+                    name: placed
+                        .relative
+                        .file_name()
+                        .map_or_else(|| name.clone(), |n| n.to_string_lossy().into_owned()),
+                    status: manifest::Status::Present,
+                    sha256: hex(&placed.sha256),
+                    bytes: placed.bytes,
+                    captured_utc,
+                    source_card: source_card.to_owned(),
+                    run_id: run_id.to_owned(),
+                    verified_utc,
+                    // Phase 4 has not run, so corroboration is genuinely *pending*
+                    // rather than absent (decision 12).
+                    corroborated: None,
+                    deletion: None,
+                });
+        }
+    }
+
+    // The durable artifact (decision 12). Only files that *verified* reach here, so a
+    // manifest can never claim something the read-back could not confirm.
+    for (folder, entries) in landed_by_folder {
+        let date = folder
+            .file_name()
+            .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
+
+        manifest::update(
+            &destination.root.join(&folder),
+            &date,
+            &destination.label,
+            manifest::Run {
+                run_id: run_id.to_owned(),
+                files_added: entries.len(),
+                bytes_added: entries.iter().map(|entry| entry.bytes).sum(),
+            },
+            entries,
+        )?;
     }
 
     Ok(outcome)

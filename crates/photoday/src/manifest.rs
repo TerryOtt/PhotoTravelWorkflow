@@ -21,7 +21,7 @@
 //! regenerated. The other direction fails loudly instead of guessing: an older binary
 //! meeting a newer manifest says exactly that, and never reports the photos as damaged.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -211,6 +211,68 @@ impl Manifest {
         let text = serde_json::to_string_pretty(self).context("serializing the manifest")?;
         crate::winio::write_through(path, text.as_bytes())
     }
+}
+
+/// Where a date folder's manifest lives.
+///
+/// Dotted and prefixed so it cannot collide with anything the camera or Lightroom puts
+/// there, and so it sorts out of the way of the photographs.
+pub fn path_in(folder: &Path) -> PathBuf {
+    folder.join(".photoday-manifest.json")
+}
+
+/// Add this run's files to the manifest in `folder`, creating it if there is none.
+///
+/// **Merging rather than replacing is the whole point** (decision 12): several offloads
+/// a day is the normal rhythm, so an evening run must not erase what the lunchtime run
+/// recorded. Entries are keyed by name — a file ingested twice updates in place rather
+/// than appearing twice — and the `runs` array grows, which is what makes several
+/// offloads legible after the fact.
+///
+/// **An unreadable existing manifest is a hard error, deliberately.** The alternative is
+/// to overwrite it, which would silently discard the only record of everything that
+/// landed before tonight. A damaged manifest is a thing to be told about while the
+/// source card is still in your hand.
+pub fn update(
+    folder: &Path,
+    date_utc: &str,
+    destination: &str,
+    run: Run,
+    entries: Vec<Entry>,
+) -> Result<()> {
+    let path = path_in(folder);
+
+    let mut body = match Manifest::read(&path) {
+        Ok(existing) => existing.body,
+        Err(ManifestError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => Body {
+            date_utc: date_utc.to_owned(),
+            destination: destination.to_owned(),
+            runs: Vec::new(),
+            files: Vec::new(),
+        },
+        Err(error) => {
+            return Err(anyhow::Error::new(error).context(format!(
+                "refusing to overwrite the existing manifest at {} — it is the only \
+                 record of what landed here before tonight",
+                path.display()
+            )));
+        }
+    };
+
+    for entry in entries {
+        match body.files.iter_mut().find(|held| held.name == entry.name) {
+            Some(held) => *held = entry,
+            None => body.files.push(entry),
+        }
+    }
+
+    // Sorted so two destinations holding the same day produce byte-identical manifests
+    // apart from the `destination` field, which is what makes the cross-check of
+    // decision 12 a simple comparison.
+    body.files.sort_by(|a, b| a.name.cmp(&b.name));
+    body.runs.push(run);
+
+    Manifest::seal(body)?.write(&path)
 }
 
 /// SHA-256 of the body, routed through `Value` so writer and reader hash the same bytes.

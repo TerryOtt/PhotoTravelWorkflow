@@ -19,7 +19,7 @@ use geotag::raw::{Capture, MediaParser, capture_time};
 use geotag::track::GapLimits;
 use photoday::pipeline::Destination;
 use photoday::runlog::RunLog;
-use photoday::{config, destinations, naming, pipeline, power, preflight};
+use photoday::{config, destinations, marker, naming, pipeline, power, preflight, verify};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -129,10 +129,16 @@ fn main() -> ExitCode {
 }
 
 fn dispatch(cli: &Cli) -> Result<ExitCode> {
-    if let Some(command) = &cli.command {
-        // `verify` and `sync` are decision 20's, and neither is built yet.
-        eprintln!("photoday: {command:?} is not implemented yet — see docs/DESIGN.md.");
-        return Ok(ExitCode::FAILURE);
+    match &cli.command {
+        Some(Command::Verify { dest }) => return verify_destination(dest),
+        Some(Command::Sync { dest }) => {
+            eprintln!(
+                "photoday: sync is not implemented yet ({}) — see docs/DESIGN.md                  decision 20.",
+                dest.display()
+            );
+            return Ok(ExitCode::FAILURE);
+        }
+        None => {}
     }
 
     if cli.offload.dry_run {
@@ -194,6 +200,17 @@ fn offload(args: &Offload) -> Result<ExitCode> {
         &log,
     )?;
     let elapsed = started.elapsed();
+
+    // Each destination says what it is, so an archive pulled from the safe years from
+    // now proves itself on a machine that has never seen this config (decision 6).
+    for resolved in &plan.rig.survey.found {
+        marker::write(
+            &resolved.root,
+            &resolved.label,
+            resolved.device.as_ref().and_then(|d| d.serial.as_deref()),
+            &Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        )?;
+    }
 
     landed(&outcome, elapsed, &runs_root);
 
@@ -461,4 +478,106 @@ fn count(n: usize) -> String {
         out.push(digit);
     }
     out
+}
+
+/// `photoday verify <DEST>` — decision 20.
+///
+/// Reads nothing but the disk itself, so it works on a machine that has never seen this
+/// tool's configuration. That is the promise, and it is why this takes a path rather
+/// than a config label.
+fn verify_destination(root: &Path) -> Result<ExitCode> {
+    let report = verify::destination(root)?;
+
+    println!();
+    match (&report.label, &report.created_utc, &report.last_run_utc) {
+        (Some(label), Some(created), Some(last)) => println!(
+            "  {label}  ·  {}  ·  archiving since {created}  ·  last run {last}",
+            root.display()
+        ),
+        _ => println!(
+            "  {}  ·  no readable destination marker — verifying by its manifests alone",
+            root.display()
+        ),
+    }
+    println!();
+
+    for folder in &report.folders {
+        let name = folder
+            .folder
+            .strip_prefix(root)
+            .unwrap_or(&folder.folder)
+            .display()
+            .to_string();
+
+        println!(
+            "  {:<28} {:>6} verified{}{}{}",
+            name,
+            count(folder.checked),
+            if folder.tombstoned > 0 {
+                format!(" · {} tombstoned", count(folder.tombstoned))
+            } else {
+                String::new()
+            },
+            if folder.damaged.is_empty() {
+                String::new()
+            } else {
+                format!(" · {} DAMAGED", count(folder.damaged.len()))
+            },
+            if folder.missing.is_empty() {
+                String::new()
+            } else {
+                format!(" · {} MISSING", count(folder.missing.len()))
+            },
+        );
+    }
+
+    // Kept apart from damage, always. A manifest this build cannot read says nothing
+    // whatever about the photographs beside it (decisions 12, 28).
+    for (path, why) in &report.unreadable_manifests {
+        println!();
+        println!("  !  {}", path.display());
+        println!("     {why}");
+    }
+
+    for folder in &report.folders {
+        for name in &folder.damaged {
+            println!("  !  DAMAGED   {name}");
+        }
+        for name in &folder.missing {
+            println!("  !  MISSING   {name}");
+        }
+        for name in &folder.unrecorded {
+            println!("  ?  not in the manifest: {name}");
+        }
+    }
+
+    println!();
+    println!(
+        "  {} files verified across {} folders",
+        count(report.checked()),
+        count(report.folders.len())
+    );
+
+    println!();
+    println!(
+        "►  {}",
+        if report.clean() {
+            "CLEAN — every recorded file is present and matches".to_string()
+        } else if !report.unreadable_manifests.is_empty() && report.damaged() == 0 {
+            "CANNOT FULLY VERIFY — a manifest could not be read; the photographs it              covers were not checked, and nothing here says they are damaged"
+                .to_string()
+        } else {
+            format!(
+                "NOT CLEAN — {} damaged, {} missing",
+                count(report.damaged()),
+                count(report.missing())
+            )
+        }
+    );
+
+    Ok(if report.clean() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(2)
+    })
 }

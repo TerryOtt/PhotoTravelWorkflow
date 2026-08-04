@@ -99,7 +99,11 @@ fn one_card_lands_four_identical_verified_trees() {
 
     // Four trees, identical to each other — the thing the whole phase exists to produce.
     let first = tree(&destinations[0].root);
-    assert_eq!(first.len(), 5);
+    assert_eq!(
+        first.len(),
+        6,
+        "five frames plus the date folder's manifest: {first:?}"
+    );
     for destination in &destinations[1..] {
         assert_eq!(
             tree(&destination.root),
@@ -111,11 +115,30 @@ fn one_card_lands_four_identical_verified_trees() {
 
     // And identical to the card, byte for byte, read back off the disk rather than
     // trusted from the write.
+    let raws: Vec<&String> = first.iter().filter(|name| name.ends_with(".CR3")).collect();
+    assert_eq!(raws.len(), 5);
     for destination in &destinations {
-        for (relative, expected) in first.iter().zip(&frames) {
+        for (relative, expected) in raws.iter().zip(&frames) {
             let landed = fs::read(destination.root.join(relative)).expect("reading back");
             assert_eq!(sha256(&landed), sha256(expected), "{relative}");
         }
+    }
+
+    // Every copy is self-describing: decision 12's durable artifact, sealed and readable.
+    // Without this a disk pulled from the safe has photographs and no way to prove them.
+    for destination in &destinations {
+        let folder = destination.root.join("_unfiled").join(RUN_ID);
+        let manifest = photoday::manifest::Manifest::read(&photoday::manifest::path_in(&folder))
+            .unwrap_or_else(|e| panic!("{} has no readable manifest: {e}", destination.label));
+
+        assert_eq!(manifest.schema, 1);
+        assert_eq!(manifest.body.destination, destination.label);
+        assert_eq!(manifest.body.files.len(), 5);
+        assert_eq!(manifest.body.runs.len(), 1);
+        assert_eq!(manifest.body.runs[0].run_id, RUN_ID);
+
+        // Corroboration is pending, not absent — phase 4 has not run (decision 12).
+        assert!(manifest.body.files.iter().all(|f| f.corroborated.is_none()));
     }
 
     for destination in &outcome.destinations {
