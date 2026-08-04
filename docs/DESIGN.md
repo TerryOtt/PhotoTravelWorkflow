@@ -468,6 +468,19 @@ Config is JSON:
 }
 ```
 
+**It lives at `%APPDATA%\photoday\config.json`** — settled 2026-08-03, having been shown
+here without ever being located. The Windows convention, and the one a Windows developer
+looks in first; it survives rebuilding the binary, which a config sitting beside
+`target\release\photoday.exe` does not, and that matters because `UPDATING.md`'s pre-trip
+ritual is *rebuild, then dry-run against the real rig*. Reading one environment variable
+is the whole implementation, which is why decision 29 declined the `directories` crate.
+
+A missing config is a pre-flight fatal that names the path it looked in, not a prompt and
+not a generated skeleton — a tool that invents a config would be inventing a rig. There
+is deliberately no `--config` flag: typing a path at 11pm is the failure this decision
+exists to prevent, and the one command that genuinely must run without any of this is
+`verify`, which reads nothing but the disk (decision 20).
+
 The risk is config drift — an entry wrong in a way you don't notice until it matters.
 Pre-flight validates every entry against connected hardware and fails in the first ten
 seconds, so drift surfaces while you are still standing at the desk.
@@ -775,6 +788,17 @@ destination's own rolling average is the natural extension.
 
 `_runs\<timestamp>\report.json` carries the full forensic record: per-file outcomes,
 per-phase timings, per-destination throughput, and the resolved hardware identities.
+
+**`_runs` lives on the laptop working copy alone** — settled 2026-08-03, having been
+written as a bare relative path in two places without ever saying under which root.
+Decision 20 is what decides it: `verify` reads nothing but a destination's marker and its
+manifests, so `_runs` is by construction not part of what makes an archive
+self-describing, and putting it on the archives would add non-photograph directories to
+disks whose whole promise is that they hold photographs and their proof. The laptop is
+also the one destination that is never absent — `--without` names archives (decision 25),
+never the working copy — so resume has exactly one place to look for the run log rather
+than a quorum to reconcile. The quarantine of decision 3 goes to the same root: one copy
+of the evidence, on the machine that will still be there when someone asks about it.
 
 ### 15. `--jobs` sizes the CPU pool, not the I/O fan-out
 
@@ -1538,7 +1562,46 @@ the worst moment, which is the pre-trip check.
 > builds and runs exactly as before. Until it takes a path dependency on `geotag` or is
 > retired, the engine exists twice and a fix applied to one copy does not reach the
 > other. That is a change in *another repository*, and it is the maintainer's call
-> rather than something this decision may assume.
+> rather than something this decision may assume. **It was made the same day:
+> decision 30 retires RawGeotag rather than making it a consumer, and cannot start
+> until phase 5 works.**
+
+### 30. RawGeotag retires into `photoday`
+
+The lift of decision 29 left the engine in two repositories: `crates/geotag` here, and
+the original four modules in RawGeotag, which was deliberately not modified and still
+builds and runs. A fix applied to one does not reach the other, and that window stays
+open for as long as both exist.
+
+**The resolution is retirement, not a path dependency.** RawGeotag's CLI is a strict
+subset of what `photoday` will do once phase 5 lands — correlate capture times against a
+GPX index and write XMP sidecars is *the whole of* phase 5 — so the tool becomes a
+subcommand, `photoday geotag`, and its repository is archived. A path dependency was the
+alternative and is the weaker end state: it would keep one canonical engine but leave a
+second binary, a second CLI, a second set of docs and a second CI to maintain, all for a
+capability the primary tool will have anyway.
+
+**Nothing happens until phase 5 exists.** RawGeotag works today and geotags real trips;
+it keeps working until its replacement is real and has been run against the fixture
+corpus. Retiring it before then would trade a working tool for a promise.
+
+What comes across at that point, beyond the CLI surface itself:
+
+- `docs/LIGHTROOM-XMP.md`, which decision 29 could not move because its procedure drives
+  `rawgeotag.exe` — once `photoday geotag` is that binary, the procedure moves with it
+- `docs/FIXTURES.md` and `scripts/verify-fixtures.ps1`, the harness that hashes the real
+  corpus, which is what actually validates the engine
+- `docs/TESTING.md`'s one load-bearing principle, already folded into
+  [`REVIEWING.md`](REVIEWING.md) — the rest stays retired, per *Considered and rejected*
+- the duplicated `fixture-manifests/`, which stops being duplicated
+
+The one thing that does not come across is RawGeotag's `--utc-offset`, which existed for
+a body that recorded no timezone. Decision 23 removed the need for it here, and a
+subcommand that reintroduced it would reintroduce the gate it implies.
+
+**Until then the duplication is live and must be treated as such:** a change to
+`crates/geotag` that fixes a real defect has to be applied to RawGeotag's copy by hand,
+or the trip tool silently keeps the bug. `CLAUDE.md` says so where a session will see it.
 
 ## Considered and rejected
 
@@ -1613,8 +1676,8 @@ decision 21's `_unfiled` routing. Still to build:
 - wiring phase 3 to the CLI, which needs the config loader and therefore the above; the
   binary still parses your command and exits 1
 - phases 4 and 5, the manifest of decision 12, and the report of decision 14
-- resolving the duplicated engine, which needs a change in RawGeotag's repository — see
-  decision 29's correction note
+- retiring RawGeotag into `photoday geotag` and archiving that repository (decision 30),
+  which cannot start until phase 5 can do its job
 
 **Two gaps in phase 3 are recorded rather than closed.** Neither is a defect today and
 both have an owner. *No test can prove the two file flags are still set*: removing

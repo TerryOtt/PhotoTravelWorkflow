@@ -80,9 +80,10 @@ because it was checked against thousands of real frames on two bodies and diffed
 Lightroom's own output, and a tidy-up that cannot re-run those checks is a net loss.
 
 **[`../RawGeotag`](../RawGeotag) still holds its own copy of these four modules**, and
-was deliberately not modified by the lift — it builds and runs exactly as before. So a
-fix applied here does not reach it. Resolving that means changing *that* repository, and
-it is the maintainer's call.
+was deliberately not modified by the lift — it builds and runs exactly as before. **So a
+real fix made here has to be applied there by hand, or the tool Terry actually travels
+with keeps the bug.** That ends when decision 30 retires RawGeotag into `photoday geotag`,
+which cannot happen until phase 5 works; until then, treat the duplication as live.
 
 Its `CLAUDE.md` and `docs/` carry findings this project inherited rather than re-derived,
 and several comments in `crates/geotag` cite them by name — the NEF read-strategy
