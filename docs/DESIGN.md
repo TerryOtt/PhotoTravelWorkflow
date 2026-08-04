@@ -2242,7 +2242,32 @@ The hub does deliver PCIe headroom on devices that were never binding: the OWC w
 1,333 → 1,825 MB/s in company, the Thunderbolt CFexpress reader 1,112 → 1,153. Neither is
 on the critical path, so neither moves the wall clock.
 
-**But the money question moved rather than closed: buy an enclosure, not a laptop.** The OWC
+**Then the money question dissolved: split the drives across the laptop's own ports and buy
+nothing.** Both archive SSDs had been on the dock, sharing one 10 Gbps USB4 tunnel with the
+SD reader. Moving each to a laptop USB-C port gives it a native link on its own controller —
+the SanDisk on the USB 3.2 xHCI, the WD on the 3.1, the OWC still on Thunderbolt, and the
+card readers left with the tunnel to themselves.
+
+| Read contention, *together* vs *together* | on the dock | split across ports |
+|---|---|---|
+| SanDisk | 360 MB/s | **980** |
+| WD | 360 | **934** |
+| **combined** | **720 MB/s** | **1,914 — 2.7×** |
+
+Every device keeps ~100 % of its solo rate. **The verify pass should fall from 8 m 12 s to
+roughly 3 m 45 s — about 4.5 minutes off a 16 m 35 s LANDED.** The TB5 hub bought nothing and
+a new laptop would have bought ~3.5 minutes; **two cables bought more than either, for free.**
+
+The cost is operational rather than financial, and it is the operator's call: it trades the
+hub's single-connector hotel ritual for three cables to the laptop each night.
+
+**Gen 2x2 was tested separately and is not available on this machine.** The SanDisk supports
+it; on a native USB 3.2 controller port it still measured 1,051 MB/s best-of-threads against
+1,034 through the tunnel — ≈8.4 Gbps, the practical 10 Gbps ceiling. The link negotiates
+Gen 2x1 regardless of what the drive can do.
+
+**The superseded recommendation, kept because the reasoning still holds if the ports are ever
+needed elsewhere: buy an enclosure, not a laptop.** The OWC
 is a `USB4 Router (1.0)` carrying a **PCIe** tunnel instead of the USB one, which is why it
 verified at 1,077 MB/s and kept 95 % of its solo write rate under load while the two USB
 drives sat at 409. TB4 offers ~3.3 GB/s of aggregate PCIe and one device uses it. Putting
