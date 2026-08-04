@@ -127,6 +127,36 @@ pub fn unbuffered_sha256(path: &Path) -> Result<Digest32> {
     Ok(hasher.finalize().into())
 }
 
+/// Read up to `limit` bytes off the media, bypassing every cache, and return how many.
+///
+/// For the card speed test of decision 7, where the *content* is irrelevant and the only
+/// thing being measured is how fast the device delivers bytes. Unbuffered is not an
+/// optimization here, it is the whole measurement: a buffered second read would come out
+/// of the page cache at RAM speed and report both readers as equally, impossibly fast.
+pub fn unbuffered_sample(path: &Path, limit: u64) -> Result<u64> {
+    let mut file = OpenOptions::new()
+        .read(true)
+        .custom_flags(FILE_FLAG_NO_BUFFERING)
+        .open(path)
+        .with_context(|| format!("opening {} to sample it", path.display()))?;
+
+    let mut buffer = SectorBuf::new(VERIFY_CHUNK);
+    let mut total = 0u64;
+
+    while total < limit {
+        let read = file
+            .read(buffer.as_mut_slice())
+            .with_context(|| format!("sampling {}", path.display()))?;
+
+        if read == 0 {
+            break;
+        }
+        total += read as u64;
+    }
+
+    Ok(total)
+}
+
 /// A heap buffer whose address is sector-aligned, which `FILE_FLAG_NO_BUFFERING`
 /// requires and `Vec<u8>` does not promise.
 ///

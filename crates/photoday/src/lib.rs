@@ -9,11 +9,14 @@
 //! that decision 6 resolves a destination by is phase 2's problem and never this
 //! phase's. A destination arrives here as a label and a path.
 
+pub mod cards;
 pub mod config;
+pub mod destinations;
 pub mod hash;
 pub mod naming;
 pub mod pipeline;
 pub mod power;
+pub mod preflight;
 pub mod runlog;
 pub mod storage;
 pub mod winio;
