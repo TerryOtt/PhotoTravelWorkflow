@@ -1976,6 +1976,67 @@ happen regardless.
 Recorded 2026-08-03, from the operator, after the layout had gone undefended through the
 entire design.
 
+### 32. A degrading card is caught by comparing it to itself
+
+**A card that dies is loud. A card that is slowly dying is silent, and silence is the
+failure this tool exists to remove.** The CFexpress that failed on 2026-08-03 threw
+`os error 483` on every data read and pre-flight caught it in under two seconds. Nothing
+would have caught the SDXC card that spent an unknown period running at **26% of its rated
+speed** — it was found on 2026-08-04 only because an unrelated investigation happened to
+measure it. A run with a half-speed card looks exactly like a big day on a tired laptop.
+
+**This is not only an offload cost.** The camera writes every frame to both slots, so the
+buffer drains at the slower card's rate. That card was taking frames away in the field,
+invisibly, for as long as it had been degrading.
+
+**Pre-flight already measures both cards** (decision 8) — that measurement is the card speed
+test, and it is what caught the dying card. Recording it costs a file write. The check
+proposed here is therefore nearly free: it adds no I/O to the critical path, only a
+comparison against what previous runs saw.
+
+**Compare a card to its own history, never to a fleet median.** Healthy cards on this rig
+differ by more than 2×: on one Thunderbolt reader a Lexar CFexpress reads 938 MB/s and a
+Sabrent Rocket CFX ~1,135, and both are sound. A cross-card threshold loose enough to accept
+that spread cannot detect a card that has halved, and one tight enough to detect it would
+condemn a healthy card for being a different model. **Only a card's own past has the
+sensitivity to matter.**
+
+**Identity is the hard part, and it splits by card type.** Decision 7 established that cards
+cannot be identified by volume serial, because the in-camera format at the start of every
+session assigns a new one. But a CFexpress in an NVMe reader exposes a stable *hardware*
+serial through `IOCTL_STORAGE_QUERY_PROPERTY`, which the storage layer already queries, while
+SD through a USB bridge frequently reports a generic or empty one. So the check is asymmetric,
+and that asymmetry is acceptable because it favours the card that matters:
+
+| | Anchor | Why |
+|---|---|---|
+| **CFexpress** | per-card history, keyed by hardware serial | stable identity, and it is the card on the *LANDED* path — phase 3 reads it |
+| **SDXC** | a fixed floor | identity may not survive a reader, and it is only read in phase 4, after the product moment |
+
+**Record before warning.** The first run has no baseline, and a threshold chosen on day one
+is a guess dressed as a check. Ship the recording, let history accumulate, and enable the
+warning once there are enough samples to set the bound from evidence — which is the same
+standard `REVIEWING.md` applies to every other number here.
+
+**The threshold must survive a healthy card that is noisy.** The Sabrent reproducibly swings
+**856–1,394 MB/s, ±28%**, across passes that agree with each other — it is not degrading, it
+is simply variable, most likely by position on the card. A single pre-flight sample from that
+card is itself a noisy number. So the comparison is **median of this run's samples against
+the median of history**, not one reading against one reading, and a card is judged on its
+floor rather than its mean.
+
+**It warns; it does not block.** A slow card is still a *correct* card, and every guarantee
+the tool makes is about bytes rather than speed. The run proceeds, all four copies land, and
+the report names the card and the shortfall. Refusing to offload a night's shooting over a
+speed regression would have the tool manufacturing the emergency it exists to prevent.
+
+The history file is JSON, per this project's default for structured data, keyed by hardware
+serial with a bounded list of samples.
+
+Recorded 2026-08-04, from the operator, after a faulty card was found by accident. The
+motivating case is stated in his terms: the tool is an anxiety instrument, and **the
+terrifying failure is not the one that announces itself.**
+
 ## Considered and rejected
 
 Recorded so a later reviewer does not spend effort re-proposing them. Reopening one needs
@@ -1983,6 +2044,8 @@ new evidence rather than fresh taste.
 
 | Proposal | Why not |
 |---|---|
+| A fleet-median card speed threshold | Healthy cards here differ by more than 2× on one reader (938 vs ~1,135 MB/s), so a bound loose enough to accept them cannot catch a card that has halved. Decision 32 compares a card to its own history instead |
+| Blocking the run on a slow card | A slow card is still a correct card, and the guarantees are about bytes, not speed. Refusing a night's offload over a speed regression manufactures the emergency the tool exists to prevent. Decision 32 warns in the report |
 | Local-time date folders | UTC is a deliberate conviction, not an oversight. The early-morning-east-of-UTC consequence is understood and accepted |
 | A `date_folders` config setting | A knob whose only legal value is its default — UTC foldering is the conviction above, not a preference |
 | Ingesting non-CR3 files into `_unfiled` as a catch-all | Machinery for formats the operator never shoots. `_unfiled` exists for a defective CR3, not as a junk drawer; the report names strays instead. Decision 24 |
@@ -2066,6 +2129,9 @@ has been shown to catch a single flipped bit in 201 GB and name the file.
 - **log-driven resume** (decision 13). Convergence already works, via decision 5's
   skip-on-identical-hash, but it re-reads what the run log could have told it
 - **the Defender exclusion check** (decision 9)
+- **the card degradation check** (decision 32) — record pre-flight's existing speed
+  measurement per card, warn when a card falls off its own history. Record first; the
+  threshold is set from accumulated evidence, not chosen up front
 - **overlapping the verify read with its hash** — worth more than the hash choice ever
   was; see decision 17
 - **retiring RawGeotag** into `photoday geotag` (decision 30), now unblocked by phase 5

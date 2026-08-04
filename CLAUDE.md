@@ -32,7 +32,7 @@ facts about the hardware; each was caught because he pushed back on one that loo
 
 | Before you… | Read | Its standing order |
 |---|---|---|
-| propose or write anything | [`docs/DESIGN.md`](docs/DESIGN.md) | 29 numbered decisions, each with its reasoning, plus what was considered and rejected |
+| propose or write anything | [`docs/DESIGN.md`](docs/DESIGN.md) | 32 numbered decisions, each with its reasoning, plus what was considered and rejected |
 | change what the operator does | [`docs/CONOPS.md`](docs/CONOPS.md) | the nightly ritual and the shooting-day contract the guarantees rest on |
 | put anything on `main` | [`docs/REVIEWING.md`](docs/REVIEWING.md) | a branch can be as ugly as it needs to be; `main` has no broken windows |
 | write a document or a comment | [`docs/WRITING.md`](docs/WRITING.md) | every document leads with what *its* reader came for |
