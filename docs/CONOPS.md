@@ -93,7 +93,7 @@ the deal:
   not by a disk utility, not by a repair tool, and not by this tool — which never writes
   to a card at all (`DESIGN.md` non-goals). The camera writes the exact filesystem
   geometry it expects, and the widely-held view among photographers is that this is the
-  single best defence against card corruption. Whether or not every part of that folklore
+  single best defense against card corruption. Whether or not every part of that folklore
   survives scrutiny, **it is the operator's standing rule and it binds everything here**:
   a card that misbehaves goes back in the body and gets formatted, rather than being
   handed to `chkdsk /f` or a Windows format.

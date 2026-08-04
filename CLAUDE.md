@@ -70,7 +70,7 @@ In strict priority order. Nearly every decision in `DESIGN.md` traces back to on
 dinner is over" — 60–90 minutes — and the run measures under 17. **So do not trade anything
 for wall clock**: not clarity, not a safety check, not an afternoon of engineering. A
 three-minute saving is 3 % of a window with 45 minutes of slack, and reads as a real trade
-only when the metric is mistaken for a gradient. Optimise for whether Terry can trust the
+only when the metric is mistaken for a gradient. Optimize for whether Terry can trust the
 verdict, walk away, and sleep. Wall clock re-enters the argument only if a run approaches the
 bar. `DESIGN.md` — *Both metrics are thresholds* — has the full version.
 

@@ -18,7 +18,7 @@ exploration that gets abandoned early. Nobody is reviewing your branch.
 **Then clean it before it goes near `main`.** Not "mostly clean", not "clean apart from
 that one bit". The bar is that a reasonable reviewer reading the diff cold finds nothing
 to wince at — no cringe, no debt, no "I'll fix that later", no commented-out experiment,
-no leftover `dbg!`. If you would apologise for a line in the PR description, that line is
+no leftover `dbg!`. If you would apologize for a line in the PR description, that line is
 not ready.
 
 ## Why "broken windows"
@@ -28,7 +28,7 @@ building with one unrepaired broken window is soon a building with none intact. 
 signal that nobody cares, and once that signal is up, the decline is fast and nobody feels
 responsible for it.
 
-Code does the same. One tolerated shortcut on `main` is a licence for the next one, and
+Code does the same. One tolerated shortcut on `main` is a license for the next one, and
 the third arrives without anyone deciding. **The cost is not the shortcut; it is the
 precedent.** Repairing a window is cheap. Re-establishing that windows get repaired, after
 a year of not, is not.
@@ -136,12 +136,12 @@ advice:
 |---|---|
 | Reimplementing what a dependency already gives you | a hand-rolled scratch-directory type, duplicated in two modules, while `tempfile` was already a dependency **and cited in `Cargo.toml` for exactly those properties** |
 | A function long enough to hide its own control flow | `run()` at 159 lines with a dozen mutable accumulators, one of them incremented in two loops 55 lines apart |
-| Two types modelling the same thing differently | one enum repeated `path` in every variant; its neighbour did not |
+| Two types modeling the same thing differently | one enum repeated `path` in every variant; its neighbour did not |
 | Passing an owned value by reference, then cloning out of it | a `PathBuf` cloned per photo because the function took `&Photo` |
 | Rebuilding a constant inside the loop | limits reconstructed per photo, because `&Args` was threaded in instead of resolved settings |
 | `pub` that buys nothing | a type nothing outside the module could construct or receive |
-| The same normalisation written twice, with a loose primitive | `trim_start_matches('.')` where `strip_prefix('.')` was meant, in two modules |
-| A data table whose shape the code does not honour | an `extensions()` returning a slice, while the directory walk matched only the string the user typed |
+| The same normalization written twice, with a loose primitive | `trim_start_matches('.')` where `strip_prefix('.')` was meant, in two modules |
+| A data table whose shape the code does not honor | an `extensions()` returning a slice, while the directory walk matched only the string the user typed |
 | A module reaching up into the binary root | a leaf module calling `crate::format_utc` |
 | A runtime assertion where the type system would do | `unreachable!` guarding a state that consuming the value made unrepresentable |
 | Dead conditions | `clamp(-1.0, 1.0)` on a value that cannot go negative |
@@ -153,7 +153,7 @@ cold, have to ask why? If yes, either change the code or write down the answer.
 
 ## What is *not* a broken window
 
-The policy is not licence to relitigate. Specifically:
+The policy is not license to relitigate. Specifically:
 
 - **A settled decision you would have made differently.** [`DESIGN.md`](DESIGN.md) records
   its decisions with their reasoning. Disagreeing is fine; say so explicitly rather than

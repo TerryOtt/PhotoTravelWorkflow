@@ -360,7 +360,7 @@ mod tests {
 
     /// The Moraine Lake case, and a named risk of this workflow: the logger stopped and
     /// the sunset shoot came after. The count alone is not actionable — the boundary is,
-    /// because it is what makes the operator recognise the evening.
+    /// because it is what makes the operator recognize the evening.
     #[test]
     fn misses_all_after_the_track_name_the_moment_the_logger_stopped() {
         let report = Report {

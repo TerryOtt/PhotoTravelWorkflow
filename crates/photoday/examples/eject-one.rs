@@ -53,7 +53,7 @@ fn main() -> ExitCode {
         .find(|resolved| resolved.label.eq_ignore_ascii_case(&wanted))
     else {
         eprintln!(
-            "no connected destination is labelled {wanted:?} — found: {}",
+            "no connected destination is labeled {wanted:?} — found: {}",
             survey
                 .found
                 .iter()

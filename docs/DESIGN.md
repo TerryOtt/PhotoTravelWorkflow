@@ -181,7 +181,7 @@ the previous day.
 **Eject is a stage rather than a footnote, and it is timed like one** — promoted 2026-08-04
 at the operator's request. It is different in kind from the five phases: it moves no data and
 cannot turn SAFE into NOT SAFE. But it can now run for twenty minutes while it argues with
-Windows, and **an unlabelled twenty-minute silence reads as a hang while a timed one reads as
+Windows, and **an unlabeled twenty-minute silence reads as a hang while a timed one reads as
 persistence.** Printing its wall clock is the whole difference. It is also the project's
 number one technical risk in the operator's own assessment (decision 22), which is reason
 enough for it to appear in the accounting rather than after it.
@@ -289,20 +289,20 @@ tests, which is the right place for it: manufacturing a mismatch would mean writ
 camera card, and nothing here does that.
 
 **Two figures worth keeping.** Corroboration took **~19.5 minutes** at ~170 MB/s from the SD
-card — 83 % of that card's 205 MB/s raw rate, the same read-then-hash serialisation tax the
+card — 83 % of that card's 205 MB/s raw rate, the same read-then-hash serialization tax the
 verify pass pays. And LANDED came at **13 m 04 s** on a convergence run against 16 m 35 s
 fresh, because a convergence run still reads and hashes all 201 GB from the card and only
 skips the writing. That gap is decision 13's log-driven resume measuring its own absence.
 
 **Phase 5 demonstrated something nobody was testing:** `0 sidecars written · 9,576 left
-alone`. It recognised the previous run's work rather than rewriting every sidecar, which is
+alone`. It recognized the previous run's work rather than rewriting every sidecar, which is
 the idempotence decision 12's convergence rhythm depends on.
 
 **A caution for whoever reads the CPU next.** The processor sits at 3–4 % through the verify
 pass, which tempts two wrong conclusions. It does *not* mean hashing is free: read and hash
-are serialised, so the idle CPU is the signature of work that could overlap and does not —
+are serialized, so the idle CPU is the signature of work that could overlap and does not —
 roughly 15–20 % of the pass, and the reason the SHA-256-versus-XXH3 experiment appeared to
-measure the hash when it was really measuring the serialisation. And it does *not* mean
+measure the hash when it was really measuring the serialization. And it does *not* mean
 phase 4 should run concurrently with verify: the SD reader shares that same saturated
 tunnel, so corroborating early would take ~215 MB/s straight out of the two destinations
 that already bind phase 3 — trading metric #1 for metric #2, which the priority order
@@ -320,7 +320,7 @@ forbids. **CPU headroom was never the constraint.**
 >
 > **The SDXC row was wrong three times, and the last correction was a factor of three.**
 > It began at 62–67 MB/s measured *while a full offload was in flight*, which is not a
-> measurement; the defence offered for it was invalid, since a bandwidth-starved device
+> measurement; the defense offered for it was invalid, since a bandwidth-starved device
 > reads flat at every request size just as a genuinely slow one does. Re-measured on an
 > idle bus it came back **unchanged**, which appeared to settle it — the methodology had
 > been wrong and the number right, and those are separate claims.
@@ -1550,7 +1550,7 @@ at whatever schema that disk was written with, which every later build still und
 then walks every date folder, `_unfiled` included (decision 21): manifest checksum first,
 so a rotted manifest is reported as a rotted manifest rather than as damaged
 photographs; then every raw re-hashed unbuffered
-against it. Tombstones are honoured, so a file deliberately deleted in phase 4 reports clean
+against it. Tombstones are honored, so a file deliberately deleted in phase 4 reports clean
 rather than missing.
 
 **Sidecar drift should not exist on any destination**, and after decision 11's correction
@@ -1718,6 +1718,26 @@ whether the complaint is about behavior or about description.
 **Each device reports what its eject cost** — attempts made and wall clock spent — printed
 only when it took more than one attempt. Decision 22 can only be tuned from real numbers, and
 a run is the only place they occur.
+
+> **The mechanism, since "race condition" is too vague to act on.** `FSCTL_LOCK_VOLUME`'s
+> exclusivity belongs to *the handle*. The handle must be closed before
+> `CM_Request_Device_Eject`, or PnP walks the device tree, finds this process's own
+> outstanding open, and vetoes naming us. But closing it releases the lock, and a dismounted
+> volume remounts on next access. **So the two steps that need exclusivity are separated by
+> the step that gives it up** — the eject structurally cannot hold the claim it requires.
+> That is a tension in the Win32 API rather than a defect here, and it is why widening or
+> narrowing the gap changes nothing while re-running the sequence does.
+>
+> Two explanations fit every observation and both are addressed by the retry, so neither has
+> been isolated: the volume remounted in the gap and something grabbed it, or a scanner held
+> files throughout and the lock merely succeeded in a lull. The veto name is the *volume
+> device object*, which says **where** the obstruction is and never **who**.
+>
+> **The candidate that would close it properly rather than racing it: `IOCTL_VOLUME_OFFLINE`,**
+> which takes a volume offline in a way that survives the handle close — what
+> `diskpart offline volume` does. If it holds, the eject becomes deterministic instead of
+> probabilistic. Untested, and unknown whether PnP still finds something to veto. Given this
+> decision is the operator's number one risk, it is the most promising lead on file.
 
 **Eject is also the certainty gate — deliberate, settled at design review.** It fires
 only when nothing remains for the current cards: every file verified on all four
@@ -2242,7 +2262,7 @@ cannot be identified by volume serial, because the in-camera format at the start
 session assigns a new one. But a CFexpress in an NVMe reader exposes a stable *hardware*
 serial through `IOCTL_STORAGE_QUERY_PROPERTY`, which the storage layer already queries, while
 SD through a USB bridge frequently reports a generic or empty one. So the check is asymmetric,
-and that asymmetry is acceptable because it favours the card that matters:
+and that asymmetry is acceptable because it favors the card that matters:
 
 | | Anchor | Why |
 |---|---|---|
@@ -2508,7 +2528,7 @@ sidesteps the USB4 v1 host rather than trying to outspend it.
 **One correction worth keeping, because it sounds wrong:** Thunderbolt 4 is **not** a superset
 of USB 3.2. USB4/TB4 tunnels USB 3.2 **Gen 2x1 — 10 Gbps** — and Gen 2x2 is not tunnelled at
 all. The two are mutually exclusive in the connector: Gen 2x2 reaches 20 Gbps by using *both*
-USB-C lane pairs for USB3 signalling, and USB4 claims those same lanes for its own link. The
+USB-C lane pairs for USB3 signaling, and USB4 claims those same lanes for its own link. The
 SanDisk here supports Gen 2x2 and cannot use it on this machine — the one native USB-C port
 enumerates on the **USB 3.1** controller, whose ceiling is 10 Gbps, and the TB4 ports tunnel
 at 10.

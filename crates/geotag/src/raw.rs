@@ -322,7 +322,7 @@ mod tests {
     //
     // Unreachable from the fixtures, which contain only files that parse. A
     // renamed JPEG, a truncated download or a stray text file with a raw
-    // extension all land here, and the required behaviour is a per-file error
+    // extension all land here, and the required behavior is a per-file error
     // naming the file — not a panic, and not a silent skip that would let the run
     // exit zero having quietly tagged nothing.
 

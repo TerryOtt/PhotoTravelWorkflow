@@ -30,7 +30,7 @@
 //! Three things follow, and all three are load-bearing:
 //!
 //! - **Alternate the conditions** rather than batching them, so neither is systematically
-//!   favoured by what came before it.
+//!   favored by what came before it.
 //! - **Repeat, and report the spread.** A single number cannot say whether it is
 //!   reproducible, and a 24 % swing must announce itself rather than being averaged into a
 //!   confident-looking mean.

@@ -485,7 +485,7 @@ fn report_eject(released: Option<&[Released]>, args: &Offload, elapsed: Duration
     };
 
     // **Eject is a timed stage, and the clock is the point** (decision 22). A retry that runs
-    // for twenty minutes is the tool working; unlabelled, twenty silent minutes read as a
+    // for twenty minutes is the tool working; unlabeled, twenty silent minutes read as a
     // hang. The operator asked for this specifically, and the difference between the two
     // readings is entirely whether the duration is on the screen.
     println!("  Eject    ({})", duration(elapsed));

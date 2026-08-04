@@ -218,7 +218,7 @@ fn locate(destination: &Destination, volumes: &[Volume]) -> Result<Resolved, Str
                 }
 
                 // No serial matched. A device that reports none can still be found by
-                // its GUID, which is weaker and is labelled as such.
+                // its GUID, which is weaker and is labeled as such.
                 None => {
                     let guid = volume_guid
                         .ok_or_else(|| format!("no connected device reports serial {serial}"))?;
