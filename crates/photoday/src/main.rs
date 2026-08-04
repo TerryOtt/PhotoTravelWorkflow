@@ -19,7 +19,10 @@ use geotag::raw::{Capture, MediaParser, capture_time};
 use geotag::track::GapLimits;
 use photoday::pipeline::Destination;
 use photoday::runlog::RunLog;
-use photoday::{config, destinations, marker, naming, phase5, pipeline, power, preflight, verify};
+use photoday::{
+    cards, config, destinations, manifest, marker, naming, phase4, phase5, pipeline, power,
+    preflight, verify,
+};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -226,9 +229,13 @@ fn offload(args: &Offload) -> Result<ExitCode> {
 
     landed(&outcome, elapsed, &runs_root);
 
-    // Phase 5 runs after LANDED and may take as long as it likes — decision 14 lets only
-    // phase 3 change the verdict, so a geotag miss is a count in the body and never a
-    // downgrade at the top.
+    // Phases 4 and 5 both run after LANDED and may take as long as they like — decision 14
+    // lets only phase 3 change the verdict, so neither a mismatch nor a geotag miss is a
+    // downgrade at the top; both are counts in the body.
+    let corroboration = corroboration_phase(&plan, &targets, &outcome, &runs_root, args)?;
+    record_corroboration(&targets, &outcome, corroboration.as_ref())?;
+    report_corroboration(corroboration.as_ref());
+
     let geotag = geotag_phase(&plan, &targets, &outcome, args)?;
     report_geotag(geotag.as_ref());
 
@@ -251,6 +258,119 @@ fn source_card(plan: &preflight::Preflight) -> &'static str {
     } else {
         "single"
     }
+}
+
+/// A card's root, which is what decision 4 pairs the two cards on.
+///
+/// The mount point rather than the `DCIM` directory, because `Ingested::card_relative` is
+/// relative to the volume — falling back to `DCIM` only when a card somehow reports no
+/// mount point at all.
+fn card_root(card: &cards::Card) -> PathBuf {
+    card.volume
+        .mount_points
+        .first()
+        .cloned()
+        .unwrap_or_else(|| card.dcim.clone())
+}
+
+/// Phase 4, or `None` when there was no second card to consult (decision 7).
+///
+/// **Runs before phase 5 because it is numbered before it, and because it can abort.**
+/// With `--fail-on-source-mismatch` a disagreement stops the run, and stopping before
+/// writing sidecars for frames whose provenance is in doubt is the better order.
+fn corroboration_phase(
+    plan: &preflight::Preflight,
+    targets: &[pipeline::Destination],
+    outcome: &pipeline::Outcome,
+    runs_root: &Path,
+    args: &Offload,
+) -> Result<Option<phase4::Report>> {
+    let Some((other, _)) = plan.cards.other.as_ref() else {
+        return Ok(None);
+    };
+
+    phase4::run(
+        &outcome.ingested,
+        &card_root(&plan.cards.source),
+        &card_root(other),
+        targets,
+        &runs_root.join("quarantine"),
+        args.fail_on_source_mismatch,
+    )
+    .map(Some)
+}
+
+/// Resolve every manifest entry this run left pending (decision 12).
+///
+/// **Phase 3 wrote each entry with `corroborated: None`, meaning the question was open.**
+/// This is what closes it, and it must run whether or not phase 4 did: a single-source run
+/// still has to say *waived* rather than leaving the record permanently ambiguous.
+///
+/// Entries are grouped by day folder because that is where a manifest lives, and applied to
+/// every destination because each carries its own copy.
+fn record_corroboration(
+    targets: &[pipeline::Destination],
+    outcome: &pipeline::Outcome,
+    report: Option<&phase4::Report>,
+) -> Result<()> {
+    let deleted: BTreeMap<&Path, &(PathBuf, String, String)> = report
+        .map(|report| {
+            report
+                .mismatched
+                .iter()
+                .map(|entry| (entry.0.as_path(), entry))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // Absent phase 4 the verdict is *waived by declaration*, which is a claim about the run
+    // rather than about the file — decision 7.
+    let default_verdict = if report.is_some() {
+        manifest::Corroborated::Matched
+    } else {
+        manifest::Corroborated::Waived
+    };
+    let deleted_utc = Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
+    let mut by_folder: BTreeMap<&Path, Vec<manifest::Outcome>> = BTreeMap::new();
+    for frame in &outcome.ingested {
+        let relative = frame.destination_relative.as_path();
+        let (Some(folder), Some(name)) = (relative.parent(), relative.file_name()) else {
+            continue;
+        };
+
+        let disputed = deleted.get(relative);
+        by_folder
+            .entry(folder)
+            .or_default()
+            .push(manifest::Outcome {
+                name: name.to_string_lossy().into_owned(),
+                corroborated: match disputed {
+                    Some(_) => manifest::Corroborated::Mismatched,
+                    None => default_verdict,
+                },
+                deletion: disputed.map(|(_, source, other)| manifest::Deletion {
+                    source_sha256: source.clone(),
+                    other_sha256: other.clone(),
+                    reason: "the two cards disagreed, confirmed on a re-read of both".into(),
+                    deleted_utc: deleted_utc.clone(),
+                }),
+            });
+    }
+
+    for destination in targets {
+        for (folder, outcomes) in &by_folder {
+            manifest::corroborate(&destination.root.join(folder), outcomes).with_context(|| {
+                format!(
+                    "recording corroboration in {}'s manifest for {}",
+                    destination.label,
+                    folder.display()
+                )
+            })?;
+        }
+    }
+
+    Ok(())
 }
 
 /// The laptop copy's root — the destination found by path rather than by hardware.
@@ -311,8 +431,8 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration, runs_root: &Path) {
     println!(
         "►  {}",
         if outcome.landed() {
-            "SAFE TO STORE — corroboration and geotagging are not built yet, so nothing \
-             has been ejected"
+            "SAFE TO STORE — corroboration and geotagging follow; eject is not built yet, \
+             so nothing has been ejected"
         } else {
             "NOT SAFE — see the unverified counts above"
         }
@@ -624,6 +744,48 @@ fn geotag_phase(
         args.force_xmp.is_some(),
     )
     .map(Some)
+}
+
+/// Decision 4: **say "this card looks like it is failing" in those words.** A photographer
+/// reading a bare count should not have to know what normal looks like.
+fn report_corroboration(report: Option<&phase4::Report>) {
+    println!();
+    let Some(report) = report else {
+        println!("  Corrob   waived — only one card was present (--allow-single-source)");
+        return;
+    };
+
+    print!("  Corrob   {} matched", count(report.matched));
+    if report.transient > 0 {
+        // Not a data problem — the re-read agreed. It is a *reader* problem, and worth
+        // saying so before it becomes one.
+        print!(
+            " · {} transient read error(s), re-read agreed",
+            count(report.transient)
+        );
+    }
+    println!(" · {} mismatched", count(report.mismatched.len()));
+
+    for (name, source, other) in &report.mismatched {
+        println!(
+            "           {} — deleted everywhere, quarantined\n             source {}\n              other {}",
+            name.display(),
+            &source[..16.min(source.len())],
+            &other[..16.min(other.len())]
+        );
+    }
+
+    if !report.mismatched.is_empty() {
+        println!("           quarantine  {}", report.quarantine.display());
+    }
+
+    if report.suspect_card() {
+        println!();
+        println!(
+            "  !  That is far more disagreement than the one or two a healthy pair of cards\n     \
+             produces. THIS LOOKS LIKE A FAILING CARD — replace it before the next shoot."
+        );
+    }
 }
 
 fn report_geotag(report: Option<&phase5::Report>) {
