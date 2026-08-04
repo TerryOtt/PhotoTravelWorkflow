@@ -7,15 +7,19 @@
 
 use std::collections::BTreeMap;
 use std::num::NonZero;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::time::{Duration, Instant};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use geotag::format::RawFormat;
 use geotag::raw::{Capture, MediaParser, capture_time};
 use geotag::track::GapLimits;
-use photoday::{config, destinations, naming, power, preflight};
+use photoday::pipeline::Destination;
+use photoday::runlog::RunLog;
+use photoday::{config, destinations, naming, pipeline, power, preflight};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -131,15 +135,153 @@ fn dispatch(cli: &Cli) -> Result<ExitCode> {
         return Ok(ExitCode::FAILURE);
     }
 
-    if !cli.offload.dry_run {
-        eprintln!(
-            "photoday: the offload itself is not wired up yet. `photoday --dry-run` \
-             runs pre-flight against the real rig and plans the whole night."
+    if cli.offload.dry_run {
+        dry_run(&cli.offload)
+    } else {
+        offload(&cli.offload)
+    }
+}
+
+/// The nightly command: pre-flight, then phase 3.
+///
+/// Phases 4 and 5 are not built, so this stops at LANDED and says so. That is an honest
+/// place to stop rather than an arbitrary one — LANDED *is* the product (decision 14),
+/// and everything after it is explicitly gravy.
+fn offload(args: &Offload) -> Result<ExitCode> {
+    let config = config::load()?;
+    let awake = power::StayAwake::request();
+
+    let plan = preflight::run(
+        &config,
+        args.allow_single_source,
+        &args.without,
+        args.no_gpx,
+    )?;
+    report(&plan, &awake);
+
+    let run_id = Utc::now().format("%Y-%m-%dT%H-%M-%SZ").to_string();
+
+    // `_runs` lives on the laptop's copy alone (decision 14): `verify` reads nothing but
+    // a destination's marker and manifests, so this is not part of what makes an archive
+    // self-describing, and the laptop is the one destination `--without` can never name.
+    let runs_root = laptop_root(&plan)?.join("_runs").join(&run_id);
+    let log = RunLog::open(&runs_root.join("run.jsonl"))?;
+
+    let targets: Vec<Destination> = plan
+        .rig
+        .survey
+        .found
+        .iter()
+        .map(|resolved| Destination {
+            label: resolved.label.clone(),
+            root: resolved.root.clone(),
+        })
+        .collect();
+
+    println!();
+    println!(
+        "  ingesting {} files to {} destinations…",
+        count(plan.cards.files.len()),
+        targets.len()
+    );
+
+    let started = Instant::now();
+    let outcome = pipeline::run(
+        &plan.cards.files,
+        &targets,
+        &run_id,
+        source_card(&plan),
+        &log,
+    )?;
+    let elapsed = started.elapsed();
+
+    landed(&outcome, elapsed, &runs_root);
+
+    Ok(if outcome.landed() && outcome.unfiled.is_empty() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(2)
+    })
+}
+
+/// Which card fed the run, for the per-file record (decision 12).
+///
+/// **In a gated two-card run the faster card is the CFexpress**, which is decision 7's
+/// premise measured rather than assumed — the two are unambiguous, near 65 ms against
+/// UHS-II's 240 ms. A declared single-source run cannot know which type survived, so it
+/// records the card rather than guessing at it.
+fn source_card(plan: &preflight::Preflight) -> &'static str {
+    if plan.cards.agreed {
+        "cfexpress"
+    } else {
+        "single"
+    }
+}
+
+/// The laptop copy's root — the destination found by path rather than by hardware.
+fn laptop_root(plan: &preflight::Preflight) -> Result<PathBuf> {
+    plan.rig
+        .survey
+        .found
+        .iter()
+        .find(|resolved| !resolved.ejectable())
+        .map(|resolved| resolved.root.clone())
+        .context(
+            "no destination on this machine's own disk, so there is nowhere to put the \
+             run log — `_runs` lives on the laptop copy (decision 14)",
+        )
+}
+
+/// Decision 14's verdict, announced when it happens rather than only at the end.
+fn landed(outcome: &pipeline::Outcome, elapsed: Duration, runs_root: &Path) {
+    let minutes = elapsed.as_secs() / 60;
+    let seconds = elapsed.as_secs() % 60;
+
+    println!();
+    println!("═══ LANDED · phase 3 took {minutes}m {seconds:02}s ═══",);
+    println!();
+    println!(
+        "  {} files · {:.1} GB · read once from the source card",
+        count(outcome.files),
+        outcome.bytes as f64 / 1e9
+    );
+    println!();
+
+    for destination in &outcome.destinations {
+        println!(
+            "  {:<8} {} written · {} skipped · {} verified   {}",
+            destination.label,
+            count(destination.written),
+            count(destination.skipped),
+            count(destination.verified),
+            if destination.failed.is_empty() {
+                "OK".to_string()
+            } else {
+                format!("{} UNVERIFIED", count(destination.failed.len()))
+            }
         );
-        return Ok(ExitCode::FAILURE);
     }
 
-    dry_run(&cli.offload)
+    if !outcome.unfiled.is_empty() {
+        println!();
+        println!(
+            "  !  {} frame(s) had no readable capture time and are in _unfiled",
+            count(outcome.unfiled.len())
+        );
+    }
+
+    println!();
+    println!("  run log  {}", runs_root.join("run.jsonl").display());
+    println!();
+    println!(
+        "►  {}",
+        if outcome.landed() {
+            "SAFE TO STORE — corroboration and geotagging are not built yet, so nothing \
+             has been ejected"
+        } else {
+            "NOT SAFE — see the unverified counts above"
+        }
+    );
 }
 
 /// Plan the entire run and write nothing (decision 8).
