@@ -79,6 +79,28 @@ LANDED.
 The point is that the operator can stop worrying at the halfway mark, and everything after it
 is gravy that happens while he eats.
 
+**And two more returns that never show up in a stopwatch**, both recorded from the operator
+on 2026-08-04 because they are the sort of thing that is obvious while it hurts and invisible
+once fixed:
+
+- **No drive letters are typed, ever** (decision 6). The predecessor took source and
+  destination letters as arguments, which never once went wrong — and *that is not the
+  measure*. The cost was the care it demanded: standing in front of File Explorer
+  cross-checking letter assignments, at the end of a day that started at 3:30 am for sunrise
+  and ended at 9 pm after sunset, tired and hungry. **A footgun that has not gone off is
+  still being carefully avoided**, and the avoidance is the tax. Identifying destinations by
+  hardware serial removes the decision from the ritual rather than making it safer.
+- **The operator never has to trust the system tray again** (decisions 2 and 22). The fear
+  was concrete and correct: tens of gigabytes buffered in RAM, a drive that *looks* finished,
+  and a right-click on "safely remove" as the only thing standing between that and a corrupt
+  archive. `FILE_FLAG_WRITE_THROUGH` answers the first half **today** — LANDED means bytes
+  are on media, not in a cache. Decision 22's eject answers the second half and **is not yet
+  built**; until it is, the report says so in as many words rather than implying a safety it
+  cannot deliver.
+
+Both are the same shape as the exposure window: the win is a decision the operator no longer
+has to make correctly while exhausted.
+
 This is not a "correctness at any cost" design. Where certainty and wall clock conflict,
 the tie is broken in favor of wall clock *provided the guarantee is preserved, only
 deferred* — see [Phase 3 reads one card](#1-phase-3-reads-the-cfexpress-card-only).
