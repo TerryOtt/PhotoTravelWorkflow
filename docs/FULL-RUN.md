@@ -5,6 +5,18 @@ that makes that number comparable with the wall clocks in [`DESIGN.md`](DESIGN.m
 only want to know whether the rig is sound before a trip, [`UPDATING.md`](UPDATING.md)'s
 `--dry-run` is the cheaper thing and this is overkill.*
 
+> **There is no such thing as an informal run.** On 2026-08-04 a 37-minute offload was
+> launched with a release binary 15 minutes older than the code it was meant to exercise,
+> because that run had been filed mentally as a quick check rather than a measurement. It
+> completed, exited 0, and validated none of the changes. **`scripts\full-run-check.ps1`
+> asserts the binary is current and would have caught it**; it was skipped for the same
+> reason. Any run whose result will be quoted — in a document, a commit message, or a
+> sentence to the operator — is a measured run, and this checklist applies to it.
+>
+> The trap is specific and worth naming: **`cargo fmt`, `cargo clippy` and `cargo test` all
+> build the *debug* profile.** None of them touches `target\release\`. A verification loop
+> that ends in a green test suite says nothing about the binary a run is about to launch.
+
 **This is not a tuning procedure.** Both optimization metrics are thresholds and both are
 met ([`DESIGN.md`](DESIGN.md) — *Both metrics are thresholds*), so nothing here is in
 service of shaving minutes. It exists because hardware decisions get made from these
