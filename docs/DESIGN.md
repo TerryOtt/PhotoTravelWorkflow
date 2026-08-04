@@ -2180,11 +2180,22 @@ Both SD readers proved genuine UHS-II, delivering an identical 222 MB/s with the
 so the long-running suspicion that they were old and needed replacing was simply wrong. One
 bad SD card explained the whole thing. Per-card figures live in the session memory.
 
-**Still genuinely open, needing hardware:**
+**The TB5 hub was tested on 2026-08-04 and does not help — the last open hardware question,
+closed by a negative result.** A CalDigit Element 5 was expected to raise USB tunnelling
+from 10 to 20 Gbps and win perhaps 3 minutes of phase 3. Measured on a quiet bus, the USB
+devices together reach **935 MB/s against the TB4 hub's 931** — the same tunnel.
 
-- **A TB5 hub** would raise USB tunnelling from 10 to 20 Gbps, worth perhaps 3 minutes
-  of phase 3. Now the largest untested lever, since a single USB SSD alone reaches
-  1,034 MB/s — the drives are nowhere near the constraint, the tunnel is
+**The constraint is the laptop, not the dock.** The hub enumerates as `USB4 Router (2.0)`
+and is genuinely capable, but this machine's host is **`USB4 Root Router (1.0)`**; a link
+negotiates to the lower end, so the tunnel stays USB4 v1. **No dock can lift this** — only
+a host with a USB4 v2 router would, which means a different laptop. Every prior note on
+this guessed the risk lay in the dock's USB controller, and named the wrong component.
+
+The hub does deliver PCIe headroom on devices that were never binding: the OWC went
+1,333 → 1,825 MB/s in company, the Thunderbolt CFexpress reader 1,112 → 1,153. Neither is
+on the critical path, so neither moves the wall clock.
+
+**Nothing on the hardware list is open.** What remains is code.
 
 **Two gaps recorded rather than closed.** Neither is a defect today. *No test can prove
 the two file flags are still set*: removing `FILE_FLAG_NO_BUFFERING` changes where bytes
