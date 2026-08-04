@@ -28,6 +28,23 @@ fn main() {
         std::process::exit(2);
     };
 
+    // **Never a camera card.** CONOPS makes in-camera formatting the only way a card is
+    // ever written to by anything, and that binds diagnostics as well as the tool. This
+    // probe ignored that on 2026-08-04, wrote a gigabyte to a live card, failed partway
+    // and left the volume dirty. A `DCIM` directory is the signature of a card, and the
+    // refusal is cheap next to the mistake.
+    if root.join("DCIM").is_dir()
+        || root
+            .parent()
+            .is_some_and(|parent| parent.join("DCIM").is_dir())
+    {
+        eprintln!(
+            "refusing to write to {} — it looks like a camera card, and nothing here writes to those (see docs/CONOPS.md). Point this at a destination instead.",
+            root.display()
+        );
+        std::process::exit(2);
+    }
+
     let probe = root.join("_write-probe");
     std::fs::create_dir_all(&probe).expect("creating the probe directory");
 
