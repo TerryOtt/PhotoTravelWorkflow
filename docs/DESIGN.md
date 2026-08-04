@@ -2347,11 +2347,94 @@ the report names the card and the shortfall. Refusing to offload a night's shoot
 speed regression would have the tool manufacturing the emergency it exists to prevent.
 
 The history file is JSON, per this project's default for structured data, keyed by hardware
-serial with a bounded list of samples.
+serial with a bounded list of samples. **Decision 33 is where that file is specified**, and
+it covers destinations by the same mechanism — the run log already holds what a destination
+history needs, so this check and that one share one artifact rather than two.
 
 Recorded 2026-08-04, from the operator, after a faulty card was found by accident. The
 motivating case is stated in his terms: the tool is an anxiety instrument, and **the
 terrifying failure is not the one that announces itself.**
+
+### 33. Throughput history covers destinations too, and lives beside the config
+
+Decision 32 catches a card going quietly slow. **Nothing catches a destination doing the
+same thing** — and the destinations are where the photographs actually live. An archive SSD
+degrading in the safe is the same silent failure as a degrading card, with more at stake.
+
+**The measurement is already free on both sides, which is what makes this cheap.** Pre-flight
+measures each card to pick the phase 3 source (decision 8). And the run log already records
+`verified_utc` for every `(file, destination)` pair, so a destination's write and verify
+rates are *derivable from a run that has already happened* — that is exactly how the
+2026-08-04 per-destination figures were obtained, and it needed no probe.
+
+**Which means the history can be backfilled rather than started empty.** The laptop holds
+every run log this tool has ever written (decision 14 keeps `_runs` there). Card samples are
+the only ones genuinely lost, because pre-flight prints them and discards them.
+
+**One file, one record shape**, so the two subjects cannot drift into two mechanisms:
+
+```json
+{
+  "schema": 1,
+  "devices": {
+    "K03ABCXA9TC0627": {
+      "kind": "card", "label": "AV PRO CFexpress SE",
+      "samples": [
+        { "utc": "2026-08-04T23:04:41Z", "run_id": "2026-08-04T23-04-41Z",
+          "read_mb_s": 842, "uptime_min": 129, "link": "NVMe" }
+      ]
+    },
+    "2138FB400347": {
+      "kind": "destination", "label": "SanDisk",
+      "samples": [
+        { "utc": "2026-08-04T23:31:12Z", "run_id": "2026-08-04T23-04-41Z",
+          "write_mb_s": 428, "verify_mb_s": 597, "uptime_min": 129,
+          "link": "USB SuperSpeed" }
+      ]
+    }
+  }
+}
+```
+
+**It lives at `%APPDATA%\photoday\history.json`, beside the config — never on an archive.**
+Decision 20 is what decides it: `verify` reads nothing but a destination's marker and its
+manifests, so anything else on that disk is by construction not part of what makes it
+self-describing. History is machine state about hardware, not archive data, and putting it
+on the archives would add non-photograph directories to disks whose whole promise is that
+they hold photographs and their proof. Same reasoning that put `_runs` on the laptop.
+
+**Every sample carries `uptime_min`, and this is not bookkeeping.** Measured 2026-08-04: the
+same healthy SDXC card, same reader, same pre-flight measurement, read **168 MB/s at 17
+minutes of uptime and 218 at 129** — a 30 % swing larger than the degradation these checks
+exist to detect. **Compare like with like or the history is noise.** Each sample also carries
+the link generation, for decision 32's reason: a card at 38 MB/s on a USB 2.0 port and a
+dying card at 38 MB/s are the same number and opposite actions.
+
+**Card samples and destination samples are never compared to each other, and neither is
+compared across kinds of measurement.** A card sample is a *burst* — a brief pre-flight
+read. A destination sample is *sustained*, derived from a whole run's worth of bytes. The
+two are not the same quantity, and the 2026-08-04 SDXC episode is what that mistake looks
+like: a burst held against a sustained figure read as a 24 % shortfall on a perfectly
+healthy card.
+
+**Identity follows what each device can actually prove**, which is decision 32's asymmetry
+extended:
+
+| | Key | Why |
+|---|---|---|
+| **Destinations** | disk serial | Reliable, and already the thing decision 6 resolves them by |
+| **CFexpress** | hardware serial through an NVMe reader | Stable, and it is on the LANDED path |
+| **SDXC** | *none* | Reports a generic serial through a USB bridge — `000000000003` on this rig |
+
+So the corroborating card is the one device this can say least about, which is the right
+place for the gap: it is read in phase 4, after the product moment.
+
+**Record before warning, and warn rather than block** — both inherited from decision 32 for
+the same reasons. A threshold chosen before there is history is a guess dressed as a check,
+and a slow device is still a *correct* device.
+
+Recorded 2026-08-04, from the operator, on seeing that the run log already held everything a
+destination history needs.
 
 ## Considered and rejected
 
@@ -2460,6 +2543,10 @@ has been shown to catch a single flipped bit in 201 GB and name the file.
 - **the card degradation check** (decision 32) — record pre-flight's existing speed
   measurement per card, warn when a card falls off its own history. Record first; the
   threshold is set from accumulated evidence, not chosen up front
+- **the throughput history itself** (decision 33), which 32 depends on — one JSON file at
+  `%APPDATA%\photoday\history.json` covering cards *and* destinations, each sample carrying
+  uptime and link generation. **Backfillable on day one**: every run log on the laptop
+  already holds the per-destination rates, so this starts with history rather than empty
 - **overlapping the verify read with its hash** — **now measured as the binding constraint on
   LANDED, and the largest remaining lever.** With the archive SSDs on their own laptop ports
   they are no longer tunnel-limited: on 2026-08-04 every destination verified within ~12% of
