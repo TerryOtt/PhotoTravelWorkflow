@@ -2301,6 +2301,20 @@ is a guess dressed as a check. Ship the recording, let history accumulate, and e
 warning once there are enough samples to set the bound from evidence — which is the same
 standard `REVIEWING.md` applies to every other number here.
 
+**Record the machine's uptime with every sample, and only compare like with like.**
+Measured 2026-08-04, and it is the largest source of noise found so far: the same healthy
+SDXC card, in the same reader, through this same pre-flight measurement, reported
+**168 MB/s at 17 minutes of uptime and 218 MB/s at 129 minutes**. A 30 % swing, driven
+entirely by how busy Windows still was — larger than the degradation this check exists to
+detect. A freshly booted machine is running Defender catch-up, the indexer and prefetch,
+and a card measured then looks like a card that is dying.
+
+**Without this, the check would fire on healthy cards on precisely the nights it is most
+likely to run.** `FULL-RUN.md`'s procedure opens with a reboot, and the operating pattern
+this tool was built for — unpack the rig in a hotel room and offload — often follows one
+too. A history that mixes busy-machine and settled-machine samples has more noise in it
+than signal.
+
 **The threshold must survive a healthy card that is noisy.** The Sabrent reproducibly swings
 **856–1,394 MB/s, ±28%**, across passes that agree with each other — it is not degrading, it
 is simply variable, most likely by position on the card. A single pre-flight sample from that
