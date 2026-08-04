@@ -11,8 +11,8 @@ matters traces back to that person.
 
 ## The nightly ritual
 
-1. Load both camera cards into the readers on the Thunderbolt hub. Confirm the three
-   archive SSDs are plugged into it.
+1. Load both camera cards into the readers on the Thunderbolt hub. Plug the three archive
+   SSDs in — **and where each one goes matters** (see below).
 2. Run **`photoday`**.
 3. Read the pre-flight summary — file count identical on both cards, gigabytes, four
    destinations confirmed distinct, estimated time. That one line is what earns walking
@@ -34,6 +34,30 @@ SSD means work remains, and the report names it.
 
 Everything above the verdict is detail — mismatches, geotag counts, the throughput
 numbers. Read it with the other eye, or in the morning.
+
+### Where each drive plugs in, and why it is not arbitrary
+
+| Device | Goes into |
+|---|---|
+| **The two USB SSDs** | **the laptop's own USB-C ports**, one each — *not* the hub |
+| The OWC (Thunderbolt) | the hub |
+| Both card readers | the hub |
+
+**This is worth about four and a half minutes a night, and it costs nothing.** A dock reaches
+its USB ports by tunnelling them over one shared 10 Gbps USB4 connection — a spec limit, not
+a property of any particular hub — so every USB device on it divides a single pipe. With both
+archive SSDs there, each managed 360 MB/s during the verify pass. Given a port of their own on
+the laptop, each holds its full rate: **720 MB/s between them becomes 1,914, and the verify
+pass falls from roughly eight minutes to under four.**
+
+**It is free because the drives are already in your hands.** All three come out of the safe
+every night and go back in afterwards, so plugging two of them into the laptop instead of the
+hub is the same number of connectors, in a different order. If that ever stops being true —
+a night where the SSDs live permanently on the dock — the arrangement is worth re-examining,
+because then it *would* be a trade.
+
+Measured 2026-08-04. [`DESIGN.md`](DESIGN.md) has the numbers and the two hardware upgrades
+this beat.
 
 ## The shooting-day contract
 
