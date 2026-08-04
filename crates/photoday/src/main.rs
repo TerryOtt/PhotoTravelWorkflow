@@ -638,6 +638,9 @@ fn report_geotag(report: Option<&phase5::Report>) {
     if let Some(note) = report.boundary_note() {
         println!("           {note}");
     }
+    if let Some(note) = report.gap_note() {
+        println!("           {note}");
+    }
 
     // Decision 23: a uniform miss pattern is a clock, not a logging gap, and saying so
     // in words is the difference between finding out tonight and finding out on

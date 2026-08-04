@@ -62,6 +62,15 @@ pub struct Report {
     pub after_track: usize,
     /// The track's own span, so a miss can be described relative to it.
     pub track_span: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    /// Frames that fell between two *recording sessions* — the logger stopped and
+    /// started. Never bridged at any width, because nothing is known about the path in
+    /// between (decision 16).
+    pub across_segments: usize,
+    /// Frames inside one continuous recording, but between points too far apart in time
+    /// or distance to interpolate honestly.
+    pub within_segment: usize,
+    /// The widest hole any frame fell into, for naming the worst of it.
+    pub widest_gap: Option<TimeDelta>,
     /// How far outside the track each miss fell, for the clock heuristic below.
     misses: Vec<TimeDelta>,
 }
@@ -135,6 +144,52 @@ impl Report {
 
         None
     }
+
+    /// Why frames fell into holes, when the pattern says something useful.
+    ///
+    /// **A break between recording sessions is the common real cause and the one worth
+    /// naming**: the logger stopped and restarted, so the track arrives in fragments and
+    /// every frame between two fragments is unbridgeable at any gap limit. That is not a
+    /// tuning problem — widening `--max-gap-seconds` will not recover a single one of
+    /// them — so telling the operator to adjust limits would be actively misleading.
+    pub fn gap_note(&self) -> Option<String> {
+        if self.in_gap == 0 {
+            return None;
+        }
+
+        let widest = self
+            .widest_gap
+            .map(|gap| format!(", widest {}", humanise(gap)))
+            .unwrap_or_default();
+
+        if self.across_segments > 0 && self.within_segment == 0 {
+            return Some(format!(
+                "all of them across breaks in the recording{widest} — the logger stopped                  and restarted, and no gap limit can bridge that"
+            ));
+        }
+
+        if self.within_segment > 0 && self.across_segments == 0 {
+            return Some(format!(
+                "all of them inside one recording but past the limits{widest} — these are                  what --max-gap-seconds and --max-gap-meters govern"
+            ));
+        }
+
+        Some(format!(
+            "{} across breaks in the recording, {} inside one but past the limits{widest}",
+            self.across_segments, self.within_segment
+        ))
+    }
+}
+
+fn humanise(gap: TimeDelta) -> String {
+    let seconds = gap.num_seconds();
+    if seconds >= 3600 {
+        format!("{}h{:02}m", seconds / 3600, (seconds % 3600) / 60)
+    } else if seconds >= 60 {
+        format!("{}m{:02}s", seconds / 60, seconds % 60)
+    } else {
+        format!("{seconds}s")
+    }
 }
 
 fn format_utc(at: DateTime<Utc>) -> String {
@@ -199,7 +254,23 @@ pub fn run(
                 }
             }
 
-            Lookup::InGap(_) => report.in_gap += 1,
+            Lookup::InGap(gap) => {
+                report.in_gap += 1;
+
+                // *Which kind* of hole is the actionable part. A break between recording
+                // sessions means the logger stopped — signal lost, app backgrounded,
+                // battery — and that is a different conversation from a logger that ran
+                // continuously but sparsely.
+                if gap.across_segments {
+                    report.across_segments += 1;
+                } else {
+                    report.within_segment += 1;
+                }
+
+                if report.widest_gap.is_none_or(|widest| gap.duration > widest) {
+                    report.widest_gap = Some(gap.duration);
+                }
+            }
         }
     }
 
@@ -368,5 +439,52 @@ mod tests {
 
     fn instant(text: &str) -> DateTime<Utc> {
         text.parse().expect("a valid instant")
+    }
+
+    /// The 2022-09-27 case, once the track was actually read: seven recording segments,
+    /// and every unbridgeable frame sitting between two of them. Telling the operator to
+    /// widen a limit here would be wrong — no limit bridges a break.
+    #[test]
+    fn gaps_across_recording_breaks_say_so_and_do_not_blame_the_limits() {
+        let report = Report {
+            tagged: 2_394,
+            in_gap: 1_489,
+            across_segments: 1_489,
+            widest_gap: Some(TimeDelta::seconds(1694)),
+            ..Default::default()
+        };
+
+        let note = report.gap_note().expect("a gap note");
+        assert!(note.contains("logger stopped"), "{note}");
+        assert!(note.contains("28m"), "{note}");
+        assert!(
+            !note.contains("--max-gap"),
+            "must not suggest tuning a limit that cannot help: {note}"
+        );
+    }
+
+    /// The opposite case, where the limits *are* the thing in play and naming them is
+    /// the useful advice rather than a red herring.
+    #[test]
+    fn gaps_inside_one_recording_point_at_the_limits() {
+        let report = Report {
+            tagged: 900,
+            in_gap: 40,
+            within_segment: 40,
+            widest_gap: Some(TimeDelta::seconds(140)),
+            ..Default::default()
+        };
+
+        let note = report.gap_note().expect("a gap note");
+        assert!(note.contains("--max-gap-seconds"), "{note}");
+    }
+
+    #[test]
+    fn a_day_with_no_gaps_says_nothing_about_them() {
+        let report = Report {
+            tagged: 3_883,
+            ..Default::default()
+        };
+        assert!(report.gap_note().is_none());
     }
 }
