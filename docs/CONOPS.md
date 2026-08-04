@@ -65,10 +65,34 @@ the deal:
   longer hold the same files: either is an equipment failure, not a mode
   ([`DESIGN.md`](DESIGN.md) decisions 7 and 27). The deliberate exception is below,
   under *When a card is truly gone*.
-- **The GPS logger runs all day**, and its tracks land in the configured GPX directory
-  before the evening run (or are pointed at with `--gpx`). A night with no tracks at
-  all is declared, never assumed — pre-flight refuses an empty GPX directory unless
-  `--no-gpx` says so ([`DESIGN.md`](DESIGN.md) decision 26).
+- **GPS logging is an intention, not a promise — and the tool is built for the
+  difference.** The ideal is a track behind every frame. The reality is an operator who
+  is human, at altitude, chasing light, and who will sometimes forget to start the
+  logger. Tracks land in the configured GPX directory before the evening run (or are
+  pointed at with `--gpx`), but *whether a logger was running* varies within a single
+  day. All three of these are normal, and none is an error:
+
+  | | What the tool does |
+  |---|---|
+  | A track recorded on a day with **no photographs** | Loaded, matches nothing, costs nothing — a track without frames is not a problem |
+  | Shooting **with** logging on | The ordinary case: frames tag wherever the track genuinely brackets them |
+  | Shooting **with** logging off | Those frames go untagged, counted as *outside track*, and the report names the boundary when the misses sit on one side of it — which is what makes "ah, the sunset shoot" click |
+
+  **Forgetting the logger is a known risk of this workflow, not a failure, so the tool
+  flags it and moves on**: the verdict is untouched, the exit code is unchanged, and the
+  raws land and verify regardless ([`DESIGN.md`](DESIGN.md) decision 14). A geotag is a
+  nice-to-have earned from evidence; a photograph is not.
+
+  **`--no-gpx` is not the flag for a partly-logged day.** It declares a night with *no
+  tracks at all*, which pre-flight otherwise refuses because an empty GPX directory
+  almost always means the tracks were never copied off the logger (decision 26). Partial
+  coverage needs no flag and no thought — it is simply Tuesday.
+
+  The one thing that **is** refused: two tracks covering the same instant. A photo in the
+  overlap could resolve to either recording, and a geotag decided by which file was listed
+  first is exactly the authoritative-looking wrong answer this project exists to avoid.
+  Recording one window twice — two apps, or a re-export — means pruning one before the
+  run.
 - **The camera runs on UTC, and its clock is right** — checked at trip start and after
   every zone crossing. The two halves fail differently ([`DESIGN.md`](DESIGN.md)
   decision 23): a wrong *timezone* self-corrects — the recorded offset puts every frame

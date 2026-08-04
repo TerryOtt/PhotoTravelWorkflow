@@ -632,6 +632,13 @@ fn report_geotag(report: Option<&phase5::Report>) {
     }
     println!();
 
+    // The pattern, not the count. A bare "1,383 outside track" could be a dead logger, a
+    // late start or a day of dropouts, and the response differs for each — so when every
+    // miss sits on one side, name the boundary.
+    if let Some(note) = report.boundary_note() {
+        println!("           {note}");
+    }
+
     // Decision 23: a uniform miss pattern is a clock, not a logging gap, and saying so
     // in words is the difference between finding out tonight and finding out on
     // Lightroom's map three weeks later.

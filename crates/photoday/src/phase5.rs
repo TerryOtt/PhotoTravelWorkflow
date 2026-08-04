@@ -54,6 +54,14 @@ pub struct Report {
     pub skipped: usize,
     /// Sidecars written, counted across all destinations.
     pub written: usize,
+    /// Shot before the track's first point — the logger was started late.
+    pub before_track: usize,
+    /// Shot after the track's last point. **The most common real cause is forgetting to
+    /// restart the logger**, and it is a standing risk of this workflow rather than a
+    /// freak event, so the report names the boundary instead of only counting.
+    pub after_track: usize,
+    /// The track's own span, so a miss can be described relative to it.
+    pub track_span: Option<(DateTime<Utc>, DateTime<Utc>)>,
     /// How far outside the track each miss fell, for the clock heuristic below.
     misses: Vec<TimeDelta>,
 }
@@ -91,6 +99,46 @@ impl Report {
         let median = seconds[seconds.len() / 2];
         Some(TimeDelta::seconds(median))
     }
+
+    /// One sentence naming *why* frames went untagged, when the pattern says so.
+    ///
+    /// A count alone is not actionable: 1,383 outside a track could be a dead logger, a
+    /// late start, or a day of scattered dropouts, and the operator's response differs
+    /// for each. When every miss sits on one side of the track, the boundary time is the
+    /// thing worth printing — it is what makes "ah, the sunset shoot" click.
+    pub fn boundary_note(&self) -> Option<String> {
+        let (first, last) = self.track_span?;
+
+        if self.after_track > 0 && self.before_track == 0 {
+            return Some(format!(
+                "all after {}, where the track ends — the logger stopped before these were shot",
+                format_utc(last)
+            ));
+        }
+
+        if self.before_track > 0 && self.after_track == 0 {
+            return Some(format!(
+                "all before {}, where the track starts — the logger was started after these were shot",
+                format_utc(first)
+            ));
+        }
+
+        if self.before_track > 0 && self.after_track > 0 {
+            return Some(format!(
+                "{} before {} and {} after {}",
+                self.before_track,
+                format_utc(first),
+                self.after_track,
+                format_utc(last)
+            ));
+        }
+
+        None
+    }
+}
+
+fn format_utc(at: DateTime<Utc>) -> String {
+    at.format("%H:%M:%SZ").to_string()
 }
 
 /// Write sidecars for everything the track genuinely supports.
@@ -108,6 +156,7 @@ pub fn run(
     let mut report = Report::default();
 
     let (first, last) = track.span();
+    report.track_span = Some((first, last));
 
     for photo in landed {
         match track.lookup(photo.captured, limits) {
@@ -136,12 +185,18 @@ pub fn run(
 
             Lookup::OutsideTrack => {
                 report.outside_track += 1;
-                // How far out, so a systematic offset can be recognised later.
-                report.misses.push(if photo.captured < first {
-                    photo.captured - first
+
+                // Which side matters more than the count. Everything after the last
+                // point is the signature of a logger that stopped -- forgotten, out of
+                // battery, or never restarted after a break -- and that is a named risk
+                // of this workflow, not a surprise.
+                if photo.captured < first {
+                    report.before_track += 1;
+                    report.misses.push(photo.captured - first);
                 } else {
-                    photo.captured - last
-                });
+                    report.after_track += 1;
+                    report.misses.push(photo.captured - last);
+                }
             }
 
             Lookup::InGap(_) => report.in_gap += 1,
@@ -230,5 +285,88 @@ mod tests {
         };
 
         assert!(report.systematic_offset().is_none());
+    }
+
+    /// The Moraine Lake case, and a named risk of this workflow: the logger stopped and
+    /// the sunset shoot came after. The count alone is not actionable — the boundary is,
+    /// because it is what makes the operator recognise the evening.
+    #[test]
+    fn misses_all_after_the_track_name_the_moment_the_logger_stopped() {
+        let report = Report {
+            tagged: 2_500,
+            outside_track: 1_383,
+            after_track: 1_383,
+            track_span: Some((
+                instant("2022-09-27T09:47:45Z"),
+                instant("2022-09-27T17:19:36Z"),
+            )),
+            ..Default::default()
+        };
+
+        let note = report.boundary_note().expect("a boundary note");
+        assert!(note.contains("17:19:36Z"), "{note}");
+        assert!(note.contains("logger stopped"), "{note}");
+    }
+
+    /// The mirror case: started shooting before the logger was running.
+    #[test]
+    fn misses_all_before_the_track_name_the_late_start() {
+        let report = Report {
+            tagged: 900,
+            outside_track: 40,
+            before_track: 40,
+            track_span: Some((
+                instant("2022-09-27T09:47:45Z"),
+                instant("2022-09-27T17:19:36Z"),
+            )),
+            ..Default::default()
+        };
+
+        let note = report.boundary_note().expect("a boundary note");
+        assert!(note.contains("09:47:45Z"), "{note}");
+        assert!(note.contains("started after"), "{note}");
+    }
+
+    /// A day that ran off both ends gets both numbers rather than a story that fits
+    /// neither. Guessing a single cause here would be the false diagnosis that makes the
+    /// true ones stop being believed.
+    #[test]
+    fn misses_on_both_sides_are_reported_as_both() {
+        let report = Report {
+            tagged: 900,
+            outside_track: 50,
+            before_track: 10,
+            after_track: 40,
+            track_span: Some((
+                instant("2022-09-27T09:47:45Z"),
+                instant("2022-09-27T17:19:36Z"),
+            )),
+            ..Default::default()
+        };
+
+        let note = report.boundary_note().expect("a boundary note");
+        assert!(
+            note.contains("10 before") && note.contains("40 after"),
+            "{note}"
+        );
+    }
+
+    /// Nothing outside the track: no note, because there is nothing to explain.
+    #[test]
+    fn a_fully_covered_day_says_nothing_about_boundaries() {
+        let report = Report {
+            tagged: 3_883,
+            track_span: Some((
+                instant("2022-09-27T09:47:45Z"),
+                instant("2022-09-27T17:19:36Z"),
+            )),
+            ..Default::default()
+        };
+
+        assert!(report.boundary_note().is_none());
+    }
+
+    fn instant(text: &str) -> DateTime<Utc> {
+        text.parse().expect("a valid instant")
     }
 }
