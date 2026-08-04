@@ -225,6 +225,22 @@ pairs verified.
 > "cheap readers report generic serials" is therefore a fact about *readers*, not about
 > cards — it does not change the decision, since a card's volume serial still changes at
 > every format, but the reasoning should not be read as universal.
+>
+> ⚠ **These contention figures are under suspicion, and the instrument is the suspect.**
+> Two Thunderbolt devices measured 2,445 MB/s together while the OWC alone measured
+> 2,582 — two devices sharing a fabric summing to *less* than one of them, which cannot
+> be right if they are independent and the link has headroom. `examples/contention.rs`
+> reads each device with a **single thread** issuing `FILE_FLAG_NO_BUFFERING` requests,
+> and that flag disables read-ahead, so nothing is in flight behind each request and one
+> thread is latency-bound. The ceiling being measured may be the probe's.
+>
+> **That is the request-size finding one level up**: there, an apparent device limit was
+> really how the request was made, and a bigger request lifted it by a third. Here the
+> suspicion is that an apparent *fabric* limit is really how many requests are made at
+> once. Until a multi-threaded read shows whether the total climbs, treat the numbers
+> above — including "the USB controller saturates at ~900 MB/s" — as lower bounds rather
+> than ceilings. The relative comparisons they support are unaffected, since every row
+> was taken with the same instrument.
 
 ### Phase 3 in detail
 
