@@ -36,10 +36,31 @@ with dinner waiting. That is the argument for decision 8's bare command with no 
 for refusing rather than assuming, and for a verdict that is the last line and appears
 nowhere else — none of which is taste.
 
-**One capacity consequence, worth knowing before a long trip.** Sixteen days at the big-day
-figure of ~200 GB is **3.2 TB against 4 TB archive drives — 80 % full**. At the ordinary
-50 GB day it is a comfortable 800 GB. So a fortnight of heavy shooting very nearly fills an
-archive SSD: **one trip per drive is the real design point**, not a generous margin.
+**How much a trip actually costs, measured the same way:**
+
+| 13 trips, R5 era (2022–2026) | |
+|---|---|
+| Median | **446 GB** |
+| **Largest** | **860 GB** — 2024-09-29, 7 days, 15,123 frames |
+
+*R5 era only, because volume is the one figure the equipment changes: bigger storage in the
+D3300 from 2017, RAW from 2019, a rented R5 from 2021 and an owned one from 2024. Mean file
+size tells the story — 3 MB through 2016, 7–10 MB to 2020, 16 MB in the mixed 2021, then a
+flat 26–27 MB from 2022, which is a CR3 and its sidecar. Trip **frequency and length** are
+counted from 2015 above, since those did not change with the camera; **gigabytes** are not.*
+
+**So capacity is not a constraint, and the alarming version of this paragraph was wrong.**
+It first read *"sixteen days at ~200 GB is 3.2 TB against 4 TB drives — 80 % full; one trip
+per drive is the real design point"* — arrived at by multiplying the longest trip by the
+biggest day. **Not every day of a trip is a big day**, which is precisely what multiplying
+two extremes together assumes. The largest trip on record is **22 % of a 4 TB drive**, and
+one drive holds about four of those or eight typical ones. Even the 415 GB record day sits
+*inside* that largest trip.
+
+**Kept as a correction rather than quietly fixed**, because it is the error this project
+exists to avoid, made two hours after writing down that estimates get replaced by
+measurements: two worst cases multiplied together produce a number that has never happened
+and never will.
 
 *Re-run the count when it matters: it is a directory walk of the year folders in the
 Lightroom tree, clustering `YYYY-MM-DD` names into consecutive runs.*

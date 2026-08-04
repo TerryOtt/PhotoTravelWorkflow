@@ -207,7 +207,40 @@ start possible.
 
 ### Where the wall clock goes
 
-Let **N** = one copy of the day's raws. A big day is N ≈ 188 GB; a normal one N ≈ 50 GB.
+Let **N** = one copy of the day's raws.
+
+> **Measured from the Lightroom catalog on 2026-08-04, and the estimate it was checked
+> against turned out to be well calibrated.** Across the 83 shooting days of the R5 era —
+> 2022 onward, the only years whose files are the ~54 MB uncompressed CR3s this tool
+> actually carries:
+>
+> | | GB per day |
+> |---|---|
+> | Median | **43** |
+> | Mean | 68 |
+> | p75 | 90 |
+> | p90 | 181 |
+> | p95 | 193 |
+> | **Max** | **415** — 2024-10-02, ~7,350 frames |
+>
+> **`N ≈ 50 GB` for a normal day sits between the median and p75, and `N ≈ 188 GB` for a big
+> day lands on p90–p95.** Both stand. **What the estimate lacked was a ceiling**, and that is
+> the correction: the largest day on record is **415 GB**, more than twice the "big day," and
+> a day over 200 GB happens about once a year — 2021, 2022, 2023 and 2024 each have exactly
+> one, so the extreme recurs rather than being freak.
+>
+> **A first pass at this got it wrong by ignoring the operator's own history**, and the
+> mistake is worth keeping because it is a data-quality failure rather than an arithmetic
+> one. Measured from 2015 the median day is 20 GB and the estimate looks badly off — but
+> bigger storage arrived in a D3300 in 2017 and the switch to RAW came in 2019, so those
+> early years are 3 MB JPEGs and a 2016 day is 0.3 GB. **Averaging across an equipment
+> change measures the equipment, not the photographer.** The transitions are plainly visible
+> in the mean file size: 3 MB through 2016, 7–10 MB to 2020, 16 MB in 2021, and 26–27 MB from
+> 2022 — which is a raw and its sidecar, and is how the R5 era identifies itself.
+>
+> *Method: whole date folders from the historical archive, so file counts include sidecars.
+> The arithmetic checks out on the known day — 2022-09-27 reports 7,767 files, exactly 3,883
+> raws + 3,883 sidecars + 1 manifest.*
 
 Phase 3 moves **9N**: 1N read from CFexpress, 4N written, 4N read back to verify. Only
 **7N crosses the Thunderbolt hub**, because the laptop's copy is internal.
@@ -1723,11 +1756,29 @@ has since remounted, so the lock and dismount are redone with it. The operator h
 found this empirically — the pre-tool ritual was pressing the tray icon *twice*.
 
 **The retry runs until one hour after launch, and that is deliberate rather than generous.**
-See *Both metrics are thresholds* — the budget is the hour before dinner ends, a run reaches
-LANDED in about a quarter of it and finishes in about half, and **the remainder is time
-nobody is waiting through.** Spending it asking Windows again costs exactly nothing. One
-attempt always happens even if the budget is already spent, since refusing to try at all
-would turn a slow night into a manual one for no gain.
+See *Both metrics are thresholds* — the budget is the hour before dinner ends, and **whatever
+of it the run does not need is time nobody is waiting through.** Spending it asking Windows
+again costs exactly nothing. One attempt always happens even if the budget is already spent,
+since refusing to try at all would turn a slow night into a manual one for no gain.
+
+> **How much retry that actually leaves is a function of the day, and the biggest days give
+> the least.** Corrected 2026-08-04 when the day-size distribution was measured; this
+> previously said a run "reaches LANDED in about a quarter of it and finishes in about half,"
+> which is true at 201 GB and not at the 95th percentile.
+>
+> | | 201 GB day | 415 GB day — the largest on record |
+> |---|---|---|
+> | LANDED | ~17 min | ~30 min |
+> | Corroboration ends | ~29 min | **~52 min** |
+> | Retry window left | ~25 min | **~5 min** |
+>
+> **So eject gets a fifth of the budget on precisely the nights the drives are busiest** —
+> the most freshly written data, the most scanner activity, the most likely veto. The
+> constant is not wrong, but the reasoning behind it only held for an average day, and the
+> consequence lands on the one part of the run the operator calls his number one risk.
+> Widening the budget past an hour is not the answer, since the hour is the actual
+> constraint; **if this ever bites, the lever is starting eject earlier for destinations
+> nothing is waiting on, not waiting longer.**
 
 **The devices are ejected concurrently**, which is not about speed — nothing waits on eject.
 It is because they share one deadline: done in sequence, a drive that retried to the end of
