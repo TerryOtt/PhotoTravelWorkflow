@@ -2025,6 +2025,25 @@ card is itself a noisy number. So the comparison is **median of this run's sampl
 the median of history**, not one reading against one reading, and a card is judged on its
 floor rather than its mean.
 
+**The warning must name the link, or it will blame the wrong thing.** A card in a USB 2.0
+port produces *exactly* the symptom this check looks for. Measured 2026-08-04: one card, one
+reader, **222 MB/s on a SuperSpeed port and 38 MB/s on a USB 2.0 one** — a 5.8× shortfall
+with no error, no failed mount and every file readable. A check that reported only "this card
+is slow" would have the operator suspecting a card that is perfectly sound, on the night
+before a trip, which is the precise anxiety this tool exists to remove.
+
+So the warning reports the **link generation alongside the speed**, read from the PnP parent
+chain: a SuperSpeed device sits behind `Generic SuperSpeed USB Hub`, a USB 2.0 one behind
+plain `Generic USB Hub`. *"Card reads 38 MB/s, connected at USB 2.0"* is an instruction to
+move a cable. *"Card reads 38 MB/s, connected at SuperSpeed"* is a dying card. Same number,
+opposite actions.
+
+**Do not use the storage protocol as the discriminator.** BOT versus UAS looks like the same
+signal and is not: this rig's SSDs enumerate as `USB Attached SCSI (UAS) Mass Storage Device`
+while both card readers report plain `USB Mass Storage Device`, yet one of those readers
+sustains 222 MB/s — beyond what USB 2.0 can physically carry. The parent chain is evidence;
+the protocol name is a coincidence.
+
 **It warns; it does not block.** A slow card is still a *correct* card, and every guarantee
 the tool makes is about bytes rather than speed. The run proceeds, all four copies land, and
 the report names the card and the shortfall. Refusing to offload a night's shooting over a
