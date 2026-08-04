@@ -2173,13 +2173,18 @@ both changed a conclusion:**
   rides the same link, and everything together came to 3,344 MB/s against 3,065 for the OWC
   alone
 
+**The travel case was fully exercised on 2026-08-04 and everything still in it passes.**
+Three CFexpress cards read 834–1,135 MB/s and two SDXC cards 205–222, against a bar of
+~292 MB/s — what a single destination absorbs, above which the card is not the constraint.
+Both SD readers proved genuine UHS-II, delivering an identical 222 MB/s with the same card,
+so the long-running suspicion that they were old and needed replacing was simply wrong. One
+bad SD card explained the whole thing. Per-card figures live in the session memory.
+
 **Still genuinely open, needing hardware:**
 
 - **A TB5 hub** would raise USB tunnelling from 10 to 20 Gbps, worth perhaps 3 minutes
   of phase 3. Now the largest untested lever, since a single USB SSD alone reaches
   1,034 MB/s — the drives are nowhere near the constraint, the tunnel is
-- **Is the second Lexar Silver Pro also bad?** Two faulty cards of one model would mean
-  the model rather than the unit, which is worth knowing before buying another
 
 **Two gaps recorded rather than closed.** Neither is a defect today. *No test can prove
 the two file flags are still set*: removing `FILE_FLAG_NO_BUFFERING` changes where bytes
