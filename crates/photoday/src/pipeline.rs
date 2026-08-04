@@ -82,6 +82,8 @@ pub struct Outcome {
     /// Every frame that *has* a capture time, carried forward so phase 5 correlates
     /// against the GPX without reopening a single raw file (decision 10).
     pub landed: Vec<crate::phase5::Landed>,
+    /// Every frame ingested, with what phase 4 needs to corroborate it.
+    pub ingested: Vec<Ingested>,
     pub destinations: Vec<DestinationOutcome>,
 }
 
@@ -93,6 +95,22 @@ impl Outcome {
             .iter()
             .all(|d| d.failed.is_empty() && d.verified == self.files)
     }
+}
+
+/// One frame as phase 3 ingested it, carried to phase 4.
+///
+/// **Paired by card-relative path** (decision 4): the camera writes the same tree to
+/// both slots, so the same path is the same frame. The basename alone is not the key —
+/// the counter is four digits and a 512 GB card holds more frames than it spans, so one
+/// session can legitimately hold two `_50A0001.CR3` in different DCIM folders.
+#[derive(Debug, Clone)]
+pub struct Ingested {
+    /// Relative to the card root, e.g. `DCIM/100CANON/_50A0001.CR3`.
+    pub card_relative: PathBuf,
+    /// Relative to each destination root, e.g. `2022/2022-09-27/1402Z_0001.CR3`.
+    pub destination_relative: PathBuf,
+    /// The canonical hash, taken from the source card's bytes in phase 3.
+    pub sha256: Digest32,
 }
 
 /// One photo, read once and shared by every destination.
@@ -115,6 +133,7 @@ pub fn run(
     destinations: &[Destination],
     run_id: &str,
     source_card: &str,
+    card_root: &Path,
     log: &RunLog,
 ) -> Result<Outcome> {
     if destinations.is_empty() {
@@ -153,7 +172,7 @@ pub fn run(
             })
             .collect();
 
-        let read = feed(sources, &senders, run_id);
+        let read = feed(sources, &senders, run_id, card_root);
 
         // Dropped explicitly and before the joins: the destination threads iterate their
         // receiver until every sender is gone, so holding these would deadlock the join
@@ -173,13 +192,19 @@ pub fn run(
 }
 
 /// The reader: each source file read exactly once, hashed and named from that buffer.
-fn feed(sources: &[PathBuf], senders: &[SyncSender<Arc<Photo>>], run_id: &str) -> Result<Outcome> {
+fn feed(
+    sources: &[PathBuf],
+    senders: &[SyncSender<Arc<Photo>>],
+    run_id: &str,
+    card_root: &Path,
+) -> Result<Outcome> {
     let mut parser = MediaParser::new();
     let mut outcome = Outcome {
         files: 0,
         bytes: 0,
         unfiled: Vec::new(),
         landed: Vec::new(),
+        ingested: Vec::new(),
         destinations: Vec::new(),
     };
 
@@ -217,6 +242,15 @@ fn feed(sources: &[PathBuf], senders: &[SyncSender<Arc<Photo>>], run_id: &str) -
 
         outcome.files += 1;
         outcome.bytes += bytes.len() as u64;
+
+        outcome.ingested.push(Ingested {
+            card_relative: source
+                .strip_prefix(card_root)
+                .unwrap_or(source)
+                .to_path_buf(),
+            destination_relative: relative.clone(),
+            sha256,
+        });
 
         let photo = Arc::new(Photo {
             relative,

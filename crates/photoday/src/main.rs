@@ -192,11 +192,23 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     );
 
     let started = Instant::now();
+    // The card's mount point, so phase 3 can record each frame's card-relative path —
+    // which is what decision 4 pairs the two cards on.
+    let card_root = plan
+        .cards
+        .source
+        .volume
+        .mount_points
+        .first()
+        .cloned()
+        .unwrap_or_else(|| plan.cards.source.dcim.clone());
+
     let outcome = pipeline::run(
         &plan.cards.files,
         &targets,
         &run_id,
         source_card(&plan),
+        &card_root,
         &log,
     )?;
     let elapsed = started.elapsed();
