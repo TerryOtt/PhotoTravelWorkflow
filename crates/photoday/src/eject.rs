@@ -53,6 +53,30 @@ const LOCK_WINDOW: Duration = Duration::from_secs(30);
 /// is taken promptly.
 const LOCK_RETRY: Duration = Duration::from_millis(500);
 
+/// The first pause between whole-sequence attempts, doubling from here.
+///
+/// **Dismounting releases the volume, and Windows remounts it eagerly.** The lock lives on
+/// the handle, so closing the handle — which must happen, or this process is itself the
+/// outstanding open — also drops the exclusivity that made the volume ejectable. Anything
+/// that reopens it in that window turns the power-down into `PNP_VetoOutstandingOpen`
+/// naming the volume itself rather than any application. Retrying only
+/// `CM_Request_Device_Eject` would then ask the same question of a volume that has since
+/// remounted; the lock and dismount have to be redone with it.
+///
+/// On 2026-08-04 two of three archive SSDs were vetoed on their single attempt, and the
+/// operator's own long-standing workaround — recorded in decision 22 — was pressing the
+/// tray icon a second time.
+const FIRST_BACKOFF: Duration = Duration::from_secs(2);
+
+/// The pause stops doubling here.
+///
+/// What the backoff waits out is a scanner working through a few hundred freshly written
+/// gigabytes, which is a minutes-scale problem — but an unbounded doubling would spend the
+/// last hour of the budget asleep, so it flattens into steady polling instead. Sixty
+/// seconds is frequent enough that a volume released early is taken promptly, and rare
+/// enough that a long wait costs a handful of attempts rather than thousands.
+const MAX_BACKOFF: Duration = Duration::from_secs(60);
+
 /// What happened to one device.
 ///
 /// **Not a `Result`**, because a refusal is an outcome the report describes rather than an
@@ -79,11 +103,62 @@ impl Outcome {
     }
 }
 
-/// Lock, dismount and power down one archive SSD.
+/// How one device's eject ended, and what it cost to get there.
+///
+/// **The cost is reported rather than discarded** because eject is the least predictable
+/// part of the run and the only way to make it better is to know how hard it actually had
+/// to work. A device that powers down on the second attempt after nine seconds and one
+/// that takes forty attempts over twenty minutes are the same [`Outcome`] and very
+/// different facts.
+#[derive(Debug, Clone)]
+pub struct Effort {
+    pub outcome: Outcome,
+    /// Full lock → dismount → power-down passes made, always at least one.
+    pub attempts: u32,
+    /// Wall clock across all of them.
+    pub waited: Duration,
+}
+
+/// Lock, dismount and power down one archive SSD, retrying the whole sequence until
+/// `deadline`.
 ///
 /// `Err` only when the volume could not be opened at all — everything after that is an
-/// [`Outcome`].
-pub fn eject(volume: &Volume, device: &Device) -> Result<Outcome> {
+/// [`Outcome`], and the one reported is the last attempt's. Retrying stops the moment a
+/// device powers down, so the common case costs a single pass and no waiting.
+///
+/// **One attempt always happens, even past the deadline.** A run that has already spent the
+/// whole budget still gets its ejects tried once, because refusing to attempt at all would
+/// turn a slow night into a manual one for no gain.
+///
+/// The caller owns the deadline because the caller owns the budget — see decision 22 and
+/// `RUN_BUDGET` in the binary. This module deliberately knows nothing about dinner.
+pub fn eject(volume: &Volume, device: &Device, deadline: Instant) -> Result<Effort> {
+    let started = Instant::now();
+    let mut backoff = FIRST_BACKOFF;
+    let mut attempts = 0;
+
+    loop {
+        attempts += 1;
+        let outcome = attempt(volume, device)?;
+
+        // Tested after the attempt rather than before, so the deadline bounds how long this
+        // keeps *trying* rather than whether it tries at all. Adding `backoff` is what stops
+        // it sleeping past the deadline only to give up on waking.
+        if outcome.is_ejected() || Instant::now() + backoff >= deadline {
+            return Ok(Effort {
+                outcome,
+                attempts,
+                waited: started.elapsed(),
+            });
+        }
+
+        std::thread::sleep(backoff);
+        backoff = (backoff * 2).min(MAX_BACKOFF);
+    }
+}
+
+/// One pass: open, lock, dismount, release the handle, ask the enclosure to leave.
+fn attempt(volume: &Volume, device: &Device) -> Result<Outcome> {
     // Write access is what `FSCTL_LOCK_VOLUME` requires; the query-only handle
     // `storage::Volume::open` hands out cannot lock. Sharing stays permissive because the
     // lock — not the open — is what has to win exclusivity, and failing the open would

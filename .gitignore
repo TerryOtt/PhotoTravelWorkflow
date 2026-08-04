@@ -20,3 +20,8 @@ $RECYCLE.BIN/
 
 # Claude Code per-machine settings
 .claude/settings.local.json
+
+# The measured-run sentinel (docs/FULL-RUN.md). It describes one night's procedure state —
+# which step was reached, what has already been established — so it is per-machine and
+# transient by nature. CLAUDE.md's first rule keys on its presence.
+/RUN-STATE.json

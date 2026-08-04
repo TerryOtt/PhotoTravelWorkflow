@@ -21,6 +21,7 @@
 //! refusal can be read against *which* volume refused.
 
 use std::process::ExitCode;
+use std::time::{Duration, Instant};
 
 use photoday::{config, destinations, eject};
 
@@ -87,10 +88,20 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     };
 
-    match eject::eject(&resolved.volume, device) {
-        Ok(outcome) => {
-            println!("\n  {outcome:#?}");
-            if outcome.is_ejected() {
+    // The run gives eject the rest of its hour (decision 22); a probe run by hand has
+    // someone watching it, so it gets a window short enough to stay interactive while still
+    // exercising the retry.
+    let deadline = Instant::now() + Duration::from_secs(90);
+
+    match eject::eject(&resolved.volume, device, deadline) {
+        Ok(effort) => {
+            println!(
+                "\n  {:#?}\n  {} attempt(s) over {:.1}s",
+                effort.outcome,
+                effort.attempts,
+                effort.waited.as_secs_f64()
+            );
+            if effort.outcome.is_ejected() {
                 ExitCode::SUCCESS
             } else {
                 ExitCode::from(2)

@@ -31,6 +31,17 @@ explicitly allowed to take longer as long as it does not delay that milestone.
 measured 16 m 55 s on 2026-08-04. **There is nothing left to win here**, and every further
 minute is worth approximately zero.
 
+**Which cuts both ways, and the operator said so outright on 2026-08-04: as long as the
+program exits inside the hour, taking longer is perfectly acceptable.** A threshold has slack
+on both sides of it. Wall clock the run does not need is not a saving to be banked — it is
+budget available for anything that makes the *result* better, and spending it costs nothing
+because nobody is in the room. Decision 22's eject retry is the worked example: it keeps
+asking Windows to power a drive down until the hour is up, because a drive that parks itself
+at minute 40 beats one that gave up at minute 36 and left a chore. **Do not shorten a wait
+that no human is waiting through** — and do not read the "never trade for wall clock" rule
+above as permission to spend it either. Both directions have the same test: does this make
+the verdict more trustworthy, or the morning easier?
+
 That has a consequence worth stating plainly, because the metrics above invite the opposite
 reading: **do not trade anything for wall clock while the run is this far under the bar.** Not
 clarity, not a safety check, not the hash's readability in 2031, not an afternoon of
@@ -156,7 +167,7 @@ anywhere, monotonic across a trip, and unambiguous when crossing the date line. 
 accepted consequence is that a shot taken early in the morning east of UTC files under
 the previous day.
 
-## Architecture: five phases
+## Architecture: five phases, then eject
 
 | Phase | Mandatory? | Work | Ends with |
 |---|---|---|---|
@@ -165,6 +176,15 @@ the previous day.
 | **3 · Ingest & verify** | **Always — this phase is the product** | Read CFexpress once → SHA256 + EXIF → fan out to 4 → unbuffered read-back verify per destination | **LANDED** |
 | **4 · Corroborate** | Two cards only — a single-source run has nothing to compare (decision 7) | Read SDXC fully, compare hashes, delete + tombstone mismatches | Card health report |
 | **5 · Geotag** | Only with tracks (decision 26), and only frames a track brackets within limits (decision 16) | Correlate stashed capture times to GPX, write sidecars to all 4 | Ready to edit from |
+| **6 · Eject** | Unless `--no-eject`, and only once nothing remains for the current cards (decision 22) | Lock, dismount and power down each destination resolved by serial — concurrently, retried with backoff until an hour after launch | The SSDs can go in the safe |
+
+**Eject is a stage rather than a footnote, and it is timed like one** — promoted 2026-08-04
+at the operator's request. It is different in kind from the five phases: it moves no data and
+cannot turn SAFE into NOT SAFE. But it can now run for twenty minutes while it argues with
+Windows, and **an unlabelled twenty-minute silence reads as a hang while a timed one reads as
+persistence.** Printing its wall clock is the whole difference. It is also the project's
+number one technical risk in the operator's own assessment (decision 22), which is reason
+enough for it to appear in the accounting rather than after it.
 
 **Phases 1 and 2 are both pre-flight**, and together they are the ten seconds that decide
 whether you can leave. They are split because they answer different questions and fail
@@ -1204,7 +1224,9 @@ with anything above it. Its forms:
 | Condition | Verdict |
 |---|---|
 | Phase 3 verified everywhere, all ejects clean | `EJECTED — SAFE TO STORE` |
-| Phase 3 verified everywhere, an eject refused | `SAFE TO STORE — EJECT SSD-B BY HAND (volume in use)` |
+| Phase 3 verified everywhere, a volume dismounted but would not power down | `SAFE TO STORE — UNPLUG SSD-B` |
+| Phase 3 verified everywhere, an eject refused with the volume still mounted | `SAFE TO STORE — EJECT SSD-B BY HAND` |
+| Both, on different devices | `SAFE TO STORE — EJECT SSD-B BY HAND AND UNPLUG SSD-C` |
 | Run under `--no-eject`, everything else complete | `SAFE TO STORE — STILL MOUNTED (--no-eject)` |
 | Phase 3 verified everywhere, corroboration incomplete | `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` |
 | Anything unverified anywhere | `NOT SAFE — 12 files unverified on SSD-C` |
@@ -1654,6 +1676,49 @@ A refused eject — something else holds the volume — is named per device and 
 nothing, because the data guarantees were settled before eject was attempted. See
 decision 14 for how the verdict phrases it.
 
+**This is the operator's stated number one technical risk on the project**, recorded
+2026-08-04 in his terms: eject failing to *just work* needs as much attention as it takes,
+as fast as possible. The reason it outweighs its size is where it sits — last. A run can
+land 201 GB, verify 15,532 pairs and corroborate every frame against a second card, and if
+the final step leaves a chore then that is the night's closing impression. *"So close but so
+far away"* is how he put it, *"a fresh wound every time."* The feature stays only while it
+keeps improving; the alternative he has named is removing it outright, which would cost the
+flush and dismount along with the cosmetic power-down.
+
+**The whole sequence is retried with exponential backoff, not just the lock.** Originally
+only `FSCTL_LOCK_VOLUME` was retried and `CM_Request_Device_Eject` got a single attempt —
+and on 2026-08-04 that single attempt was vetoed on two of three archive SSDs, with
+`PNP_VETO_TYPE(6)` naming **the volume itself** rather than any application. The mechanism
+is a race the design creates: the lock lives on the handle, the handle must be closed before
+the eject or the process is itself the outstanding open, and closing it lets Windows remount
+the volume. Retrying only the final call would then ask the same question of a volume that
+has since remounted, so the lock and dismount are redone with it. The operator had already
+found this empirically — the pre-tool ritual was pressing the tray icon *twice*.
+
+**The retry runs until one hour after launch, and that is deliberate rather than generous.**
+See *Both metrics are thresholds* — the budget is the hour before dinner ends, a run reaches
+LANDED in about a quarter of it and finishes in about half, and **the remainder is time
+nobody is waiting through.** Spending it asking Windows again costs exactly nothing. One
+attempt always happens even if the budget is already spent, since refusing to try at all
+would turn a slow night into a manual one for no gain.
+
+**The devices are ejected concurrently**, which is not about speed — nothing waits on eject.
+It is because they share one deadline: done in sequence, a drive that retried to the end of
+the budget would leave the others a single attempt each, and whatever holds one freshly
+written volume is usually holding all of them.
+
+**Two failures, two instructions**, and collapsing them is what made a successful run read as
+a failure. A volume still *mounted* needs the tray icon. A volume that dismounted but would
+not power down is flushed and detached — pulling it out is the whole of what remains, and
+decision 14's verdict now says so rather than sending the operator to the tray to repeat work
+already done. **Fixing that wording removed a real part of the pain without changing any Win32
+behavior at all**, which is worth remembering the next time eject is reported as broken: ask
+whether the complaint is about behavior or about description.
+
+**Each device reports what its eject cost** — attempts made and wall clock spent — printed
+only when it took more than one attempt. Decision 22 can only be tuned from real numbers, and
+a run is the only place they occur.
+
 **Eject is also the certainty gate — deliberate, settled at design review.** It fires
 only when nothing remains for the current cards: every file verified on all four
 destinations, phase 4 run to completion against the SDXC card with every mismatch
@@ -2011,7 +2076,7 @@ individually. Two more need no crate because the standard library already answer
 ```
 Cargo.toml            [workspace] — the whole dependency set, declared once
 crates/geotag/        the CR3, GPX and XMP engine, lifted from RawGeotag (decision 17)
-crates/photoday/      the binary: CLI, five phases, the Windows storage layer
+crates/photoday/      the binary: CLI, five phases and eject, the Windows storage layer
 ```
 
 A member's own manifest lists only what its code imports today, so a manifest never
@@ -2326,9 +2391,46 @@ has been shown to catch a single flipped bit in 201 GB and name the file.
 - **the card degradation check** (decision 32) — record pre-flight's existing speed
   measurement per card, warn when a card falls off its own history. Record first; the
   threshold is set from accumulated evidence, not chosen up front
-- **overlapping the verify read with its hash** — worth more than the hash choice ever
-  was; see decision 17
+- **overlapping the verify read with its hash** — **now measured as the binding constraint on
+  LANDED, and the largest remaining lever.** With the archive SSDs on their own laptop ports
+  they are no longer tunnel-limited: on 2026-08-04 every destination verified within ~12% of
+  `1/(1/read + 1/hash)`, so drives that read at 934–980 MB/s verified at 590–597. Worth far
+  more than the hash choice ever was; see decision 17 and the cold-cache run below
 - **retiring RawGeotag** into `photoday geotag` (decision 30), now unblocked by phase 5
+- **proving decision 22's eject retry.** It is built and the code path is verified, but the
+  retry itself has never fired — both test ejects succeeded on their first attempt. It can
+  only be reproduced at the end of a full run, immediately after 201 GB of fresh writes
+
+### The first cold-cache run, 2026-08-04 — LANDED 13 m 28 s
+
+**The first run taken under [`FULL-RUN.md`](FULL-RUN.md)'s procedure**: rebooted for a cold
+page cache, topology verified before launch, exit 0, all 15,532 pairs verified, all four
+destinations written fresh. One caveat carried honestly — four destination directory trees
+were walked before launch, which warmed some MFT entries. Metadata only, no file data.
+
+| | This run | Previous, both USB SSDs on the dock |
+|---|---|---|
+| **LANDED** | **13 m 28 s** | 16 m 35 s |
+| Verify pass | **5 m 41 s** | 8 m 12 s |
+| Total | 34 m 51 s | 16 m 55 s (no corroboration) |
+
+**Splitting the archive SSDs onto the laptop's own ports delivered 3 m 07 s of a predicted
+4 m 30 s.** The shortfall is the finding: the probe measured raw reads of 980 + 934 MB/s,
+the run delivered 597 + 590, and the gap is `unbuffered_sha256` serializing read and hash.
+Against each device's measured read ceiling and SHA-NI's 2,380 MB/s, `1/(1/r + 1/h)` predicts
+694 / 671 / 1,032 against 597 / 590 / 958 observed — every destination within ~12%. **The USB
+drives are no longer tunnel-limited; they are limited by the verify loop.** This also weakens
+the enclosure purchase, since PCIe would free them into a ceiling they can no longer reach.
+
+**Decision 3's re-read safeguard fired on real hardware for the first time:** `3,878 matched ·
+5 transient read error(s), re-read agreed · 0 mismatched`. Five SD reads failed, all five
+agreed on re-read, nothing was quarantined and nothing deleted — exactly the reasoning that a
+mismatch may be a transient reader error rather than media corruption. The destructive path
+still remains unexercised outside unit tests, which is correct.
+
+**And the run exposed a defect in its own exit code**, now fixed: decision 18 enumerates
+about eight exit-2 conditions and the code tested one, so a run that ended with two archive
+SSDs un-powered-down and a verdict saying to deal with them by hand still exited 0.
 
 **Settled by measurement, 2026-08-04 — recorded because both were open for a while and
 both changed a conclusion:**

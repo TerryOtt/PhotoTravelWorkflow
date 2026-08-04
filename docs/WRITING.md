@@ -31,6 +31,7 @@ So the first question for any document is **who opens this, and what were they a
 | `DESIGN.md` | someone changing the design | the settled design and why |
 | `REVIEWING.md` | someone about to put a change on `main` | the bar it has to clear |
 | `UPDATING.md` | someone about to bump a dependency | whether to update at all, then how |
+| `FULL-RUN.md` | someone about to record what a full run cost | the sequence that makes the number comparable |
 | `CLAUDE.md` | a Claude session, cold | which of these to read before touching anything |
 | this file | someone writing or reviewing a document | the standing order |
 

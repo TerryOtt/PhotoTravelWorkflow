@@ -9,6 +9,20 @@ diverge from it — if a decision looks wrong, say so explicitly and cite what c
 
 ## Start every session here
 
+**First, one file decides whether this session may touch the drives at all.** If
+**`RUN-STATE.json`** exists at the repository root, a measured end-to-end run is staged or
+in flight. Read [`docs/FULL-RUN.md`](docs/FULL-RUN.md) before any other tool call, and until
+that file is gone, **read no file data from any camera card or destination** — no hashes, no
+copies, no `--dry-run`, no `examples/` probe, and no walking the archive trees "just to
+look". The usual reason it exists is a reboot taken to get a cold page cache, and a
+walk-about spends exactly what the reboot bought.
+
+`RUN-STATE.json` records which step the procedure reached and what has already been
+established, so a session that lost its context does not need to re-derive any of it by
+looking around. **This gate exists because the constraint used to live in the conversation,
+and a reboot destroys conversations while leaving every drive exactly where it was.**
+Delete the file once the run is recorded.
+
 **Before answering anything, read these two, in this order:**
 
 1. **[`docs/DESIGN.md`](docs/DESIGN.md) — *Where this stands***. What is built, what is
@@ -37,6 +51,7 @@ facts about the hardware; each was caught because he pushed back on one that loo
 | put anything on `main` | [`docs/REVIEWING.md`](docs/REVIEWING.md) | a branch can be as ugly as it needs to be; `main` has no broken windows |
 | write a document or a comment | [`docs/WRITING.md`](docs/WRITING.md) | every document leads with what *its* reader came for |
 | touch a dependency | [`docs/UPDATING.md`](docs/UPDATING.md) | once per trip, before you leave — never on the road |
+| take a wall clock from a full run | [`docs/FULL-RUN.md`](docs/FULL-RUN.md) | the sequence that makes a number comparable, and the metadata-only checks that precede it |
 
 **"Deep dive review" always means all four:** code, tests, code comments (in the code
 *and* in the tests), and docs. `REVIEWING.md` has the table of what stales what, and why

@@ -242,15 +242,66 @@ fn offload(args: &Offload) -> Result<ExitCode> {
 
     // Decision 22: last, because phases 4 and 5 still write to the archives. The volumes
     // must be released only once nothing remains to put on them.
-    let released = eject_phase(&plan, &outcome, args);
-    report_eject(released.as_deref(), args);
+    let ejecting = Instant::now();
+    let released = eject_phase(&plan, &outcome, args, started + RUN_BUDGET);
+    report_eject(released.as_deref(), args, ejecting.elapsed());
     verdict(&outcome, released.as_deref(), corroboration.as_ref(), args);
 
-    Ok(if outcome.landed() && outcome.unfiled.is_empty() {
-        ExitCode::SUCCESS
-    } else {
+    Ok(exit_code(
+        &outcome,
+        released.as_deref(),
+        corroboration.as_ref(),
+        args,
+    ))
+}
+
+/// Decision 18's three codes, from what the run actually produced.
+///
+/// **Every condition decision 18 names gets a line here**, because the previous version
+/// tested only `unfiled` and returned 0 for everything else — so the 2026-08-04 run exited
+/// 0 while two archive SSDs sat un-powered-down and the verdict said to deal with them by
+/// hand. An exit code is what a script and a tired operator both key on, and it was
+/// claiming nothing wanted attention while the report above it said otherwise.
+///
+/// The one condition decision 18 lists that is not testable here is a **stray** — a
+/// non-CR3 file on a card (decision 24). The walk does not yet carry them out of
+/// pre-flight, so there is nothing to consult; when it does, it belongs in this function.
+fn exit_code(
+    outcome: &pipeline::Outcome,
+    released: Option<&[Released]>,
+    corroborated: Option<&phase4::Report>,
+    args: &Offload,
+) -> ExitCode {
+    // Phase 3 is the only thing that can make a run *fail* rather than merely want
+    // attention, and it is the same test the verdict uses.
+    if !outcome.landed() {
+        return ExitCode::from(2);
+    }
+
+    let wants_attention =
+        // A file whose EXIF could not be read, parked in `_unfiled` (decision 21).
+        !outcome.unfiled.is_empty()
+        // A confirmed two-card mismatch: deleted everywhere, tombstoned, quarantined
+        // (decisions 3, 4). Transient re-read agreements are not mismatches and are
+        // deliberately not counted here.
+        || corroborated.is_some_and(|report| !report.mismatched.is_empty())
+        // An eject that did not power the device down — whether it stayed mounted or
+        // dismounted without powering down, both leave the operator something to do
+        // (decision 22).
+        || released.is_some_and(|released| released.iter().any(|r| !r.effort.outcome.is_ejected()))
+        // Corroboration could not finish, so the eject gate held (decisions 7, 22). The
+        // SSDs are still mounted and the verdict says to insert the SDXC and re-run.
+        || (released.is_none() && !args.no_eject)
+        // The three declared degradations, each of which narrows what the run certifies.
+        || args.allow_single_source
+        || !args.without.is_empty()
+        || args.no_gpx;
+
+    if wants_attention {
         ExitCode::from(2)
-    })
+    } else {
+        ExitCode::SUCCESS
+    }
 }
 
 /// Which card fed the run, for the per-file record (decision 12).
@@ -270,8 +321,18 @@ fn source_card(plan: &preflight::Preflight) -> &'static str {
 /// One destination's eject result, kept with its label for the verdict.
 struct Released {
     label: String,
-    outcome: eject::Outcome,
+    effort: eject::Effort,
 }
+
+/// How long after launch eject stops trying (decision 22).
+///
+/// **The operator is at dinner, and dinner is 60–90 minutes** (`CONOPS.md`). A run reaches
+/// LANDED in about a quarter of that and finishes in about half, so the rest of the hour is
+/// time nobody is waiting through — which makes it free to spend asking Windows again.
+/// **As long as the program exits inside the hour, taking longer costs nothing at all**, and
+/// a drive that powers itself down at minute 40 is worth far more than one that gave up at
+/// minute 36 and left a chore.
+const RUN_BUDGET: Duration = Duration::from_secs(60 * 60);
 
 /// Decision 22: eject when nothing remains for the current cards.
 ///
@@ -287,35 +348,67 @@ fn eject_phase(
     plan: &preflight::Preflight,
     outcome: &pipeline::Outcome,
     args: &Offload,
+    deadline: Instant,
 ) -> Option<Vec<Released>> {
     if args.no_eject || !outcome.landed() {
         return None;
     }
 
-    let released: Vec<Released> = plan
+    let targets: Vec<_> = plan
         .rig
         .survey
         .found
         .iter()
         .filter(|resolved| resolved.ejectable())
-        .map(|resolved| Released {
-            label: resolved.label.clone(),
-            // A destination resolved by serial always has a device; if it somehow does not,
-            // that is a refusal to report rather than a reason to fail the run.
-            outcome: match resolved.device.as_ref() {
-                Some(device) => eject::eject(&resolved.volume, device).unwrap_or_else(|error| {
-                    eject::Outcome::Held {
-                        reason: format!("{error:#}"),
-                    }
-                }),
-                None => eject::Outcome::Held {
-                    reason: "the volume reports no physical device to power down".into(),
-                },
-            },
-        })
         .collect();
 
+    // Concurrently, and not for speed — eject is the last thing the run does and nobody is
+    // waiting on it. It is because the devices share one deadline: done in sequence, a drive
+    // that retried to the end of the budget would leave the others a single attempt each,
+    // and whatever holds one freshly written volume is usually holding all of them. Run
+    // together, every device gets the whole window.
+    let released = std::thread::scope(|scope| {
+        let running: Vec<_> = targets
+            .iter()
+            .map(|resolved| scope.spawn(move || release(resolved, deadline)))
+            .collect();
+
+        running
+            .into_iter()
+            .map(|handle| handle.join().expect("an eject thread panicked"))
+            .collect()
+    });
+
     Some(released)
+}
+
+/// Eject one resolved destination, turning both failure paths into a reportable outcome.
+fn release(resolved: &destinations::Resolved, deadline: Instant) -> Released {
+    // A destination resolved by serial always has a device; if it somehow does not, that is
+    // a refusal to report rather than a reason to fail the run.
+    let effort = match resolved.device.as_ref() {
+        Some(device) => {
+            eject::eject(&resolved.volume, device, deadline).unwrap_or_else(|error| eject::Effort {
+                outcome: eject::Outcome::Held {
+                    reason: format!("{error:#}"),
+                },
+                attempts: 1,
+                waited: Duration::ZERO,
+            })
+        }
+        None => eject::Effort {
+            outcome: eject::Outcome::Held {
+                reason: "the volume reports no physical device to power down".into(),
+            },
+            attempts: 0,
+            waited: Duration::ZERO,
+        },
+    };
+
+    Released {
+        label: resolved.label.clone(),
+        effort,
+    }
 }
 
 /// Decision 14's verdict: the last line, and its phrases appear nowhere else in the report.
@@ -350,24 +443,39 @@ fn verdict(
         return;
     };
 
-    let stuck: Vec<&Released> = released
-        .iter()
-        .filter(|r| !r.outcome.is_ejected())
-        .collect();
+    // Two failures, two different instructions — and collapsing them is what made a
+    // successful run read as a chore. A volume something still holds is mounted, and the
+    // tray icon is the only way to shift it. A volume that dismounted but would not power
+    // down is flushed and detached: pulling it out is the whole of what remains, and
+    // sending the operator to the tray for it asks them to repeat work already done.
+    let held: Vec<&str> = labels(released, |o| matches!(o, eject::Outcome::Held { .. }));
+    let unplug: Vec<&str> = labels(released, |o| matches!(o, eject::Outcome::Dismounted { .. }));
 
-    if stuck.is_empty() {
-        println!("►  EJECTED — SAFE TO STORE. {claim}.");
-        return;
+    let mut actions = Vec::new();
+    if !held.is_empty() {
+        actions.push(format!("EJECT {} BY HAND", held.join(", ")));
+    }
+    if !unplug.is_empty() {
+        actions.push(format!("UNPLUG {}", unplug.join(", ")));
     }
 
-    let names: Vec<&str> = stuck.iter().map(|r| r.label.as_str()).collect();
-    println!(
-        "►  SAFE TO STORE — EJECT {} BY HAND. {claim}.",
-        names.join(", ")
-    );
+    if actions.is_empty() {
+        println!("►  EJECTED — SAFE TO STORE. {claim}.");
+    } else {
+        println!("►  SAFE TO STORE — {}. {claim}.", actions.join(" AND "));
+    }
 }
 
-fn report_eject(released: Option<&[Released]>, args: &Offload) {
+/// The labels of the released devices whose outcome matches `wanted`.
+fn labels(released: &[Released], wanted: impl Fn(&eject::Outcome) -> bool) -> Vec<&str> {
+    released
+        .iter()
+        .filter(|r| wanted(&r.effort.outcome))
+        .map(|r| r.label.as_str())
+        .collect()
+}
+
+fn report_eject(released: Option<&[Released]>, args: &Offload, elapsed: Duration) {
     println!();
     let Some(released) = released else {
         if args.no_eject {
@@ -376,20 +484,52 @@ fn report_eject(released: Option<&[Released]>, args: &Offload) {
         return;
     };
 
+    // **Eject is a timed stage, and the clock is the point** (decision 22). A retry that runs
+    // for twenty minutes is the tool working; unlabelled, twenty silent minutes read as a
+    // hang. The operator asked for this specifically, and the difference between the two
+    // readings is entirely whether the duration is on the screen.
+    println!("  Eject    ({})", duration(elapsed));
+
     for r in released {
-        match &r.outcome {
-            eject::Outcome::Ejected => println!("  Eject    {:<8} powered down", r.label),
+        // What it cost, but only when it cost anything — a device that powered down on the
+        // first ask should read as cleanly as it behaved. When Windows did make the run work
+        // for it, that is worth printing: decision 22 can only be tuned from real numbers,
+        // and these are the only ones a run produces.
+        let effort = if r.effort.attempts > 1 {
+            format!(
+                " after {} attempts over {}",
+                r.effort.attempts,
+                duration(r.effort.waited)
+            )
+        } else {
+            String::new()
+        };
+
+        match &r.effort.outcome {
+            eject::Outcome::Ejected => {
+                println!("           {:<8} powered down{effort}", r.label);
+            }
             // Worth its own wording: the bytes are flushed and detached either way, and an
             // operator who reads "failed" for this would worry about the wrong thing.
             eject::Outcome::Dismounted { reason } => println!(
-                "  Eject    {:<8} dismounted, not powered down — safe to unplug\n           {reason}",
+                "           {:<8} dismounted, not powered down — safe to unplug{effort}\n           {reason}",
                 r.label
             ),
             eject::Outcome::Held { reason } => println!(
-                "  Eject    {:<8} still mounted — eject it from the tray\n           {reason}",
+                "           {:<8} still mounted — eject it from the tray{effort}\n           {reason}",
                 r.label
             ),
         }
+    }
+}
+
+/// `4m 12s`, or `38s` under a minute — the report's duration format.
+fn duration(elapsed: Duration) -> String {
+    let seconds = elapsed.as_secs();
+    if seconds < 60 {
+        format!("{seconds}s")
+    } else {
+        format!("{}m {:02}s", seconds / 60, seconds % 60)
     }
 }
 
