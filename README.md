@@ -9,8 +9,15 @@ reads every byte back to prove the copies are bit-identical, geotags each frame 
 GPX track into a Lightroom-ready XMP sidecar, and prints a verdict you can read in five
 seconds before putting an SSD in the safe.
 
-**Status: designed, not yet implemented.** The workspace and its dependency set exist and
-the CLI parses; every phase behind it is still to build. The design is settled and written up in
+All four copies are backups and none of them is a working copy — they are interchangeable
+by construction, and editing happens at home from a NAS rather than from anything this
+tool writes.
+
+**Status: partly implemented.** Phase 3 — read each frame once, fan out to four
+destinations, write through to media, read every byte back unbuffered, log what is
+proven — is built and tested. The pre-flight phases, the Windows storage-identity layer
+they rest on, and phases 4 and 5 are still to come; the CLI parses and then exits. The
+design is settled and written up in
 [`docs/DESIGN.md`](docs/DESIGN.md) — numbered decisions, each with its reasoning,
 covering the phase structure, why verification has to defeat both the OS page cache and
 the SSD's own DRAM cache, how filenames stay deterministic across four destinations, and

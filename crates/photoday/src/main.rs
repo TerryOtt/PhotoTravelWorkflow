@@ -84,7 +84,7 @@ struct Offload {
     #[arg(long, value_name = "M", default_value_t = GapLimits::DEFAULT.max_meters)]
     max_gap_meters: f64,
 
-    /// Overwrite existing XMP; archives only unless a destination is named.
+    /// Overwrite existing XMP on every destination, or on just the one named.
     //
     // A doc comment here would be printed by `--help`, so this note is an ordinary one.
     // `Option<Option<_>>` is clap's encoding for a flag whose value is optional, which is

@@ -77,22 +77,24 @@ the deal:
   systematic-miss heuristic may catch it after the fact; thirty seconds with the camera
   menu is the real defense.
 
-## One application at a time
+## Four backups, and nothing edits them
 
-The trip rhythm keeps Lightroom and this tool from ever touching the same files in the
-same season:
+**All four copies are the same thing: a backup.** None is a working copy, none is
+special, and all four are expected to stay byte-identical forever — including the one on
+the laptop, which exists because a fourth backup is worth having.
 
-| When | What runs |
+Editing never touches any of them. The path home is:
+
+| When | What happens |
 |---|---|
-| Before a trip, at home | Lightroom only — plus the pre-trip checklist below |
-| During a trip | **this tool only** — Lightroom is never run on travel |
-| Home again | Lightroom — import from the laptop copy, then edit |
+| During a trip | **this tool only** — four copies, verified, one of them ejected into the safe each night |
+| Home again | **one of the four** is copied to the NAS — any of them will do |
+| Editing | on the desktop, from the NAS — never from a copy this tool wrote |
 
-Trips are content generation; editing happens at home. The consequence worth stating
-plainly: **during a trip, every XMP on every copy is tool-written**, so all four copies
-of a day are interchangeable while traveling. The laptop copy's divergence
-([`DESIGN.md`](DESIGN.md) decision 11) begins only when Lightroom starts editing at
-home — nothing this tool does mid-trip can step on an edit, because no edits exist yet.
+That last row is what makes the four interchangeable rather than merely similar: the
+NAS source is whichever copy is convenient, so no copy can be allowed to drift from the
+others. `verify` holds all four to that standard ([`DESIGN.md`](DESIGN.md) decisions 11
+and 20), and Lightroom never opens anything this tool produces.
 
 ## Offloading more than once a day
 
@@ -162,10 +164,14 @@ The full checklist lives in [`UPDATING.md`](UPDATING.md); the shape of it:
 
 ## After a trip
 
-Lightroom ingests from the **laptop copy** (`C:\Travel\Images`) — never from an archive
-SSD. The laptop copy is the working copy; Lightroom will rewrite its XMP sidecars as
-editing happens, and that divergence is expected and harmless. The three archive SSDs
-stay in the safe, byte-stable, untouched by the catalog.
+**Copy one of the four to the NAS, then edit on the desktop from there.** Which copy is
+whichever is easiest to reach — an SSD out of the safe, or the laptop's. They are
+interchangeable by construction, and `photoday verify <path>` will say so about any of
+them before you trust one.
+
+Nothing edits a copy this tool wrote. The archives go back to the safe byte-stable, and
+the laptop's copy stays byte-stable too — so a `verify` years from now is meaningful on
+all four rather than on three.
 
 ## Years later
 

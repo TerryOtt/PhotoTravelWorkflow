@@ -49,12 +49,24 @@ deferred* — see [Phase 3 reads one card](#1-phase-3-reads-the-cfexpress-card-o
 Four independent copies, each containing `YYYY\YYYY-MM-DD\` directories holding the raw
 files and their geotagged XMP sidecars:
 
-| Copy | Role | Notes |
+| Copy | How it is found | Notes |
 |---|---|---|
-| `C:\` on the laptop | working | Lightroom edits here; its sidecars will diverge |
-| External SSD × 3 | archive | Goes in the safe; expected to stay byte-stable |
+| `C:\` on the laptop | a path on this machine's own disk | Present whenever the tool runs; nothing to eject |
+| External SSD × 3 | by disk serial, on the hub | Ejected when the run completes, then into the safe |
 
 Plus a JSON manifest per destination making each copy self-describing.
+
+**All four copies are backups, and they are interchangeable.** None of them is a working
+copy, none is edited, and all four are expected to stay byte-identical forever — the
+laptop's included. Editing happens at home on a different machine entirely: an archive
+SSD is copied to a NAS, and the desktop edits from there. So no copy this tool writes is
+ever opened by Lightroom, and the fourth copy exists for the same reason as the other
+three.
+
+The only asymmetry is physical, and it is about how a destination is *found* rather than
+what it is for: three are removable devices identified by disk serial (decision 6) and
+are ejected at the end of a run (decision 22); one is a path on the disk this program is
+running from, and there is nothing to eject.
 
 **Date folders are derived from the UTC capture time.** Deliberate: no timezone logic
 anywhere, monotonic across a trip, and unambiguous when crossing the date line. The
@@ -69,7 +81,7 @@ the previous day.
 | **2 · Pre-flight: destinations and GPX** | Always — `--without` and `--no-gpx` narrow what it asserts, never skip it (decisions 25, 26, 16) | Resolve destinations by serial, assert four distinct, writable, capacity ≥ N; parse GPX; inhibit sleep; sweep orphaned temps; print the ETA | You can walk away |
 | **3 · Ingest & verify** | **Always — this phase is the product** | Read CFexpress once → SHA256 + EXIF → fan out to 4 → unbuffered read-back verify per destination | **LANDED** |
 | **4 · Corroborate** | Two cards only — a single-source run has nothing to compare (decision 7) | Read SDXC fully, compare hashes, delete + tombstone mismatches | Card health report |
-| **5 · Geotag** | Only with tracks (decision 26), and only frames a track brackets within limits (decision 16) | Correlate stashed capture times to GPX, write sidecars to all 4 | Lightroom-ready |
+| **5 · Geotag** | Only with tracks (decision 26), and only frames a track brackets within limits (decision 16) | Correlate stashed capture times to GPX, write sidecars to all 4 | Ready to edit from |
 
 **Phases 1 and 2 are both pre-flight**, and together they are the ten seconds that decide
 whether you can leave. They are split because they answer different questions and fail
@@ -444,8 +456,8 @@ photoday                            the nightly command
                              when the GPX directory holds none
   --max-gap-seconds <S>      refuse to interpolate across a longer hole [default: 60]
   --max-gap-meters <M>       refuse to interpolate across a wider hole [default: 100]
-  --force-xmp[=<DEST>]       overwrite existing XMP; archives only unless a
-                             destination is named
+  --force-xmp[=<DEST>]       overwrite existing XMP on every destination, or on
+                             just the one named
   --no-eject                 leave the archive SSDs mounted when the run ends
 
 photoday verify <DEST>       standalone re-verify; works years later, without config
@@ -457,9 +469,9 @@ Config is JSON:
 ```json
 {
   "destinations": [
-    { "label": "laptop", "role": "working",
+    { "label": "laptop",
       "path": "C:\\Travel\\Images" },
-    { "label": "SSD-A", "role": "archive",
+    { "label": "SSD-A",
       "disk_serial": "S5H9NS0R123456",
       "volume_guid": "{a1b2c3d4-...}",
       "subpath": "Images" }
@@ -467,6 +479,14 @@ Config is JSON:
   "gpx_dir": "C:\\Travel\\GPX"
 }
 ```
+
+**There is no `role` field, as of decision 11's correction.** It carried `working` and
+`archive`, and those named a distinction that does not exist — all four copies are
+backups. What is left is how a destination is *found*, and the config already says it: a
+`path` is a location on this machine's own disk, a `disk_serial` is a removable device on
+the hub. Everything that used to consult the role now follows from that one fact —
+notably eject, which applies to exactly the destinations resolved by serial (decision
+22). A separate field restating it would be a second place to get it wrong.
 
 **It lives at `%APPDATA%\photoday\config.json`** — settled 2026-08-03, having been shown
 here without ever being located. The Windows convention, and the one a Windows developer
@@ -547,29 +567,53 @@ without putting anything on phase 3's critical path. Sidecar generation failure 
 fatal and is always backfillable; the one fatal near geotagging is pre-flight's, before
 anything runs — an empty GPX directory is refused unless declared away (decision 26).
 
-### 11. The laptop copy is a working copy — after the trip
+### 11. All four copies are backups; none of them is a working copy
 
-Lightroom is never run on travel: trips are content generation, editing happens at home
-(see `CONOPS.md`, *One application at a time*). During a trip, every XMP on every copy is
-tool-written and all four copies of a day are interchangeable.
+**Reversed 2026-08-03, on the operator's correction.** This decision previously read
+*"the laptop copy is a working copy — after the trip"*, and had Lightroom importing from
+the laptop, rewriting its sidecars, and that copy diverging from the archives by design.
+That is not the workflow and never was. What actually happens at home: **an archive SSD
+is copied to a NAS, and editing happens on the desktop, from the NAS.** The laptop's copy
+is a fourth backup, kept because a fourth backup is worth having, and nothing edits it.
 
-The divergence begins at home, when Lightroom imports from the laptop copy and editing
-starts: from then on its sidecars are Lightroom's, its state is *expected* to drift from
-the archives', and `verify` treats sidecar drift as normal on a `working` destination
-while it should not exist at all on an `archive` one.
+The correction is worth recording rather than quietly deleting, because the wrong version
+had reached six other decisions and each was reasoning from it:
+
+- **Nothing this tool writes is ever edited**, so no copy is *expected* to drift. All
+  four stay byte-identical, forever, and `verify` may hold every one of them to that
+  standard (decision 20). The tolerance for sidecar drift on one destination is gone,
+  and it was the most dangerous consequence of the error — a verification tool with a
+  blind spot it cannot justify.
+- **`--force-xmp` had no honest reason to scope itself by role** (decision 16).
+- **Eject is about removable versus internal, not archive versus working** (decision 22).
+- **`sync`'s copy source is the laptop because it is the copy that is always attached**,
+  not because it is authoritative (decision 20).
+- **`_runs` lives on the laptop for the same reason** (decision 14).
+- **The manifest's raws-only rule keeps one of its two supports** (decision 12).
+
+The general lesson, since it will recur: **a fact about the operator's habits was
+inferred from the shape of the rig rather than asked about.** Four copies with one on the
+machine that has Lightroom installed *looks* like a working copy and three archives, and
+the design reasoned from that resemblance for its entire life. `CONOPS.md` exists to
+carry exactly these facts; when a decision rests on one, it belongs there first.
 
 ### 12. The manifest covers raw files only
 
 Raws and sidecars have opposite natures. A raw file is immutable — hash it once, and any
-later deviation is corruption. A sidecar is *supposed* to change: Lightroom rewrites it
-the moment develop settings are touched, and a re-run of phase 5 against a better track
-would rewrite it too.
+later deviation is corruption. A sidecar is *supposed* to change: **a re-run of phase 5
+against a better track rewrites it**, which is a normal and desirable thing to do.
 
-If `verify` hashed both the same way, it would report the archives as damaged the first
-time a photo was edited, and its output would become something to ignore — which
-quietly destroys the only thing the tool exists to provide. **A verification tool whose
-warnings you learn to ignore is worse than one that checks less and means it.** So
+If `verify` hashed both the same way, re-tagging a day from a corrected GPX track would
+make every copy report as damaged, and its output would become something to ignore —
+which quietly destroys the only thing the tool exists to provide. **A verification tool
+whose warnings you learn to ignore is worse than one that checks less and means it.** So
 sidecars are treated as regenerable derived data and are not covered.
+
+> **One of this rule's two supports was removed on 2026-08-03** and it stands on the
+> other. The stronger-sounding half used to be "Lightroom rewrites a sidecar the moment
+> develop settings are touched" — but decision 11's correction establishes that Lightroom
+> never opens anything this tool writes, so that half was never true here. Re-tagging is
+> the real case, it is entirely sufficient, and the conclusion does not move.
 
 Two artifacts, split by their durability requirements:
 
@@ -612,7 +656,7 @@ has to rewrite a manifest spanning years.
 few hundred kilobytes rot in the safe over five years, `verify` would otherwise report
 damage on photos that are perfectly intact — and a false alarm on irreplaceable data is
 its own kind of failure. A self-hash lets verify distinguish *your photos are damaged*
-from *this manifest is damaged, your photos are probably fine*. The three archives each
+from *this manifest is damaged, your photos are probably fine*. All four copies each
 carry their own manifest of the same day, so they also cross-check against each other —
 which is why decision 28 pins the fields that cross-check rests on, and why `schema`
 sits at the top of the record rather than being implied by what a reader happens to find.
@@ -789,14 +833,15 @@ destination's own rolling average is the natural extension.
 `_runs\<timestamp>\report.json` carries the full forensic record: per-file outcomes,
 per-phase timings, per-destination throughput, and the resolved hardware identities.
 
-**`_runs` lives on the laptop working copy alone** — settled 2026-08-03, having been
+**`_runs` lives on the laptop's copy alone** — settled 2026-08-03, having been
 written as a bare relative path in two places without ever saying under which root.
 Decision 20 is what decides it: `verify` reads nothing but a destination's marker and its
 manifests, so `_runs` is by construction not part of what makes an archive
 self-describing, and putting it on the archives would add non-photograph directories to
 disks whose whole promise is that they hold photographs and their proof. The laptop is
 also the one destination that is never absent — `--without` names archives (decision 25),
-never the working copy — so resume has exactly one place to look for the run log rather
+never the machine's own disk — so resume has exactly one place to look for the run log
+rather
 than a quorum to reconcile. The quarantine of decision 3 goes to the same root: one copy
 of the evidence, on the machine that will still be there when someone asks about it.
 
@@ -889,9 +934,19 @@ Two consequences of scoping it that way:
   asserts, never skips it. Pre-flight exists to fail while you are still at the desk.
 
 Sidecars on the archives are only ever written by this tool, so forcing them is harmless.
-Sidecars on the laptop are written by Lightroom and hold develop settings that exist
-nowhere else. So `--force-xmp` covers archive destinations, and touching the working
-copy requires naming it: `--force-xmp=laptop`.
+**`--force-xmp` covers every destination, and the `=<DEST>` form narrows it to one.**
+
+> **Reversed 2026-08-03 with decision 11.** This read: *"Sidecars on the laptop are
+> written by Lightroom and hold develop settings that exist nowhere else. So
+> `--force-xmp` covers archive destinations, and touching the working copy requires
+> naming it."* Nothing writes develop settings to any copy this tool produces, so the
+> asymmetry was protecting something that does not exist — and it protected it in the
+> wrong direction, since re-tagging a day *should* reach all four copies or they stop
+> matching. Defaulting to three of four would have quietly manufactured the drift
+> decision 20 now reports.
+>
+> The `=<DEST>` form keeps its purpose, which was never about roles: overwriting one
+> copy's sidecars when you want to check a re-tag before committing it everywhere.
 
 ### 17. Rust, with RawGeotag's engine as a workspace library
 
@@ -1030,9 +1085,9 @@ Both take a destination *path* rather than a config label. For `verify` the reas
 absolute: an archive pulled from the safe has to be checkable on a machine that has
 never seen this tool's configuration, and it is — `verify` reads nothing but the
 destination itself, its marker and its manifests. `sync` does not share that property
-and should not pretend to: it needs a copy source (the laptop working copy) and GPX
-tracks for regeneration, and it takes both from the config — fine, because backfilling
-a disk that missed an offload happens on the machine that ran the offload.
+and should not pretend to: it needs a copy source — any surviving copy — and GPX tracks
+for regeneration, and it takes both from the config — fine, because backfilling a disk
+that missed an offload happens on the machine that ran the offload.
 
 **`photoday verify <DEST>`** reads the destination marker to name what it is checking —
 at whatever schema that disk was written with, which every later build still understands
@@ -1041,14 +1096,25 @@ then walks every date folder, `_unfiled` included (decision 21): manifest checks
 so a rotted manifest is reported as a rotted manifest rather than as damaged
 photographs; then every raw re-hashed unbuffered
 against it. Tombstones are honoured, so a file deliberately deleted in phase 4 reports clean
-rather than missing. XMP drift is ignored on a `working` destination and should not exist on
-an `archive` one.
+rather than missing.
+
+**Sidecar drift should not exist on any destination**, and after decision 11's correction
+`verify` says so about all four rather than excusing one. Nothing edits these copies, so
+a sidecar that differs between them means either a phase 5 re-run that did not reach every
+copy — backfillable, and worth knowing about — or corruption. Neither is something to
+pass over silently.
 
 **`photoday sync <DEST>`** backfills a destination that missed an offload — the SSD that
 sat in a drawer while a `--without` run went on without it (decision 25). It copies from
-the laptop's working copy, since the cards are long since reformatted, and verifies what
-it writes exactly as phase 3 does. **It never deletes**, so it cannot be used to make a
+another destination, since the cards are long since reformatted, and verifies what it
+writes exactly as phase 3 does. **It never deletes**, so it cannot be used to make a
 destination match by removing files from it.
+
+**Any present copy can be the source, and the laptop is merely the convenient default**
+— it is the one destination that is always attached. No copy is authoritative over the
+others (decision 11), which is what makes this safe: if the laptop's own copy of a file
+fails its manifest, sync sources that file from a destination whose copy passes rather
+than having nowhere to turn.
 
 **Sync leaves behind the same manifests a run would have.** Every date folder it touches
 gets its manifest written or updated by the same atomic mechanism (decision 12): sync
@@ -1058,10 +1124,10 @@ verdict — unchanged from the laptop's manifest, tombstones included, so a deli
 deleted file stays explained even on a disk that never held it. This is not optional
 bookkeeping: `verify` reads nothing but the disk, so a disk sync built must be as
 self-describing as one the nightly run built — and carrying the photo-facts unchanged is
-what keeps the three archives' manifests cross-checking after one of them is rebuilt.
-The laptop's manifest also supplies the canonical hash sync verifies against, which cuts
-both ways: a laptop file whose in-flight hash no longer matches its own manifest is
-working-copy rot, and sync refuses to propagate it — the file is named, skipped, and
+what keeps the four copies' manifests cross-checking after one of them is rebuilt.
+The source's manifest also supplies the canonical hash sync verifies against, which cuts
+both ways: a source file whose in-flight hash no longer matches its own manifest is
+rot in the source copy, and sync refuses to propagate it — the file is named, skipped, and
 left for recovery from an archive rather than written over a good copy's future.
 
 **`_unfiled` is inside sync's walk like any date folder** (decision 21): its raws are
@@ -1076,19 +1142,26 @@ the GPX tracks, exactly as phase 5 does — it never copies a sidecar, and it wr
 only where none exists. Sync does not accept `--force-xmp`: decision 16's invariant has
 one door, and it is on the nightly command.
 
-Both halves of that rule were settled at design review, and each blocks its own
-data-loss path. *Regenerate rather than copy*: during a trip the laptop's sidecars are
-all tool-written and copying them would be harmless (decision 11), but at home they are
-Lightroom's, carrying develop settings that must not leak onto an archive. *Write only
-where none exists*: pointed at the laptop copy at home, a regenerate-all sync would
-overwrite those same settings — the one data loss this tool could cause outside the
-deletion path. Together they are correct in both regimes without anyone having to
-remember which one they are in.
+> **Both halves were settled at design review to block two data-loss paths that decision
+> 11's correction has since closed on their own.** The reasoning was: *regenerate rather
+> than copy*, because at home the laptop's sidecars are Lightroom's and carry develop
+> settings that must not leak onto an archive; and *write only where none exists*,
+> because a regenerate-all sync pointed at the laptop would overwrite those settings.
+> **No copy this tool writes is ever edited**, so there are no develop settings anywhere
+> to leak or overwrite.
+>
+> **Both halves stay anyway, and now rest on a plainer reason: a sidecar is derived
+> data, and the tool that can derive it should.** Copying a sidecar propagates whatever
+> it happens to be; regenerating it from the manifest's capture time and the tracks
+> produces the same answer everywhere, which is what keeps four copies matching. And
+> writing only where none exists keeps decision 16's invariant intact — one door through
+> it, on the nightly command. The conclusion does not move; only the argument for it
+> got simpler and truer.
 
 Regeneration also completes phase 5 recovery: sidecars missing on any destination, for
 any reason — a crash, a `--no-gpx` night (decision 26) — are rebuilt by sync with no
-dedicated machinery. Pointed at the laptop copy for that purpose, sync's copy step
-simply finds nothing to do and regeneration is all that runs.
+dedicated machinery. Pointed at a destination for that purpose, sync's copy step simply
+finds nothing to do and regeneration is all that runs.
 
 ### 21. A file whose EXIF cannot be read lands in `_unfiled`, not on the floor
 
@@ -1136,11 +1209,12 @@ structurally dead: writes were write-through and every byte was read back off th
 (decision 2), so ejection *confirms* persistence rather than providing it.
 
 When the full run completes — not at LANDED, since phases 4 and 5 still write to the
-archives — each `archive` destination is ejected: flush the volume, lock it
+archives — each destination resolved by disk serial is ejected: flush the volume, lock it
 (`FSCTL_LOCK_VOLUME`, retried with backoff for ~30 s, since Defender or the indexer may
 be holding freshly written files), dismount, then `CM_Request_Device_Eject` so Windows
-powers the device down exactly as the tray icon would. The `working` destination is
-internal and never touched. The card readers need nothing: the tool never writes to a
+powers the device down exactly as the tray icon would. The destination that is a path on
+this machine's own disk has nothing to eject and is never touched — that is the whole of
+the distinction, and it is physical rather than a role (decision 11). The card readers need nothing: the tool never writes to a
 card, so pulling one is safe at any time after the run.
 
 A refused eject — something else holds the volume — is named per device and downgrades
@@ -1258,7 +1332,8 @@ Under the flag, every "all four destinations" in this design reads as "every
 destination this run was asked to cover." LANDED and the eject gate are scoped the same
 way; the verdict carries the scar (decision 14) and the exit code is 2 (decision 18).
 
-The `working` destination cannot be excluded: it is internal, so it cannot be missing —
+The destination on this machine's own disk cannot be excluded: it is not a device that
+can be left behind, so it cannot be missing —
 and it is `sync`'s copy source, the thing that makes exclusion recoverable at all.
 
 Recovery is `sync`, never the next run. The next offload ingests from cards that by
@@ -1401,7 +1476,7 @@ load-bearing for verification is. That is the same compatible-versus-breaking li
 `UPDATING.md` already draws around semver, applied to this project's own artifact.
 
 **The photo facts are a stable core that no bump may redefine.** Decision 12 has the
-three archives cross-checking each other's manifests, and decision 20 lets `sync`
+four copies cross-checking each other's manifests, and decision 20 lets `sync`
 rewrite one disk's manifest years after its siblings were written — so a cross-check
 will eventually span two schema versions, and it can only work if the fields it rests on
 still mean what they meant: `name`, `status`, `sha256`, `bytes`, `captured_utc`. A bump
@@ -1627,7 +1702,7 @@ new evidence rather than fresh taste.
 | A `_NNN` suffix assigned per offload batch, coordinated across destinations | Superseded by decision 5. Timestamp-prefixed names are a pure function of the photo, so no coordination is needed and collisions are pathological |
 | A timestamp prefix replacing the camera's name *entirely* | Still rejected: the sequence number is what breaks ties inside a minute, so discarding it would cost the shooting order this scheme exists to restore. Decision 5 |
 | Keeping the camera's whole basename after the prefix | **Reversed 2026-08-03**, having been decision 5's original reading. It carried the body prefix — three characters identical on every frame a one-body fleet has ever shot — into every filename in the archive, permanently. Only the sequence number survives now. This is a correction rather than taste because `CONOPS.md`'s shooting-day contract is what makes the prefix provably non-distinguishing |
-| A content heuristic for `--force-xmp` (refuse when the XMP carries `crs:` properties) | A destructive flag that sometimes declines is worse than one that is honest. Decision 16's role scoping is explicit targeting, not a guess at intent |
+| A content heuristic for `--force-xmp` (refuse when the XMP carries `crs:` properties) | A destructive flag that sometimes declines is worse than one that is honest. `--force-xmp=<DEST>` is explicit targeting, not a guess at intent |
 | A flag to overwrite raw files, or to bypass pre-flight | No case where either is correct; better as structural impossibilities. Decision 16 |
 | Per-device queue depth and overlapped I/O | One buffer-fed blocking writer idles ~1 ms per 45 MB write. Not worth the machinery on speculation — revisit if measurement shows a device going idle. Decision 15 |
 | Scaling `--jobs` to the I/O fan-out | Threads do not create bandwidth. Decision 15 |
