@@ -194,6 +194,37 @@ pairs verified.
 > The lesson generalises past this rig: **"every stream is well under 10 Gbps" does not
 > mean the streams are independent.** What matters is which of them share a controller,
 > and on a Thunderbolt hub that is not visible from the port labels.
+>
+> **Confirmed 2026-08-04 by moving the CFexpress to a Thunderbolt reader**, which is the
+> experiment the paragraph above predicted. A ProGrade CFexpress reader enumerates the
+> card as **NVMe** rather than USB — PCIe tunnelled, not bridged — and taking that one
+> stream off the shared controller did exactly what the arithmetic said it would:
+>
+> | Device | Link | CF on USB | CF on Thunderbolt |
+> |---|---|---|---|
+> | SD reader | USB | 61 MB/s | 65 |
+> | CFexpress | USB → **TB** | 291 | **1,112** |
+> | SanDisk | USB | 290 | **417** |
+> | WD | USB | 289 | **417** |
+> | OWC | TB | 2,109 | 1,333 |
+>
+> The USB controller still tops out in the same place — 899 MB/s across three devices
+> against 931 across four — so each archive SSD gained 44%, from 290 to 417 MB/s. The
+> prediction was 465; subtracting the SD reader's 65 that the model had ignored gives
+> 432, about 4% out.
+>
+> **Two findings worth carrying past this rig.** Contention *moved* rather than vanished:
+> the OWC halved because it now shares the Thunderbolt fabric with the card reader — but
+> that is contention at 1,333 MB/s rather than 290, which is a different class of
+> problem. And **the reader was capping the card, not the card the reader**: the same
+> card read 507–581 MB/s through a USB bridge and 1,289 through Thunderbolt, against a
+> 1,700 MB/s rating.
+>
+> The card also reports a **real hardware serial** through the Thunderbolt reader
+> (`K03ABCXA9TC0627`) where the USB bridge invented `0123456789ABCDEF`. Decision 7's
+> "cheap readers report generic serials" is therefore a fact about *readers*, not about
+> cards — it does not change the decision, since a card's volume serial still changes at
+> every format, but the reasoning should not be read as universal.
 
 ### Phase 3 in detail
 
