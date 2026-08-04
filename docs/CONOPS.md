@@ -140,6 +140,20 @@ the deal:
   records its timezone offset, and both slots receive every shot. A new or replacement
   body is a **design event**, not a config change — its EXIF and dual-slot behavior get
   verified at home before any trip trusts it ([`DESIGN.md`](DESIGN.md) decision 23).
+
+  **One body is deliberate and expected to stay that way.** It became true in 2024, when a
+  robbery at the start of a trip took the D3300 — no photographs were lost — and the rented
+  R5 was replaced with an owned one. The plan is to *replace* rather than add: a future
+  Canon R body would be bought and the R5 sold, so the fleet stays at one.
+
+  **Two card slots is a purchase criterion, not merely something to verify afterwards.**
+  This is the part worth knowing before money is spent: "another Canon R body" does not
+  imply compatibility. The R5 and R3 carry CFexpress + SD, the R6 line carries dual SD —
+  and the R8 and RP have **a single slot**. A one-slot body would not fail the pre-trip
+  check so much as invalidate the design: decisions 4, 7 and 27 all rest on two
+  authoritative copies of every frame, corroboration would have nothing to compare, and
+  every night would run under `--allow-single-source` with the verdict permanently scarred.
+  **Check the slot count before the shortlist, not after the purchase.**
 - **Only CR3 raw stills are ever shot.** The camera can produce JPG, HEIF and video;
   none of it is used, and this project's scope is exactly what is shot — the raw
   stills. A non-CR3 file on a card is a contract violation: the tool does not back it
