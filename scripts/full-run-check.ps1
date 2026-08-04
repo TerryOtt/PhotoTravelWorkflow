@@ -124,19 +124,29 @@ Report 'cards found' ($cards.Count -eq 2) "$($cards.Count) volume(s) with DCIM"
 foreach ($card in $cards) {
     $partition = Get-Partition -DriveLetter $card.DriveLetter
     $disk = $disks | Where-Object Number -eq $partition.DiskNumber
-    $pnp = Get-PnpDevice -PresentOnly -Class DiskDrive |
-        Where-Object { $_.FriendlyName -eq $disk.FriendlyName }
-    $chain = if ($pnp) { Get-ParentChain -InstanceId $pnp[0].InstanceId } else { @() }
+
+    # The PnP instance comes from the disk *index*, never from its name. Get-Disk and
+    # Get-PnpDevice report different FriendlyNames for the same device — "SANDISK SDDR-409"
+    # against "SANDISK SDDR-409 USB Device" — so matching on name silently returns nothing,
+    # the parent chain comes back empty, and every card then falls into the "no USB in the
+    # chain, must be PCIe" branch. That is how the USB 2.0 check below became a row that
+    # could never fail, which is worse than not having it.
+    $pnpId = (Get-CimInstance Win32_DiskDrive -Filter "Index=$($disk.Number)").PNPDeviceID
+    $chain = if ($pnpId) { Get-ParentChain -InstanceId $pnpId } else { @() }
 
     # USB 2.0 is the silent 5.8x tax: the card mounts, every file reads, nothing errors.
     # A SuperSpeed device sits behind "Generic SuperSpeed USB Hub"; a USB 2.0 one behind
     # plain "Generic USB Hub". PCIe-tunnelled readers have no USB parent at all.
-    $onUsb = $chain -match 'USB'
-    $slowHub = ($chain | Where-Object { $_ -eq 'Generic USB Hub' }).Count -gt 0
-    $ok = (-not $onUsb) -or (-not $slowHub)
-    $link = if (-not $onUsb) { "$($disk.BusType) — PCIe tunnelled" }
-            elseif ($slowHub) { 'USB 2.0 — MOVE THE CABLE' }
-            else { 'USB SuperSpeed' }
+    # An empty chain means the lookup failed, not that the device is PCIe — say so rather
+    # than reporting a link generation nothing was read from.
+    $onUsb   = @($chain | Where-Object { $_ -match 'USB' }).Count -gt 0
+    $slowHub = @($chain | Where-Object { $_ -eq 'Generic USB Hub' }).Count -gt 0
+
+    $ok = ($chain.Count -gt 0) -and (-not $slowHub)
+    $link = if ($chain.Count -eq 0) { 'link UNKNOWN — parent chain unreadable' }
+            elseif ($slowHub)       { 'USB 2.0 — MOVE THE CABLE' }
+            elseif ($onUsb)         { 'USB SuperSpeed' }
+            else                    { "$($disk.BusType) — PCIe tunnelled" }
 
     Report "card $($card.DriveLetter):" $ok "$link · $($disk.FriendlyName)"
 }
