@@ -19,7 +19,7 @@ use geotag::raw::{Capture, MediaParser, capture_time};
 use geotag::track::GapLimits;
 use photoday::pipeline::Destination;
 use photoday::runlog::RunLog;
-use photoday::{config, destinations, marker, naming, pipeline, power, preflight, verify};
+use photoday::{config, destinations, marker, naming, phase5, pipeline, power, preflight, verify};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -213,6 +213,12 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     }
 
     landed(&outcome, elapsed, &runs_root);
+
+    // Phase 5 runs after LANDED and may take as long as it likes — decision 14 lets only
+    // phase 3 change the verdict, so a geotag miss is a count in the body and never a
+    // downgrade at the top.
+    let geotag = geotag_phase(&plan, &targets, &outcome, args)?;
+    report_geotag(geotag.as_ref());
 
     Ok(if outcome.landed() && outcome.unfiled.is_empty() {
         ExitCode::SUCCESS
@@ -580,4 +586,68 @@ fn verify_destination(root: &Path) -> Result<ExitCode> {
     } else {
         ExitCode::from(2)
     })
+}
+
+/// Phase 5, or `None` when the night was declared trackless (decision 26).
+fn geotag_phase(
+    plan: &preflight::Preflight,
+    targets: &[Destination],
+    outcome: &pipeline::Outcome,
+    args: &Offload,
+) -> Result<Option<phase5::Report>> {
+    if args.no_gpx || plan.rig.tracks.is_empty() {
+        return Ok(None);
+    }
+
+    let limits = GapLimits {
+        max_gap: chrono::TimeDelta::seconds(args.max_gap_seconds),
+        max_meters: args.max_gap_meters,
+    };
+
+    phase5::run(
+        &outcome.landed,
+        targets,
+        &plan.rig.tracks,
+        limits,
+        args.force_xmp.is_some(),
+    )
+    .map(Some)
+}
+
+fn report_geotag(report: Option<&phase5::Report>) {
+    let Some(report) = report else {
+        println!();
+        println!("  Geotag   not run — no tracks (--no-gpx)");
+        return;
+    };
+
+    println!();
+    print!(
+        "  Geotag   {} tagged · {} outside track",
+        count(report.tagged),
+        count(report.outside_track)
+    );
+    if report.in_gap > 0 {
+        print!(" · {} in a gap too wide to bridge", count(report.in_gap));
+    }
+    println!();
+
+    // Decision 23: a uniform miss pattern is a clock, not a logging gap, and saying so
+    // in words is the difference between finding out tonight and finding out on
+    // Lightroom's map three weeks later.
+    if let Some(offset) = report.systematic_offset() {
+        let minutes = offset.num_minutes();
+        println!(
+            "  !  misses look systematic (~{}{}:{:02}) — check the camera clock",
+            if minutes < 0 { "-" } else { "+" },
+            (minutes / 60).abs(),
+            (minutes % 60).abs()
+        );
+    }
+
+    println!(
+        "           {} sidecars written · {} left alone (already tagged)",
+        count(report.written),
+        count(report.skipped)
+    );
 }

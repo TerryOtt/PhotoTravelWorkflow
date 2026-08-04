@@ -16,6 +16,7 @@ pub mod hash;
 pub mod manifest;
 pub mod marker;
 pub mod naming;
+pub mod phase5;
 pub mod pipeline;
 pub mod power;
 pub mod preflight;

@@ -79,6 +79,9 @@ pub struct Outcome {
     /// Files that landed in `_unfiled` because their capture time was unreadable
     /// (decisions 21, 23).
     pub unfiled: Vec<String>,
+    /// Every frame that *has* a capture time, carried forward so phase 5 correlates
+    /// against the GPX without reopening a single raw file (decision 10).
+    pub landed: Vec<crate::phase5::Landed>,
     pub destinations: Vec<DestinationOutcome>,
 }
 
@@ -176,6 +179,7 @@ fn feed(sources: &[PathBuf], senders: &[SyncSender<Arc<Photo>>], run_id: &str) -
         files: 0,
         bytes: 0,
         unfiled: Vec::new(),
+        landed: Vec::new(),
         destinations: Vec::new(),
     };
 
@@ -194,7 +198,14 @@ fn feed(sources: &[PathBuf], senders: &[SyncSender<Arc<Photo>>], run_id: &str) -
         let captured = capture_instant(&mut parser, &bytes);
 
         let relative = match captured {
-            Some(at) => destination_path(at, &name),
+            Some(at) => {
+                let relative = destination_path(at, &name);
+                outcome.landed.push(crate::phase5::Landed {
+                    relative: relative.clone(),
+                    captured: at,
+                });
+                relative
+            }
             // Decision 21: a defective file is kept, not dropped. It is still hashed,
             // still written everywhere, still verified — only its placement is
             // unknowable, and `_unfiled` is where the unnameable go.
