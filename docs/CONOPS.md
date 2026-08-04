@@ -50,11 +50,17 @@ archive SSDs there, each managed 360 MB/s during the verify pass. Given a port o
 the laptop, each holds its full rate: **720 MB/s between them becomes 1,914, and the verify
 pass falls from roughly eight minutes to under four.**
 
-**It is free because the drives are already in your hands.** All three come out of the safe
-every night and go back in afterwards, so plugging two of them into the laptop instead of the
-hub is the same number of connectors, in a different order. If that ever stops being true —
-a night where the SSDs live permanently on the dock — the arrangement is worth re-examining,
-because then it *would* be a trade.
+**It is free because the drives are already in your hands, and nothing was wired to begin
+with.** All three SSDs come out of the safe every night and go back in afterwards. More than
+that: on most trips the hotel is different every night, so the whole rig is unpacked and
+wired from nothing as part of the ritual anyway. **There is no already-connected hub to
+compare against** — plugging two drives into the laptop rather than the dock is the same
+count of connectors, seated in a different order, during a setup that was happening
+regardless.
+
+The one circumstance that would make it a trade again: a stay long enough that the rig lives
+wired on a desk between sessions. Then the marginal cost stops being zero and the arrangement
+is worth re-examining.
 
 Measured 2026-08-04. [`DESIGN.md`](DESIGN.md) has the numbers and the two hardware upgrades
 this beat.
