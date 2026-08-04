@@ -581,6 +581,14 @@ and the archive is mixed by design.
 Windows reassigns drive letters to external SSDs freely. Passing three letters that
 happen to be right today is how two "copies" silently land on one physical disk.
 
+**This is not a theoretical hazard here, and the operating context is why.** The rig is
+unpacked and wired from nothing every night, in a different hotel room, at the end of a
+shooting day — so enumeration order is genuinely fresh each time rather than settled once
+and inherited. The letters observed on 2026-08-04 alone moved from `G/I/J` to `F/I/J` across
+a hub change and two replugs, with nothing reformatted and no configuration touched. A
+design that pinned letters would not fail on some unlucky future night; it would fail most
+nights.
+
 | Identifier | Survives letter change | Survives reformat | Portable to another PC |
 |---|---|---|---|
 | Drive letter | ✗ | ✗ | ✗ |
