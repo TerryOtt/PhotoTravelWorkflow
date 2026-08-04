@@ -252,6 +252,25 @@ pairs verified. **A later run with the CFexpress moved to a Thunderbolt reader t
 > a stream from the USB tunnel helps only the write pass. Verification needs a wider
 > tunnel, or fewer USB destinations.
 >
+> ✔ **Resolved 2026-08-04: the instrument was mostly exonerated, and the numbers stand.**
+> A thread-count sweep (`examples/threads.rs`) shows the single-threaded probe understates
+> by 9–14% on fast devices — OWC 2,698→3,065, SanDisk 949→1,034 — so the figures above are
+> slight underestimates rather than wrong. The apparent anomaly was a *comparison* error:
+> two Thunderbolt devices summing to 2,445 were held against one device alone, ignoring
+> that the hub's USB traffic rides the same link. Everything together came to 3,344 MB/s
+> against 3,065 for the OWC alone, which is higher as it must be, and ≈26.8 Gbps is about
+> where a TB4 PCIe tunnel tops out.
+>
+> **Two results that change what to do next.** The SD reader gets *slower* with
+> concurrency — 67 MB/s on one thread, 51 on eight — which is the signature of a device
+> with no command queuing, so its speed cannot be improved by how it is asked and the
+> reader itself is the constraint. And **a single USB SSD alone reaches 1,034 MB/s**,
+> roughly saturating the 10 Gbps tunnel by itself: the drives are nowhere near the limit,
+> the tunnel is, which is what makes a 20 Gbps TB5 tunnel the largest remaining lever on
+> the write pass.
+>
+> *The original caveat, kept because the reasoning generalises:*
+>
 > ⚠ **These contention figures are under suspicion, and the instrument is the suspect.**
 > Two Thunderbolt devices measured 2,445 MB/s together while the OWC alone measured
 > 2,582 — two devices sharing a fabric summing to *less* than one of them, which cannot
