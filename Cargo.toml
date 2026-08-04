@@ -9,6 +9,14 @@ members = ["crates/geotag", "crates/photoday"]
 
 [workspace.package]
 version = "0.1.0"
+# The newest edition that exists — `rustc --edition` accepts 2015, 2018, 2021 and 2024,
+# and the next would be 2027. Carried over from RawGeotag, and it earns its keep here for
+# a reason that repository never had: 2024 makes `unsafe_op_in_unsafe_fn` deny-by-default,
+# so an `unsafe fn` no longer gets an implicit unsafe body. The Windows storage-identity
+# layer is nothing but unsafe FFI, and this forces each unsafe operation to be marked
+# where it happens rather than hidden under one blanket `unsafe fn` — a compile error
+# instead of a runtime surprise, at the call sites where the runtime surprise is a
+# `DeviceIoControl` buffer length against a disk bound for the safe.
 edition = "2024"
 license = "MIT"
 
