@@ -5,10 +5,7 @@
 
 [workspace]
 resolver = "3"
-# `crates/geotag` — RawGeotag's validated CR3, GPX and XMP engine — joins this list when
-# the lift lands (decision 17). Its dependencies are already declared below so the set
-# is reviewable as a whole rather than arriving piecemeal.
-members = ["crates/photoday"]
+members = ["crates/geotag", "crates/photoday"]
 
 [workspace.package]
 version = "0.1.0"
@@ -20,7 +17,10 @@ license = "MIT"
 # `0.x` entries are the ones that go stale silently.
 [workspace.dependencies]
 
-# --- The engine, awaiting the lift (decision 17) -------------------------------------
+# --- The engine (decision 17), lifted from RawGeotag into `crates/geotag` ------------
+
+geotag = { path = "crates/geotag" }
+
 
 # The only pure-Rust crate that reads Canon CR3. The far more widely used
 # `kamadak-exif` covers JPEG/TIFF/PNG/HEIF only — CR3 is a CRX-in-BMFF container,

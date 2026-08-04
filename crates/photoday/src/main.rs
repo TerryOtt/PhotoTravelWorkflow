@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Args, Parser, Subcommand};
+use geotag::track::GapLimits;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -71,12 +72,17 @@ struct Offload {
     no_gpx: bool,
 
     /// Refuse to interpolate across a longer hole.
-    #[arg(long, value_name = "S", default_value_t = 60)]
-    max_gap_seconds: u64,
+    //
+    // Both defaults come from the engine rather than being written again here, so the
+    // limit the CLI advertises and the limit `Track::lookup` enforces cannot drift
+    // apart. Decision 16 renamed these from RawGeotag's `--max-gap`/`--max-distance`;
+    // the values behind them are the same ones, and deliberately harsh.
+    #[arg(long, value_name = "S", default_value_t = GapLimits::DEFAULT_GAP_SECONDS)]
+    max_gap_seconds: i64,
 
     /// Refuse to interpolate across a wider hole.
-    #[arg(long, value_name = "M", default_value_t = 100)]
-    max_gap_meters: u64,
+    #[arg(long, value_name = "M", default_value_t = GapLimits::DEFAULT.max_meters)]
+    max_gap_meters: f64,
 
     /// Overwrite existing XMP; archives only unless a destination is named.
     //

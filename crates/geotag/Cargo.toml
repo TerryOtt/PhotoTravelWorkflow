@@ -1,0 +1,17 @@
+[package]
+name = "geotag"
+description = "Capture-time extraction, GPX indexing and XMP sidecars for camera raw files"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+gpx.workspace = true
+nom-exif.workspace = true
+rayon.workspace = true
+# Atomic sidecar writes, and the scratch directories the tests below use — a normal
+# dependency rather than a dev-dependency so it is available to both.
+tempfile.workspace = true
+time.workspace = true

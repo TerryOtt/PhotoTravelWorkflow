@@ -72,13 +72,20 @@ evidence of being current.** `UPDATING.md` names which crates here are exposed.
 - **The pre-commit hook** runs fmt, clippy and test. Wire it up once per clone:
   `git config core.hooksPath .githooks`.
 
-## RawGeotag is the predecessor, not a library — yet
+## The engine is lifted, and it is duplicated on purpose
 
-[`../RawGeotag`](../RawGeotag) is the same author's geotagging tool. Its CR3, GPX and XMP
-engine is validated against thousands of real files and is destined for `crates/geotag`
-here (decision 17); until that lift happens, `crates/geotag` does not exist and its
-dependencies sit declared-but-unused in the workspace manifest, deliberately.
+`crates/geotag` is RawGeotag's CR3, GPX and XMP engine, moved here unrewritten with its
+tests (decision 17). **Treat it as validated code, not as new code**: it is correct
+because it was checked against thousands of real frames on two bodies and diffed against
+Lightroom's own output, and a tidy-up that cannot re-run those checks is a net loss.
 
-Its `CLAUDE.md` and `docs/` carry findings this project inherited rather than re-derived —
-including the measured concurrency behavior and the Lightroom XMP verification record.
-Read them before re-litigating anything about EXIF, GPX or XMP.
+**[`../RawGeotag`](../RawGeotag) still holds its own copy of these four modules**, and
+was deliberately not modified by the lift — it builds and runs exactly as before. So a
+fix applied here does not reach it. Resolving that means changing *that* repository, and
+it is the maintainer's call.
+
+Its `CLAUDE.md` and `docs/` carry findings this project inherited rather than re-derived,
+and several comments in `crates/geotag` cite them by name — the NEF read-strategy
+measurements, the CR3 timezone trap, the gap rule, and `docs/LIGHTROOM-XMP.md`, whose
+procedure drives `rawgeotag.exe` and so cannot move here until phase 5 can run it. Read
+them before re-litigating anything about EXIF, GPX or XMP.

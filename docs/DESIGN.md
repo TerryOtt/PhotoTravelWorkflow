@@ -1455,17 +1455,34 @@ individually. Two more need no crate because the standard library already answer
 `OpenOptionsExt::custom_flags` sets both the write-through and unbuffered flags, and
 `available_parallelism` supplies `--jobs`'s default.
 
-**The workspace is two members, and only one of them exists yet.**
+**The workspace is two members.**
 
 ```
 Cargo.toml            [workspace] — the whole dependency set, declared once
+crates/geotag/        the CR3, GPX and XMP engine, lifted from RawGeotag (decision 17)
 crates/photoday/      the binary: CLI, five phases, the Windows storage layer
-crates/geotag/        RawGeotag's CR3, GPX and XMP engine (decision 17) — not yet lifted
 ```
 
-Declaring the engine's dependencies before the engine arrives is deliberate: the set is
-reviewable as one decision rather than in two instalments. A member's own manifest lists
-only what its code imports today, so a manifest never claims a dependency nothing uses.
+A member's own manifest lists only what its code imports today, so a manifest never
+claims a dependency nothing uses.
+
+**The lift moved the engine unrewritten, which was the point.** Decision 17 accepts
+these three sub-problems as solved on the strength of their validation, so a lift that
+took the opportunity to tidy them would have spent exactly what it was trying to save;
+the 67 unit tests came across with the code and the two changes made were the minimum
+`photoday` could not do without. `raw::capture_time_in_memory` is one — decision 10 has
+every file in RAM already, and re-reading it from the card to find its capture time
+would be the waste that decision exists to avoid. `xmp::render` taking the writing
+tool's identity is the other: two tools emit these packets now, and a sidecar whose
+`x:xmptk` names the wrong one is a small lie in a file whose whole job is provenance.
+
+The in-memory path was checked against real frames rather than argued about, since no
+committed test can reach its success path without a fixture: it agrees with the
+path-based function on a `+01:00` CR3, a `+00:00` CR3, and a NEF with no offset at all.
+That last one matters more than it looks — it is why `capture_time_in_memory` still
+consults `read_strategy` instead of assuming that bytes in memory make the distinction
+moot. The strategy records which *parser path* a format survives, not how much of the
+file to read, and NEF parses through only one of them.
 
 **The lift has one coupling worth writing down before it happens.**
 [`UPDATING.md`](UPDATING.md) sends the reader to RawGeotag's `docs/LIGHTROOM-XMP.md`
@@ -1474,6 +1491,35 @@ lives. Moving the engine here without moving that document would leave the point
 aiming at the verification record of code that no longer lives beside it — a
 one-canonical-place violation ([`WRITING.md`](WRITING.md) rule 2) that would surface at
 the worst moment, which is the pre-trip check.
+
+> **Corrected while doing the lift (2026-08-03), in both directions.**
+>
+> **The `thiserror` count above is one, not two.** The capture-time site named in the
+> second bullet does not exist: `raw::Capture` is *already* an enum of outcomes —
+> `Resolved`, `NeedsOffset`, `NoCaptureTime` — so the distinction decision 21 needs was
+> solved in RawGeotag before this design asked for it. The in-memory entry point closes
+> the gap the rest of the way: with the bytes already in RAM there is no I/O failure
+> left to tell apart from a defective file, so *every* non-`Resolved` outcome routes to
+> `_unfiled` and nothing has to branch on an error type. `thiserror` is therefore
+> earned by the manifest schema reader (decision 28) alone, and it stays declared but
+> unused until that lands. The general lesson is worth more than the correction: a
+> design that reasons about code it has not read will invent error types the code
+> already made unnecessary.
+>
+> **And the document cannot move ahead of the binary.** `LIGHTROOM-XMP.md` was copied
+> here and then removed, because its procedure is not prose about the engine — it
+> *drives* `rawgeotag.exe`, staging real frames through it and diffing the sidecars
+> against Lightroom's. `photoday` cannot write a sidecar yet, so the document's first
+> instruction would be unrunnable in the repository holding it, which is precisely the
+> failure [`WRITING.md`](WRITING.md) opens with. The pointer in `UPDATING.md` stays
+> aimed at RawGeotag, and the move happens when phase 5 can execute the procedure.
+>
+> **So the lift leaves a deliberate duplication, and it is not resolvable from here.**
+> RawGeotag was not modified: it keeps its own copy of these four modules and still
+> builds and runs exactly as before. Until it takes a path dependency on `geotag` or is
+> retired, the engine exists twice and a fix applied to one copy does not reach the
+> other. That is a change in *another repository*, and it is the maintainer's call
+> rather than something this decision may assume.
 
 ## Considered and rejected
 
@@ -1536,9 +1582,10 @@ None outstanding — the design is complete enough to build from.
 What remains is implementation. The cargo workspace and the dependency set landed with
 decision 29, along with the CLI surface of decision 8 and `examples/hash-rate.rs`; the
 `Cargo.toml` guard is out of `.github/workflows/ci.yml`, so the three checks now run for
-real. Still to build:
+real. The engine is lifted: `crates/geotag` holds capture time, GPX indexing and XMP
+rendering, with the tests that validate them. Still to build:
 
-- lifting RawGeotag's CR3, GPX and XMP engine into `crates/geotag` — with its
-  `LIGHTROOM-XMP.md` verification record, per decision 29's coupling note
 - the phase 3 pipeline and the Windows storage-identity layer
 - everything behind the CLI, which currently parses your command and exits 1
+- resolving the duplicated engine, which needs a change in RawGeotag's repository — see
+  decision 29's correction note

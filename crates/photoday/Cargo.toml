@@ -10,6 +10,7 @@ license.workspace = true
 # lands — a manifest full of dependencies nothing imports is not a plan, it is noise.
 [dependencies]
 clap.workspace = true
+geotag.workspace = true
 sha2.workspace = true
 
 [dev-dependencies]
