@@ -86,7 +86,13 @@ foreach ($dest in $config.destinations) {
         continue
     }
 
-    $disk = $disks | Where-Object SerialNumber -eq $dest.disk_serial
+    # Trailing whitespace only. USB bridges pad the serial to a fixed-width SCSI field —
+    # the SanDisk reports "2138FB400347    " where the config holds "2138FB400347" — so an
+    # exact comparison misses every USB destination while Thunderbolt ones pass, which reads
+    # exactly like two unplugged drives. Trimming further would be wrong: decision 6 keeps
+    # serials verbatim because the OWC's really does end in a period, and stripping
+    # punctuation is how two devices become one string.
+    $disk = $disks | Where-Object { $_.SerialNumber -and $_.SerialNumber.Trim() -eq $dest.disk_serial.Trim() }
     if (-not $disk) {
         # A Thunderbolt enclosure that falls back to its USB bridge reports the *bridge's*
         # serial instead of the NVMe's, so a missing serial is very often a downgraded
@@ -103,8 +109,16 @@ foreach ($dest in $config.destinations) {
 
 # Four copies on fewer than four physical disks is the failure this assertion exists for.
 $destDiskCount = ($config.destinations | ForEach-Object {
-    if ($_.path) { (Get-Partition -DriveLetter (Split-Path $_.path -Qualifier).TrimEnd(':')).DiskNumber }
-    else { ($disks | Where-Object SerialNumber -eq $_.disk_serial).Number }
+    $dest = $_
+    if ($dest.path) {
+        (Get-Partition -DriveLetter (Split-Path $dest.path -Qualifier).TrimEnd(':')).DiskNumber
+    }
+    else {
+        # Bound outside the filter on purpose: inside a Where-Object block `$_` is the disk,
+        # so `$_.disk_serial` would be silently null and every destination would match nothing.
+        $wanted = $dest.disk_serial.Trim()
+        ($disks | Where-Object { $_.SerialNumber -and $_.SerialNumber.Trim() -eq $wanted }).Number
+    }
 } | Where-Object { $null -ne $_ } | Sort-Object -Unique).Count
 
 Report 'destinations distinct' ($destDiskCount -eq $config.destinations.Count) `
