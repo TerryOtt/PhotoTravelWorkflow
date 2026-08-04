@@ -953,6 +953,33 @@ learn to read past (decision 12). Where the list stays unreadable, the real chec
 one the report already prints: the per-destination sustained rates (decision 14), where
 a Defender tax shows as every destination running far below its known ability.
 
+> **Confirmed on the rig, 2026-08-04: the unreadable outcome is not hypothetical.**
+> `Get-MpPreference` from an unelevated session returns
+> *"N/A: Must be an administrator to view exclusions"* for all three exclusion lists, on a
+> machine whose owner is a full administrator. Real-time protection was on and `WSearch`
+> was running. The three-outcome design is therefore load-bearing rather than defensive.
+
+**When the exclusions are set, they should be by extension and process — not by path.**
+Recorded 2026-08-04 as future work; the operator's decision on the trade is below.
+
+| Exclusion | Why it suits this rig |
+|---|---|
+| **Extension** — `CR3`, `xmp` | Covers essentially every byte the archive holds, on any drive, at any letter, forever. Nothing to maintain |
+| **Process** — `photoday.exe` | Letter-independent, and scoped to the one binary that writes these files |
+| ~~Path~~ | The archive roots move: decision 6 exists precisely because Windows reassigns letters to these drives, and it observed `G/I/J` become `F/I/J` in one evening |
+
+**Pinning drive letters to make path exclusions viable is rejected.** It would reintroduce
+the exact dependency decision 6 removed, and it buys nothing — the tool resolves
+destinations by serial and never needs a stable letter. If stable paths are ever genuinely
+wanted, NTFS **mount points** into fixed folders are the supported mechanism, not
+`HKLM\SYSTEM\MountedDevices`.
+
+**The operator has settled the security trade explicitly: he is not worried about malware on
+travel photo SSDs.** So a broad extension exclusion is acceptable here in a way it would not
+be on a general-purpose machine, and this design need not hedge it. Note the split that keeps
+binding constraint 4 intact: **setting exclusions is a one-time administrative act by the
+operator; pre-flight only ever checks and warns.** Nothing in a run comes to need elevation.
+
 Because the cards are formatted at the start of every session, enumeration is exact and
 cheap — the card *is* the session — so pre-flight can print a real estimate:
 
@@ -2407,7 +2434,15 @@ has been shown to catch a single flipped bit in 201 GB and name the file.
 - **`sync`** (decision 20), the recovery path `--without` implies
 - **log-driven resume** (decision 13). Convergence already works, via decision 5's
   skip-on-identical-hash, but it re-reads what the run log could have told it
-- **the Defender exclusion check** (decision 9)
+- **the Defender exclusion check** (decision 9), and setting the exclusions themselves —
+  by extension and process rather than path, for the reasons decision 9 now records
+- **naming whoever actually holds a vetoed volume.** Every claim that Defender or the
+  indexer is responsible is inference: the veto names the *volume device object*, never a
+  process, and the suspect has never been identified. `handle.exe -a -v <volume>` and
+  `fltmc instances -v <volume>`, elevated, at the moment of a stuck eject would settle it.
+  **Decision 22's retry made this possible** — it holds the failure open for up to an hour,
+  where previously the moment passed before anyone could look. Do this before concluding
+  anything about Defender
 - **the card degradation check** (decision 32) — record pre-flight's existing speed
   measurement per card, warn when a card falls off its own history. Record first; the
   threshold is set from accumulated evidence, not chosen up front
