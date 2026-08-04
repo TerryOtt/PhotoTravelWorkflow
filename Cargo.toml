@@ -1,0 +1,107 @@
+# The dependency set lives here, in one place, with its rebuttals. Decision 29 settles
+# what these are and why; the comments below are the half a reviewer needs at the moment
+# they ask "why not X?" — kept next to the version string they are about, where they
+# cannot drift away from what they describe.
+
+[workspace]
+resolver = "3"
+# `crates/geotag` — RawGeotag's validated CR3, GPX and XMP engine — joins this list when
+# the lift lands (decision 17). Its dependencies are already declared below so the set
+# is reviewable as a whole rather than arriving piecemeal.
+members = ["crates/photoday"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+# Versions are the current crates.io release as of 2026-08-03, confirmed with
+# `cargo search`, not recalled. docs/UPDATING.md has the standing order and why the
+# `0.x` entries are the ones that go stale silently.
+[workspace.dependencies]
+
+# --- The engine, awaiting the lift (decision 17) -------------------------------------
+
+# The only pure-Rust crate that reads Canon CR3. The far more widely used
+# `kamadak-exif` covers JPEG/TIFF/PNG/HEIF only — CR3 is a CRX-in-BMFF container,
+# not TIFF-based — so it cannot do this job at any version.
+nom-exif = "3.6"
+gpx = "0.10"
+# `chrono` and `time` are both here because neither is our choice: `nom-exif` returns
+# chrono types and `gpx` returns time types, so both arrive at the API boundary. chrono
+# is the one the program speaks — `DateTime<Utc>` for instants, `TimeDelta` for
+# durations. `gpx`'s type is converted at exactly one named boundary.
+chrono = "0.4"
+time = "0.3" # see the note on chrono
+
+# --- The binary ----------------------------------------------------------------------
+
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+
+# SHA-256, with the SHA-NI backend selected at runtime through `cpufeatures` — no build
+# flags and no per-machine binary to get wrong before a trip. SHA3-256 and BLAKE3 were
+# both measured on this rig and both rejected; `examples/hash-rate.rs` reproduces the
+# table, and decision 17 carries the reasoning.
+sha2 = "0.11"
+
+rayon = "1"
+walkdir = "2"
+# Atomic writes. Hand-rolling temp-then-rename is a few lines, but this gets unique
+# names (so concurrent runs over one directory cannot collide) and deletion on drop (so
+# a failed write leaves nothing behind) for free. Pre-flight's orphan sweep keys on the
+# prefix set at the call site.
+tempfile = "3"
+indicatif = "0.18"
+# indicatif's own terminal layer, taken directly rather than transitively: the verdict
+# line is styled and the report has to know whether it is talking to a terminal.
+console = "0.16"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Typed errors at the two places a caller must *branch* on the kind of failure rather
+# than print it and stop. Everywhere else decision 18's fatal-out makes `anyhow`
+# correct. The two: `verify` distinguishing "this manifest is a schema I do not
+# understand" from "this archive is damaged" (decision 28), and capture-time extraction
+# distinguishing unreadable EXIF from EXIF carrying no offset — both route to
+# `_unfiled`, worded differently (decisions 21, 23). String-matching an `anyhow::Error`
+# to make either decision is the shape that rots.
+thiserror = "2"
+
+# Microsoft's official bindings, generated from the Win32 metadata — pure Rust calling
+# DLLs the OS has already loaded, which is not the C-library dependency the pure-Rust
+# constraint excludes. `windows` rather than `windows-sys` for `windows::core::Error`,
+# which implements `std::error::Error` and so composes with `anyhow` through `?`; the
+# call sites here are `DeviceIoControl` with union-shaped output structs, SetupAPI
+# device enumeration and `CM_Request_Device_Eject`, which is exactly where raw FFI gets
+# a buffer length wrong and reports it at runtime against a disk bound for the safe.
+# Features are gated to the six modules actually used, which is what keeps the compile
+# cost of that choice contained.
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Storage_FileSystem",                  # volume enumeration, volume serials
+  "Win32_System_IO",                           # DeviceIoControl
+  "Win32_System_Ioctl",                        # storage properties, disk extents, lock
+  "Win32_System_Power",                        # SetThreadExecutionState
+  "Win32_Devices_DeviceAndDriverInstallation", # CM_Request_Device_Eject
+] }
+# The Defender exclusion check (decision 9) reads HKLM by hand, including its third
+# outcome — unreadable, because the tool runs unelevated. Microsoft's own ergonomic
+# wrapper, rather than the RegOpenKeyExW/RegEnumValueW wide-string dance, which is
+# small enough to hand-roll and exactly the size that gets hand-rolled wrong.
+windows-registry = "0.6"
+
+# --- Reproducing the rejections (dev only) -------------------------------------------
+
+# Examples link against dev-dependencies, so `examples/hash-rate.rs` can measure all
+# three algorithms while neither rejected one reaches the shipped binary. Decision 17
+# says to re-run that measurement whenever the crates or the laptop change; these two
+# entries are what make that instruction executable rather than aspirational.
+blake3 = "1"
+sha3 = "0.12"
+
+[profile.release]
+# The workload is many short-lived parallel tasks over a large file count; whole-program
+# optimization is worth the slower build for a released binary.
+lto = "thin"
+codegen-units = 1

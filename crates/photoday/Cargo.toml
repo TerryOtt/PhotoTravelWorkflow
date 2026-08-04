@@ -1,0 +1,17 @@
+[package]
+name = "photoday"
+description = "End-of-day offload: four verified copies of a day's photographs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Every entry here is used by code in the tree. The rest of the set decision 29 settles
+# is declared in the workspace manifest and joins this list as the phase that needs it
+# lands — a manifest full of dependencies nothing imports is not a plan, it is noise.
+[dependencies]
+clap.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+blake3.workspace = true
+sha3.workspace = true

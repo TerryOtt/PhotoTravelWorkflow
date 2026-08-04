@@ -9,7 +9,8 @@ reads every byte back to prove the copies are bit-identical, geotags each frame 
 GPX track into a Lightroom-ready XMP sidecar, and prints a verdict you can read in five
 seconds before putting an SSD in the safe.
 
-**Status: designed, not yet implemented.** The design is settled and written up in
+**Status: designed, not yet implemented.** The workspace and its dependency set exist and
+the CLI parses; every phase behind it is still to build. The design is settled and written up in
 [`docs/DESIGN.md`](docs/DESIGN.md) — numbered decisions, each with its reasoning,
 covering the phase structure, why verification has to defeat both the OS page cache and
 the SSD's own DRAM cache, how filenames stay deterministic across four destinations, and

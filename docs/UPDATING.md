@@ -89,9 +89,21 @@ When a row shows `Latest` ahead of `Compat`:
 3. Run the full verification below. This is the case where it earns its keep.
 
 **Where the risk sits.** The `1.x` deps are self-correcting — `"1"` keeps picking up 1.x
-forever. The exposure concentrates in the pre-1.0 crates, and this project's set will be
-GPS, time and raw-metadata handling, which is exactly where it lands. List them here once
-`Cargo.toml` exists rather than leaving this paragraph abstract.
+forever. The exposure concentrates in the pre-1.0 crates, which as of decision 29 are:
+
+| Crate | Pinned | What a silent minor bump would cost you |
+|---|---|---|
+| `gpx` | 0.10 | how a track parses — the thing `--dry-run` against the rig would catch and `cargo test` would not |
+| `chrono` | 0.4 | the program's own instant and duration types; a break here touches every date folder |
+| `time` | 0.3 | `gpx`'s public type at one boundary; moves when `gpx` does |
+| `sha2` | 0.11 | the hash in every manifest. A backend change is a throughput question, not a correctness one — `cargo run --release --example hash-rate` answers it |
+| `windows` | 0.62 | the storage-identity layer, eject and unbuffered I/O — all of it |
+| `windows-registry` | 0.6 | the Defender check only, which already warns rather than fails |
+| `indicatif` | 0.18 | the progress bars. Cosmetic, and the one that actually went stale in RawGeotag |
+| `console` | 0.16 | the verdict's styling. Cosmetic |
+
+`nom-exif` reads `"3.6"` and looks pre-1.0 at a glance; it is not, so Cargo's minor rule
+does not apply to it and `cargo update` reaches 3.x freely.
 
 ### The workflow pins dependencies too, and `cargo outdated` cannot see them
 

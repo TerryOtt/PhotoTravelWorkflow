@@ -764,7 +764,7 @@ problem class parallelizes well into double-digit thread counts.
 
 **It governs the CPU-bound work**, where that finding applies directly. Phase 3 hashes 5N
 — one source read plus four verify reads, 280 GB on a 56 GB day. At the measured
-2,252 MB/s per core with SHA-NI (decision 17) that is ~125 s single-threaded against a
+2,380 MB/s per core with SHA-NI (decision 17) that is ~118 s single-threaded against a
 252 s phase, close enough to bind the run on faster storage. Spread across cores it
 disappears. EXIF extraction and XMP generation ride the same pool.
 
@@ -871,17 +871,28 @@ hash function never needs choosing, validating, or explaining.
 
 **Measured on the rig, not assumed**, since that pairing is the whole argument — 2 GiB
 streamed through each in 8 MiB chunks, single-threaded, release build, on the
-i7-13700H:
+i7-13700H. Median of four runs, against `sha2` 0.11.0, `sha3` 0.12.0 and `blake3` 1.8.5:
 
-| Crate | Algorithm | Per core |
-|---|---|---|
-| `sha2` | SHA-256 (SHA-NI) | **2,252 MB/s** |
-| `sha3` | SHA3-256 | 529 MB/s |
-| `blake3` | BLAKE3 | 5,023 MB/s |
+| Crate | Algorithm | Per core | Spread over four runs |
+|---|---|---|---|
+| `sha2` | SHA-256 (SHA-NI) | **2,380 MB/s** | 2,356–2,396 |
+| `sha3` | SHA3-256 | 532 MB/s | 521–540 |
+| `blake3` | BLAKE3 | 5,185 MB/s | 5,061–5,245 |
 
 That is the number decision 15's arithmetic uses, and it is what settled the two
 alternatives in *Considered and rejected*. Re-run it if the crates or the laptop ever
-change; nothing here should be taken on the strength of having once been true.
+change; nothing here should be taken on the strength of having once been true. The
+re-run is `cargo run --release --example hash-rate` — decision 29 added it, and
+`--release` is not optional, since a debug build measures the optimizer rather than the
+CPU.
+
+> **Re-measured 2026-08-03, when decision 29 pinned the crate versions.** The table
+> previously read 2,252 / 529 / 5,023 MB/s and recorded no versions, which is the gap
+> that made a re-run necessary rather than merely diligent. `sha3` and `blake3` reproduce
+> within run-to-run noise; `sha2` is consistently ~6% higher, outside the spread, and the
+> most likely cause is the version it now names. **Nothing downstream moves:** SHA3-256
+> is still ~4.5× slower and BLAKE3 still ~2.2× faster, so both rejections stand on the
+> same margins, and the 188 GB single-threaded figure above is ~7 minutes either way.
 
 **Three of the hard sub-problems are already solved and validated.** Not "code exists" —
 validated:
@@ -1368,6 +1379,102 @@ schema-1 branch — and without the fixture nothing fails until someone opens a 
 in 2031, at which point the archive is unverifiable and there is nothing left to fix it
 with.
 
+### 29. The dependency set, and where its rebuttals live
+
+**The rule this set was chosen under: integrate wherever a crate is the obvious answer,
+and hand-write only what integration would make worse.** Decision 17 already picked the
+language and one crate; this settles the rest, so that the question is answered once
+rather than per module at the moment each phase is written.
+
+| Crate | Ver | Role |
+|---|---|---|
+| `clap` (derive) | 4.6 | the CLI of decision 8, subcommands and all |
+| `serde` (derive) | 1.0 | config, run log, manifest, report — four artifacts, one derive |
+| `serde_json` | 1.0 | those four; the run log is the same serializer a line at a time |
+| `sha2` | 0.11 | SHA-256 with SHA-NI selected at runtime (decision 17) |
+| `rayon` | 1.12 | the `--jobs` CPU pool of decision 15 |
+| `walkdir` | 2.5 | card walks, destination walks, `verify`'s date-folder sweep |
+| `tempfile` | 3.27 | temp-then-rename, and the prefix pre-flight's orphan sweep keys on |
+| `indicatif` | 0.18 | `MultiProgress` — one bar per destination |
+| `console` | 0.16 | verdict styling, and whether this is a terminal at all |
+| `thiserror` | 2.0 | the two error types a caller must branch on, below |
+| `anyhow` | 1.0 | every other error, which decision 18 makes fatal |
+| `windows` | 0.62 | volume and disk identity, unbuffered I/O, lock/dismount/eject, sleep inhibit |
+| `windows-registry` | 0.6 | the Defender exclusion read of decision 9, including its unreadable outcome |
+| `nom-exif` | 3.6 | CR3 capture time — arrives with the engine (decision 17) |
+| `gpx` | 0.10 | tracks — arrives with the engine |
+| `chrono` | 0.4 | the program's instant and duration types — arrives with the engine |
+| `time` | 0.3 | `gpx`'s public type only, converted at one named boundary |
+
+Versions are what crates.io served on 2026-08-03, confirmed rather than recalled;
+[`UPDATING.md`](UPDATING.md) has the standing order and now names the pre-1.0 entries
+that go stale silently.
+
+**Three choices in that table are genuine judgment calls rather than the only answer,
+and a reviewer should know they were made deliberately.**
+
+- **`thiserror` alongside `anyhow`, at two sites only.** Decision 18's fatal-out makes
+  `anyhow` right nearly everywhere: print why, exit non-zero. Two places instead need a
+  caller to branch on the *kind* of failure. `verify` must tell "this manifest is a
+  schema I do not understand" from "this archive is damaged" and must never let the
+  first wear the costume of the second (decision 28); capture-time extraction must tell
+  unreadable EXIF from EXIF carrying no offset, which both route to `_unfiled` and are
+  worded differently (decisions 21, 23). Both are enums the compiler should force you to
+  match on. String-matching an `anyhow::Error` to make either decision is the shape that
+  rots quietly.
+- **`windows` rather than `windows-sys`.** Both are Microsoft's, generated from the same
+  Win32 metadata, and both are pure Rust calling DLLs the OS has already loaded — which
+  is not the C-library dependency the pure-Rust constraint excludes. The ergonomic one
+  costs compile time and returns `windows::core::Error`, which implements
+  `std::error::Error` and so composes with `anyhow` through `?`. The call sites here are
+  `DeviceIoControl` with union-shaped output structs, SetupAPI device enumeration and
+  `CM_Request_Device_Eject` — precisely where raw FFI gets a buffer length wrong and
+  reports it at runtime, against a disk bound for the safe.
+- **No `crossbeam-channel`**, which is the reflexive answer for phase 3's fan-out and is
+  already in the tree under `rayon`. `std::sync::mpsc` has *been* crossbeam internally
+  since Rust 1.67, and `sync_channel(k)` gives exactly the bounded backpressure decision
+  15 describes: the reader hands the same buffer to four bounded queues in turn and
+  blocks on the slowest, so the intended behavior falls out of the types rather than
+  being arranged. Nothing here needs `select!` or multiple consumers. A buffer pool whose
+  free list has several returners is the evidence that would reopen this.
+
+**The rebuttals for the crates that were taken live in `Cargo.toml`, not here** — beside
+the version string each is about, where they cannot drift away from what they describe.
+That is RawGeotag's pattern, and [`REVIEWING.md`](REVIEWING.md)'s broken-window table
+records why it works: the hand-rolled scratch directory that got written anyway was
+duplicated *while `tempfile` was already a dependency and already cited in `Cargo.toml`
+for exactly those properties*. The crates that were **not** taken have no such site, and
+those are in *Considered and rejected* below.
+
+**What stays hand-written, and why that is not a contradiction.** Thousands separators,
+the report's byte and duration formats, its aligned tables, sector-aligned buffers for
+`FILE_FLAG_NO_BUFFERING`, and the config path under `%APPDATA%`. Each is a case where the
+available crate is either a dependency for a dozen unit-tested lines or a format the
+report would have to fight; the entries in *Considered and rejected* name them
+individually. Two more need no crate because the standard library already answers them:
+`OpenOptionsExt::custom_flags` sets both the write-through and unbuffered flags, and
+`available_parallelism` supplies `--jobs`'s default.
+
+**The workspace is two members, and only one of them exists yet.**
+
+```
+Cargo.toml            [workspace] — the whole dependency set, declared once
+crates/photoday/      the binary: CLI, five phases, the Windows storage layer
+crates/geotag/        RawGeotag's CR3, GPX and XMP engine (decision 17) — not yet lifted
+```
+
+Declaring the engine's dependencies before the engine arrives is deliberate: the set is
+reviewable as one decision rather than in two instalments. A member's own manifest lists
+only what its code imports today, so a manifest never claims a dependency nothing uses.
+
+**The lift has one coupling worth writing down before it happens.**
+[`UPDATING.md`](UPDATING.md) sends the reader to RawGeotag's `docs/LIGHTROOM-XMP.md`
+after a Lightroom major release, because that is where the XMP engine's verification
+lives. Moving the engine here without moving that document would leave the pointer
+aiming at the verification record of code that no longer lives beside it — a
+one-canonical-place violation ([`WRITING.md`](WRITING.md) rule 2) that would surface at
+the worst moment, which is the pre-trip check.
+
 ## Considered and rejected
 
 Recorded so a later reviewer does not spend effort re-proposing them. Reopening one needs
@@ -1401,6 +1508,17 @@ new evidence rather than fresh taste.
 | SHA3-256 instead of SHA-256 | Litigated on measurement, not taste: **4.3× slower on the rig** — 529 MB/s against SHA-256's 2,252 — and the gap is structural, since SHA-NI accelerates SHA-1 and SHA-256 while Keccak has no instruction to select. Nothing is bought for it here. SHA-256 is not deprecated and has no practical attack; SHA-3 was standardized as a structural *alternative* to SHA-2, not a replacement for a broken primitive, and its one clear advantage — length-extension immunity — is a MAC property that never arises when hashing files for integrity. **This hash detects bit rot, a dying card and a flaky reader, not a motivated adversary.** Paying 4.3× on every byte, five times per photo, to hedge against a break in Merkle–Damgård is the wrong trade for a data workflow tool. If SHA-2 ever does weaken, decision 28 already routes the replacement additively. Decision 17 |
 | BLAKE3 instead of SHA-256 | Measured in the same run and genuinely faster — 5,023 MB/s, 2.2× SHA-NI SHA-256 — and still rejected, on longevity rather than speed. `sha256sum` ships with every operating system, so a person in 2031 holding this disk and no copy of this tool can still recompute a manifest by hand; BLAKE3 needs a specific binary they may not have. For a format whose premise is proving itself decades later on an unknown machine, universal recomputability outranks throughput that is already not the bottleneck. Decisions 17, 28 |
 | Carrying RawGeotag's `TESTING.md` whole | A stricter regime than decision 18 calls for; its one load-bearing principle is folded into `REVIEWING.md` |
+| `crossbeam-channel` for phase 3's fan-out | `std::sync::mpsc` has been crossbeam internally since Rust 1.67, and `sync_channel` is the bounded backpressure decision 15 describes. Nothing needs `select!` or multiple consumers. Decision 29 |
+| `windows-sys` instead of `windows` | Saves compile time and gives up `windows::core::Error`'s `std::error::Error` impl at exactly the call sites — `DeviceIoControl`, SetupAPI, device eject — where raw FFI fails at runtime against a disk bound for the safe. Decision 29 |
+| `sysinfo` for storage enumeration | Cross-platform disk listing; it does not expose the volume GUID and physical-disk serial that decision 6 identifies a destination by, which is the entire question being asked |
+| `memmap2` for the card reads | An I/O error on removable media becomes a fault at a memory access rather than a `Result`. Phase 3's premise is that a failing card is *reported*, tonight, not that the process dies without a verdict |
+| `thousands` or `num-format` for separators | RawGeotag settled this: a dependency for a dozen unit-tested lines with no locale surface. Its `count()` lifts with the engine |
+| `humansize`, `bytesize` or `humantime` for the report | Decision 14's report writes the same quantities four different ways by column — `56.1 GB`, `1,113 MB/s`, `4m 12s`, `0:02`. No crate produces that set, so every column would be fighting one |
+| `comfy-table` or `tabled` for the report's tables | The layout is bespoke and its column widths are load-bearing; `format!` width specifiers already do this without a layout engine's opinion |
+| `aligned-vec` for the unbuffered read buffers | `FILE_FLAG_NO_BUFFERING` needs a sector-aligned buffer, which is `std::alloc` with a `Layout`, a `Drop` and a `Deref`. The one allocation in the program whose invariant should be visible where it is written |
+| `directories` for the config path | Cross-platform standard-location machinery for a tool that only ships on Windows. One read of `%APPDATA%` |
+| `assert_cmd` and `predicates` for the process-level test | RawGeotag's precedent: `env!("CARGO_BIN_EXE_photoday")` and `std::process::Command` are enough, and decision 18 asks for four tests in total |
+| `criterion` for decision 17's hash measurement | It is a single sustained throughput figure over 2 GiB, not a microbenchmark needing statistical machinery to see. `examples/hash-rate.rs` reproduces the table in thirty lines and needs no harness |
 
 ## Non-goals
 
@@ -1415,8 +1533,12 @@ new evidence rather than fresh taste.
 
 None outstanding — the design is complete enough to build from.
 
-What remains is implementation:
+What remains is implementation. The cargo workspace and the dependency set landed with
+decision 29, along with the CLI surface of decision 8 and `examples/hash-rate.rs`; the
+`Cargo.toml` guard is out of `.github/workflows/ci.yml`, so the three checks now run for
+real. Still to build:
 
-- the cargo workspace, with RawGeotag's GPX and XMP engine lifted into a library crate
+- lifting RawGeotag's CR3, GPX and XMP engine into `crates/geotag` — with its
+  `LIGHTROOM-XMP.md` verification record, per decision 29's coupling note
 - the phase 3 pipeline and the Windows storage-identity layer
-- deleting the temporary `Cargo.toml` guard from `.github/workflows/ci.yml`
+- everything behind the CLI, which currently parses your command and exits 1
