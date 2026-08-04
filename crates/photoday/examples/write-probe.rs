@@ -16,6 +16,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use photoday::cards;
 use photoday::winio::write_through;
 
 /// A realistic frame: the day's average is 48.5 MB.
@@ -30,16 +31,12 @@ fn main() {
 
     // **Never a camera card.** CONOPS makes in-camera formatting the only way a card is
     // ever written to by anything, and that binds diagnostics as well as the tool. This
-    // probe ignored that on 2026-08-04, wrote a gigabyte to a live card, failed partway
-    // and left the volume dirty. A `DCIM` directory is the signature of a card, and the
-    // refusal is cheap next to the mistake.
-    if root.join("DCIM").is_dir()
-        || root
-            .parent()
-            .is_some_and(|parent| parent.join("DCIM").is_dir())
-    {
+    // probe ignored that on 2026-08-04 and wrote a gigabyte to a live card. The guard it
+    // then grew was defeated hours later by a deeper path, so the check now lives in
+    // `cards::is_on_camera_card` — one copy, tested, asked of the whole ancestry.
+    if cards::is_on_camera_card(&root) {
         eprintln!(
-            "refusing to write to {} — it looks like a camera card, and nothing here writes to those (see docs/CONOPS.md). Point this at a destination instead.",
+            "refusing to write to {} — it is on a camera card, and nothing here writes to those (see docs/CONOPS.md). Point this at a destination instead.",
             root.display()
         );
         std::process::exit(2);

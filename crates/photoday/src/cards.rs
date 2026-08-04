@@ -189,6 +189,38 @@ pub fn has_dcim(mount: &Path) -> bool {
     mount.join("DCIM").is_dir()
 }
 
+/// Whether `path` lies **anywhere on** a camera card. Use this before writing.
+///
+/// **A card is a volume, not a directory, and that distinction has already cost real
+/// damage twice.** The diagnostics in `examples/` each carried their own guard that tested
+/// only the target and its immediate parent:
+///
+/// ```text
+/// path.join("DCIM").is_dir() || path.parent().is_some_and(|p| p.join("DCIM").is_dir())
+/// ```
+///
+/// That catches `D:\` and `D:\DCIM` and nothing deeper. On 2026-08-04 a probe was pointed
+/// at `D:\DCIM\100CANON` — the obvious place to point it — and the check passed, because
+/// neither `D:\DCIM\100CANON\DCIM` nor `D:\DCIM\DCIM` exists. It wrote 7.4 GB to a live
+/// card. The first incident, hours earlier, had produced the guard this one defeated.
+///
+/// So the question is asked of the whole ancestry instead: if any directory from `path` up
+/// to the volume root holds a `DCIM`, `path` is on a card. Depth cannot defeat it, and
+/// there is one copy for every caller to share rather than one per probe to drift.
+///
+/// `DESIGN.md`'s non-goals make this binding on diagnostics as much as on the tool: nothing
+/// here writes to a card, ever, under any flag.
+pub fn is_on_camera_card(path: &Path) -> bool {
+    // Best-effort absolute form: a relative path has no ancestors worth walking, and a
+    // path that does not exist yet still needs checking — so fall back rather than fail.
+    let absolute = path
+        .canonicalize()
+        .or_else(|_| std::env::current_dir().map(|cwd| cwd.join(path)))
+        .unwrap_or_else(|_| path.to_path_buf());
+
+    absolute.ancestors().any(has_dcim)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,6 +293,58 @@ mod tests {
         assert!(
             find(&volumes, &[guid]).is_empty(),
             "a configured destination must never be offered as a source"
+        );
+    }
+
+    /// **The regression that cost 7.4 GB written to a live card on 2026-08-04.** The old
+    /// per-probe guard tested only the target and its immediate parent, so the one path an
+    /// operator would naturally type — the folder the photographs are actually in — sailed
+    /// straight through it. Depth must not defeat the check.
+    #[test]
+    fn every_depth_under_dcim_is_on_a_card() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+        let card = scratch.path().join("card");
+        let deep = card.join("DCIM").join("100CANON").join("nested");
+        std::fs::create_dir_all(&deep).expect("a DCIM tree");
+
+        for path in [
+            card.as_path(),
+            &card.join("DCIM"),
+            &card.join("DCIM").join("100CANON"),
+            deep.as_path(),
+        ] {
+            assert!(
+                is_on_camera_card(path),
+                "{} is on a camera card and must be refused",
+                path.display()
+            );
+        }
+    }
+
+    /// The guard has to stay narrow enough to be usable: an archive destination is not a
+    /// card, and refusing one would make the probes useless for their actual purpose.
+    #[test]
+    fn a_destination_without_dcim_is_writable() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+        let archive = scratch.path().join("archive").join("Travel").join("Images");
+        std::fs::create_dir_all(&archive).expect("an archive tree");
+
+        assert!(!is_on_camera_card(&archive));
+    }
+
+    /// A path that does not exist yet still has to be judged — probes create their own
+    /// directory, so the check runs before the target is there.
+    #[test]
+    fn a_target_that_does_not_exist_yet_is_still_judged_by_its_ancestry() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+        let card = scratch.path().join("card");
+        std::fs::create_dir_all(card.join("DCIM").join("100CANON")).expect("a DCIM tree");
+
+        let not_yet = card.join("DCIM").join("100CANON").join("_write-probe");
+        assert!(!not_yet.exists());
+        assert!(
+            is_on_camera_card(&not_yet),
+            "a probe directory about to be created on a card must be refused"
         );
     }
 }
