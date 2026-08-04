@@ -166,6 +166,35 @@ pairs verified.
 >
 > **A 50 GB day scales down cleanly**: roughly 5–6 minutes, bound by the same pair.
 
+> **Measured 2026-08-04: the four USB devices share one ~930 MB/s controller, and that is
+> what sets the write pass.** Each device read alone, then all five at once:
+>
+> | Device | Link | Alone | Together |
+> |---|---|---|---|
+> | SD reader | USB | 64 MB/s | 61 (96%) |
+> | CFexpress reader | USB | 504 MB/s | 291 (58%) |
+> | SanDisk | USB | 772 MB/s | 290 (38%) |
+> | WD | USB | 735 MB/s | 289 (39%) |
+> | **OWC** | **Thunderbolt** | 1,684 MB/s | **2,109 (125%)** |
+>
+> The three fast USB devices converge on ~290 MB/s each — 870 MB/s between them, 931
+> with the SD reader — which is a 10 Gbps USB controller saturating. **The Thunderbolt
+> device is untouched by any of it**, because a TB4 hub tunnels PCIe for native
+> Thunderbolt devices and puts everything else behind one internal USB host controller.
+> The hub here is a CalDigit Element Hub; the OWC enclosure enumerates as its own
+> `USB4 Router` and its disk as NVMe, while both card readers and the other two archive
+> drives enumerate as USB.
+>
+> **This explains the write pass exactly.** Phase 3 runs three USB streams — the card
+> read plus two USB destination writes — and `930 / 3 ≈ 310`, against 292 MB/s observed.
+> It also predicts the fix: **moving the CFexpress to a Thunderbolt reader takes the
+> source off the shared controller**, leaving `930 / 2 ≈ 465 MB/s` for the two USB
+> destinations, or roughly a 60% faster write pass. Not yet tried.
+>
+> The lesson generalises past this rig: **"every stream is well under 10 Gbps" does not
+> mean the streams are independent.** What matters is which of them share a controller,
+> and on a Thunderbolt hub that is not visible from the port labels.
+
 ### Phase 3 in detail
 
 The mechanism, stated explicitly since it is what everything else is measured against:
@@ -1081,6 +1110,12 @@ twenty-one minute run, so **no hash choice whatsoever can save more than ~14%**,
 BLAKE3's share of that is under two minutes. Decision 17 trades those two minutes for an
 archive a stranger can verify in 2031 with `sha256sum` and no copy of this tool. That is
 not a close call, and it is now a priced one rather than an asserted one.
+
+**Settled by the operator on 2026-08-04, on seeing the price: two minutes is not worth
+it. SHA-256 stays, and the question is closed** — reopening it needs a change to the
+numbers above, not a preference. The `hash-experiments` feature and
+`examples/verify-rate.rs` stay in the tree for the same reason decision 17 keeps
+`hash-rate.rs`: so a future rig can re-price the trade rather than re-argue it.
 
 Note how much smaller this is than the in-memory table above implies. BLAKE3 is 2.2× the
 raw rate and 1.10× the run, because phase 3 spends most of its time on I/O that no hash
