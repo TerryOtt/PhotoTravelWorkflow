@@ -17,7 +17,88 @@ pub type Digest32 = [u8; 32];
 
 /// The canonical hash of a photo, taken from the buffer phase 3 already holds.
 pub fn sha256(bytes: &[u8]) -> Digest32 {
-    Sha256::digest(bytes).into()
+    let mut hasher = Hasher::new();
+    hasher.update(bytes);
+    hasher.finish()
+}
+
+/// A streaming hasher, so the verify pass can hash a chunk at a time.
+///
+/// **Normally this is SHA-256 and nothing else.** Under the `hash-experiments` feature
+/// it dispatches on `PHOTODAY_HASH`, which exists to measure what decision 17's choice
+/// costs — see `examples/verify-rate.rs`. The default build has no such branch and no
+/// such dependencies.
+pub enum Hasher {
+    Sha256(Sha256),
+    #[cfg(feature = "hash-experiments")]
+    Blake3(Box<blake3::Hasher>),
+    #[cfg(feature = "hash-experiments")]
+    Xxh3(Box<xxhash_rust::xxh3::Xxh3>),
+}
+
+impl Hasher {
+    #[cfg(not(feature = "hash-experiments"))]
+    pub fn new() -> Self {
+        Self::Sha256(Sha256::new())
+    }
+
+    #[cfg(feature = "hash-experiments")]
+    pub fn new() -> Self {
+        match std::env::var("PHOTODAY_HASH").unwrap_or_default().as_str() {
+            "blake3" => Self::Blake3(Box::new(blake3::Hasher::new())),
+            "xxh3" => Self::Xxh3(Box::new(xxhash_rust::xxh3::Xxh3::new())),
+            _ => Self::Sha256(Sha256::new()),
+        }
+    }
+
+    /// What this build is actually hashing with, for the report to say so.
+    #[cfg(not(feature = "hash-experiments"))]
+    pub fn name() -> &'static str {
+        "sha256"
+    }
+
+    #[cfg(feature = "hash-experiments")]
+    pub fn name() -> &'static str {
+        match std::env::var("PHOTODAY_HASH").unwrap_or_default().as_str() {
+            "blake3" => "blake3",
+            "xxh3" => "xxh3",
+            _ => "sha256",
+        }
+    }
+
+    pub fn update(&mut self, bytes: &[u8]) {
+        match self {
+            Self::Sha256(hasher) => hasher.update(bytes),
+            #[cfg(feature = "hash-experiments")]
+            Self::Blake3(hasher) => {
+                hasher.update(bytes);
+            }
+            #[cfg(feature = "hash-experiments")]
+            Self::Xxh3(hasher) => hasher.update(bytes),
+        }
+    }
+
+    pub fn finish(self) -> Digest32 {
+        match self {
+            Self::Sha256(hasher) => hasher.finalize().into(),
+            #[cfg(feature = "hash-experiments")]
+            Self::Blake3(hasher) => *hasher.finalize().as_bytes(),
+            #[cfg(feature = "hash-experiments")]
+            Self::Xxh3(hasher) => {
+                // 128 bits widened into the 256-bit slot, so the manifest shape does not
+                // change while the experiment runs. Not a candidate for real use.
+                let mut digest = [0u8; 32];
+                digest[..16].copy_from_slice(&hasher.digest128().to_be_bytes());
+                digest
+            }
+        }
+    }
+}
+
+impl Default for Hasher {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Lowercase hex, the form the manifest and `sha256sum` both use.

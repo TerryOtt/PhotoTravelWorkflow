@@ -24,7 +24,6 @@ use std::path::Path;
 use std::ptr::NonNull;
 
 use anyhow::{Context, Result};
-use sha2::{Digest, Sha256};
 use tempfile::Builder;
 
 use crate::hash::Digest32;
@@ -126,7 +125,7 @@ pub fn unbuffered_sha256(path: &Path) -> Result<Digest32> {
         .with_context(|| format!("opening {} for verification", path.display()))?;
 
     let mut buffer = SectorBuf::new(VERIFY_CHUNK);
-    let mut hasher = Sha256::new();
+    let mut hasher = crate::hash::Hasher::new();
 
     loop {
         // The *request* is always a sector multiple, which is what the flag demands.
@@ -143,7 +142,7 @@ pub fn unbuffered_sha256(path: &Path) -> Result<Digest32> {
         hasher.update(&buffer.as_mut_slice()[..read]);
     }
 
-    Ok(hasher.finalize().into())
+    Ok(hasher.finish())
 }
 
 /// Read up to `limit` bytes off the media, bypassing every cache, and return how many.

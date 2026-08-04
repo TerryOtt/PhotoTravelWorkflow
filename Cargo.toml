@@ -107,6 +107,11 @@ windows-registry = "0.6"
 # entries are what make that instruction executable rather than aspirational.
 blake3 = "1"
 sha3 = "0.12"
+# XXH3, for the same comparison. Not a candidate for the manifest — it is a
+# *checksum*, not a cryptographic hash, and detects accidental corruption only. It is
+# measured because it bounds the question: if even a hash this fast cannot move phase 3's
+# wall clock, the hash is not on the critical path and decision 17's choice is free.
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
 [profile.release]
 # The workload is many short-lived parallel tasks over a large file count; whole-program

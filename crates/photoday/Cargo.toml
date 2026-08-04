@@ -21,6 +21,21 @@ thiserror.workspace = true
 walkdir.workspace = true
 windows.workspace = true
 
+[features]
+default = []
+# Lets PHOTODAY_HASH swap the hash at runtime, for measuring what decision 17's choice
+# costs. Off by default so the shipped binary carries SHA-256 and nothing else.
+hash-experiments = ["dep:blake3", "dep:xxhash-rust"]
+
+[dependencies.blake3]
+workspace = true
+optional = true
+
+[dependencies.xxhash-rust]
+workspace = true
+optional = true
+
 [dev-dependencies]
 blake3.workspace = true
 sha3.workspace = true
+xxhash-rust.workspace = true
