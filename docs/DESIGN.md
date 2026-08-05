@@ -196,6 +196,31 @@ is phase 1's output and phase 2's input, since a capacity assertion needs a numb
 compare against. It also puts the fatal that means *equipment failure* ahead of the ones
 that merely mean *go fetch something*.
 
+> ### ✗ Phases 4 and 5 *do* wait for LANDED — the paragraph below describes an intent, not the code
+>
+> **Found 2026-08-05.** `pipeline::run` joins every destination thread — write pass *and*
+> verify pass — before it returns, and `main` only then calls `corroboration_phase`. So the
+> overlap this section has described since the first draft has never existed: phases 3, 4 and 5
+> run strictly in sequence.
+>
+> **The arithmetic was already in this document and nobody read it.** The 2026-08-04 run
+> reports `LANDED · phase 3 took 13m 04s`, corroboration at *~19.5 minutes*, and a total wall
+> clock of *32.78 min*. Those add up — 13.1 + 19.5 + 0.3 ≈ 32.9 — which they could not do if
+> phase 4 had run underneath the verify pass. **A number that contradicted the design was
+> printed, quoted approvingly, and read past twice.**
+>
+> **It costs the secondary metric and nothing else**, which is why it survived: LANDED is
+> unaffected, both metrics are thresholds, and both are met. It is recorded rather than fixed
+> for that reason — but the *description* had to change, because a design document that
+> describes unbuilt behavior in the present tense is how the next reader plans against a rig
+> that does not exist.
+>
+> **And it accidentally made a wrong inference safe**, which is the part worth keeping. The
+> operator watched the SD reader start blinking and concluded the run was past LANDED. **True
+> as built, and false as designed** — under the intended overlap the SD read begins at the end
+> of the *write* feed, well before the verify pass finishes. He was reasoning about the
+> document; the document was wrong; the code happened to agree with his conclusion anyway.
+
 **Phases 4 and 5 do not wait for LANDED.** The moment the CFexpress reader goes idle —
 the end of phase 3's write feed, since backpressure keeps the reader busy until roughly
 the last write drains — both have what they need: the SDXC read begins, and with every
@@ -3011,6 +3036,21 @@ in 201 GB and name the file.
   sequence is proven by `examples/release-cards.rs` against both cards, which is not the same
   as having run at the end of a 35-minute night
 - **the report** of decision 14 — the verdict shape exists in outline, not in full
+- **progress output while a phase is running** — decision 29 declared `indicatif` for
+  *"`MultiProgress` — one bar per destination"* and it was never wired, which is why that crate
+  is one of the three the workspace declares and no member imports. **The run prints
+  `ingesting 3,883 files…` and then nothing for twelve minutes, then nothing again for the
+  sixteen phase 4 takes.** On 2026-08-05 the operator resorted to watching the SD reader's LED
+  to guess which phase was running, and said the thing that makes this a defect rather than a
+  polish item: *"I feel like I shouldn't need to guess at that."*
+
+  **Decision 22 already settled this argument for a different stage and the conclusion was not
+  carried across.** Eject was promoted to a timed stage because *"an unlabeled twenty-minute
+  silence reads as a hang while a timed one reads as persistence"* — and that reasoning applies
+  with more force to a twelve-minute phase 3 and a sixteen-minute phase 4 than to a
+  fifteen-second eject. The tool is a walk-away tool whose whole promise is that you can leave;
+  a screen that cannot say whether it is working is the one thing that makes an operator stay
+  and watch.
 - **`sync`** (decision 20), the recovery path `--without` implies
 - **log-driven resume** (decision 13). Convergence already works, via decision 5's
   skip-on-identical-hash, but it re-reads what the run log could have told it
