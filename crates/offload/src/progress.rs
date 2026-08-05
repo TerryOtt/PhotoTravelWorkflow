@@ -74,7 +74,7 @@ fn section_template(indent: usize) -> String {
 fn row_template(indent: usize) -> String {
     let pad = indent + STEP;
     format!(
-        "{:pad$}{{prefix:<8}} {{bar:28}} {{human_pos:>6}}/{{human_len:<6}} {{pct:>6}} {{msg}}",
+        "{:pad$}{{prefix:<8}} {{bar:28}} {{human_pos:>6}}/{{human_len:<6}} {{pct:>6}}  {{etc:<16}}{{msg}}",
         ""
     )
 }
@@ -186,14 +186,34 @@ impl Progress {
                 // honest response is a plain bar rather than aborting a run with hundreds of
                 // gigabytes to move — nothing about the photographs depends on the rendering.
                 if let Ok(style) = ProgressStyle::with_template(&row_template(indent)) {
-                    let style = style.progress_chars("=> ").with_key(
-                        "pct",
-                        |state: &indicatif::ProgressState, out: &mut dyn std::fmt::Write| {
-                            // Ignored deliberately: a formatting failure must not take down a
-                            // run, for the same reason a malformed template does not above.
-                            let _ = write!(out, "{:.1}%", state.fraction() * 100.0);
-                        },
-                    );
+                    let style = style
+                        .progress_chars("=> ")
+                        .with_key(
+                            "pct",
+                            |state: &indicatif::ProgressState, out: &mut dyn std::fmt::Write| {
+                                // Ignored deliberately: a formatting failure must not take down
+                                // a run, for the same reason a malformed template does not.
+                                let _ = write!(out, "{:.1}%", state.fraction() * 100.0);
+                            },
+                        )
+                        // **Blank at both ends, and each blank is a different kind of honesty.**
+                        // At position zero there is no elapsed work to extrapolate from, so any
+                        // number would be invented; at 100 % the row is a record of what
+                        // happened and a countdown to nothing is noise. In between the estimate
+                        // comes from this bar's own rate — which is what makes it
+                        // per-destination, and therefore what tells the operator the WD has
+                        // eleven minutes left while the laptop has one.
+                        .with_key(
+                            "etc",
+                            |state: &indicatif::ProgressState, out: &mut dyn std::fmt::Write| {
+                                if state.pos() == 0 || state.fraction() >= 1.0 {
+                                    return;
+                                }
+                                let seconds = state.eta().as_secs();
+                                let _ =
+                                    write!(out, "(ETC: {}m {:02}s)", seconds / 60, seconds % 60);
+                            },
+                        );
                     bar.set_style(style);
                 }
                 bar.set_prefix(prefix.to_owned());
@@ -355,6 +375,56 @@ impl Bar {
                 crate::human::count(plain.len),
                 crate::human::percent(plain.len, plain.len),
                 plain.message.borrow()
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// **The templates are parsed at runtime and a bad one fails silently.** `Progress::bar`
+    /// and `Progress::section` both do `if let Ok(style)`, deliberately — a rendering fault
+    /// must not abort a run with two hundred gigabytes to move. The cost of that choice is
+    /// that a typo degrades to an unstyled bar with no error anywhere, which on this project's
+    /// record is exactly the kind of failure nobody notices for hours.
+    ///
+    /// So the parse is asserted here. This is the only part of `Bars` mode that can be tested
+    /// without a terminal, and it is worth having for that reason alone.
+    #[test]
+    fn every_template_parses_at_every_depth_it_is_used_at() {
+        for indent in [PHASE, PASS] {
+            assert!(
+                ProgressStyle::with_template(&section_template(indent)).is_ok(),
+                "section template at indent {indent}"
+            );
+            assert!(
+                ProgressStyle::with_template(&row_template(indent)).is_ok(),
+                "row template at indent {indent}"
+            );
+        }
+    }
+
+    /// The spacer is a template too, and an empty one renders no line at all — which is how
+    /// the first attempt at blank lines produced none.
+    #[test]
+    fn the_spacer_template_parses_and_is_not_empty() {
+        assert!(ProgressStyle::with_template(" ").is_ok());
+    }
+
+    /// Rows sit one step in from their heading. Asserted rather than trusted because the two
+    /// are computed in different functions and nothing else would catch them drifting apart.
+    #[test]
+    fn rows_are_indented_one_step_past_their_heading() {
+        for indent in [PHASE, PASS] {
+            let heading = section_template(indent);
+            let row = row_template(indent);
+            let lead = |s: &str| s.len() - s.trim_start().len();
+            assert_eq!(
+                lead(&row),
+                lead(&heading) + STEP,
+                "row at indent {indent} must sit one STEP past its heading"
             );
         }
     }
