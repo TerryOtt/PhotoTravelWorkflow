@@ -1851,6 +1851,51 @@ failure for a destination and success for a card.
 > is a device eject, whose parent is the reader — which is the thing this decision forbids.
 > Resolving that needs the operator's call on whether powering down the ProGrade reader is
 > acceptable, and it is deliberately not assumed here.
+>
+> ### Measured 2026-08-05 — and both predictions above were wrong, in opposite directions
+>
+> `cargo run --release --example release-cards` escalates lock+dismount → eject-medium →
+> device-eject, re-enumerating after each. The operator authorized step 3 in advance.
+>
+> | | SD, USB reader | CFexpress, Thunderbolt reader |
+> |---|---|---|
+> | 1. lock + dismount | still mounted | still mounted |
+> | 2. **eject medium** | **returns `ok`, releases nothing** | **returns `ok`, releases nothing** |
+> | 3. device eject | **RELEASED** | **RELEASED** |
+> | …and the reader? | **powered down too** | **still enumerated** |
+>
+> **`IOCTL_STORAGE_EJECT_MEDIA` is not the answer, and the prediction that it would be was
+> mine.** It reports success on *both* cards and releases neither — the "succeeds at nothing"
+> outcome this module's doc predicted for SSDs, now observed on a device that advertises
+> `Supports Removable Media`.
+>
+> **The obvious objection was chased rather than left standing, and it closed the question
+> from an unexpected direction.** That call was issued on the *volume* handle, where the
+> conventional target for a media operation is the physical drive — so the result was
+> consistent with *we asked the wrong object* rather than *the device ignores this*. Asking
+> `\\.\PhysicalDriveN` instead returns **`Access is denied` (os error 5)**, and an unelevated
+> process cannot open a physical drive **at any access level, not even read** — verified
+> against an archive SSD, so it needs no card and no reseat to reproduce.
+>
+> **So the drive-handle route is not merely untested, it is unavailable — binding constraint
+> 4 forbids it.** *Nothing in a run may come to need administrator rights*, and this would.
+> Whether media-eject would work there is now moot, which is a better resolution than an
+> answer: the tool may not take that path regardless. **`CM_Request_Device_Eject` is the only
+> mechanism an unelevated `photoday` has that actually releases a card.**
+>
+> **The reader asymmetry is the reverse of what this decision feared.** The worry was that
+> device-ejecting a card would take its reader down. That is exactly true of the **SD** — the
+> SDDR-409 disappears from the device tree entirely and needs a physical reseat — and exactly
+> false of the **CFexpress**, where the ProGrade router stays enumerated and only the card's
+> own PCIe device goes. The mechanism is `CM_Get_Parent`: the SD disk's parent *is* the reader,
+> while the NVMe disk's parent is a PCIe downstream port beneath a router that survives it.
+>
+> **So the cost lands on the card this decision cared least about, and the exception it was
+> braced for is not needed.** The CFexpress — the card on the LANDED path — releases cleanly
+> with its reader intact, which is precisely the behavior decision 22 asks for and assumed
+> impossible. The SD is the one that forces a choice, and it is sharpened by a fact from the
+> *Inputs* section: **multiple offloads a day are normal**, so a reader that must be reseated
+> between them is a real cost paid at lunchtime, not once at bedtime.
 
 **A card that will not dismount changes nothing**, and the report says so in those words
 rather than reporting a failure. It was safe to pull before the attempt and it is safe to

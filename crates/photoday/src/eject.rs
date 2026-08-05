@@ -130,13 +130,7 @@ pub enum CardOutcome {
 /// so it was safe to pull before this ran and is safe to pull after it fails. The verdict and
 /// the exit code do not consider it.
 pub fn dismount_card(volume: &Volume) -> Result<CardOutcome> {
-    const GENERIC_READ_WRITE: u32 = 0x8000_0000 | 0x4000_0000;
-    const FILE_SHARE_READ_WRITE: u32 = 0x0000_0001 | 0x0000_0002;
-
-    let file = std::fs::OpenOptions::new()
-        .access_mode(GENERIC_READ_WRITE)
-        .share_mode(FILE_SHARE_READ_WRITE)
-        .open(volume.device_path())
+    let file = open_for_control(volume.device_path())
         .with_context(|| format!("opening {} to dismount", volume.guid_path))?;
 
     let handle = HANDLE(file.as_raw_handle());
@@ -154,6 +148,108 @@ pub fn dismount_card(volume: &Volume) -> Result<CardOutcome> {
     }
 
     Ok(CardOutcome::Dismounted)
+}
+
+/// Ask the drive to eject its **media**, which is the call that actually releases a card.
+///
+/// **This is the step `dismount_card` was missing, and the module doc above named it while
+/// arguing it was wrong.** That argument is correct about SSDs — a fixed disk in a removable
+/// enclosure has no medium to eject — and it is exactly backwards for the case it uses as its
+/// own example. A dismount detaches a filesystem and leaves the volume and its drive letter
+/// in place; Windows then remounts on next access, and the tray icon still offers the device.
+/// Ejecting the medium is what removes it.
+///
+/// **The lock is released first, deliberately.** `IOCTL_STORAGE_MEDIA_REMOVAL` with
+/// `PreventMediaRemoval = FALSE` clears any software lock a previous holder set — a lock
+/// nothing here sets, but which a card reader or another application may have — and a
+/// failure to clear it is not worth aborting over, so it is attempted and ignored.
+///
+/// Only meaningful where the device reports removable media. On a card that enumerates as a
+/// fixed NVMe disk — a CFexpress behind a Thunderbolt reader — the device *is* the card and
+/// there is nothing separable to eject; expect this to fail there, and see decision 22.
+pub fn eject_media(volume: &Volume) -> Result<()> {
+    let file = open_for_control(volume.device_path())
+        .with_context(|| format!("opening {} to eject its media", volume.guid_path))?;
+
+    eject_media_on(HANDLE(file.as_raw_handle()))
+        .with_context(|| format!("ejecting the media in {}", volume.guid_path))
+}
+
+/// The same request, addressed to the **physical drive** rather than to a volume on it.
+///
+/// **Which object receives this is not a detail, and assuming it was cost a wrong
+/// conclusion.** On 2026-08-05 the volume-handle form above returned success on both cards
+/// and released neither, and that was nearly written up as *media eject does nothing here*
+/// before anyone asked whether the request had been addressed to the right thing.
+/// `\\.\PhysicalDriveN` is the conventional target, since ejecting a medium is a property of
+/// the drive rather than of any filesystem mounted from it. **Both spellings exist so the
+/// difference can be measured instead of argued** — the same reason `examples/` carries the
+/// harnesses for every other number in this project.
+pub fn eject_media_on_disk(disk_number: u32) -> Result<()> {
+    let path = format!(r"\\.\PhysicalDrive{disk_number}");
+
+    let file =
+        open_for_control(&path).with_context(|| format!("opening {path} to eject its media"))?;
+
+    eject_media_on(HANDLE(file.as_raw_handle()))
+        .with_context(|| format!("ejecting the media in {path}"))
+}
+
+/// Allow removal, then eject — the media sequence, on whichever handle the caller opened.
+fn eject_media_on(handle: HANDLE) -> Result<()> {
+    use windows::Win32::System::Ioctl::{
+        IOCTL_STORAGE_EJECT_MEDIA, IOCTL_STORAGE_MEDIA_REMOVAL, PREVENT_MEDIA_REMOVAL,
+    };
+
+    // Best effort, for the reason in the doc comment: this clears somebody else's lock, and
+    // its absence is the normal case rather than a problem.
+    let allow = PREVENT_MEDIA_REMOVAL {
+        PreventMediaRemoval: false,
+    };
+    let mut returned = 0u32;
+    // SAFETY: `allow` is a fully initialized input of exactly the size given, it outlives
+    // the call as a local, and this control code writes no output.
+    let _ = unsafe {
+        DeviceIoControl(
+            handle,
+            IOCTL_STORAGE_MEDIA_REMOVAL,
+            Some(std::ptr::from_ref(&allow).cast()),
+            size_of::<PREVENT_MEDIA_REMOVAL>() as u32,
+            None,
+            0,
+            Some(&mut returned),
+            None,
+        )
+    };
+
+    control(handle, IOCTL_STORAGE_EJECT_MEDIA)
+}
+
+/// Open a volume or a physical drive for the control codes in this module.
+///
+/// **Write access is what `FSCTL_LOCK_VOLUME` requires**, so the query-only handle
+/// `storage::Volume::open` hands out cannot be reused here. Sharing stays permissive because
+/// the *lock*, not the open, is what has to win exclusivity — failing the open instead would
+/// report the wrong thing entirely.
+fn open_for_control(path: &str) -> Result<std::fs::File> {
+    const GENERIC_READ_WRITE: u32 = 0x8000_0000 | 0x4000_0000;
+    const FILE_SHARE_READ_WRITE: u32 = 0x0000_0001 | 0x0000_0002;
+
+    Ok(std::fs::OpenOptions::new()
+        .access_mode(GENERIC_READ_WRITE)
+        .share_mode(FILE_SHARE_READ_WRITE)
+        .open(path)?)
+}
+
+/// Power down the device behind a physical disk number — the tray icon's own call.
+///
+/// Public because releasing a **card** may need it: a CFexpress behind a Thunderbolt reader
+/// enumerates as a fixed NVMe disk with no separable medium, so a device eject is the only
+/// call that removes it. Decision 22 treats that as a deliberate exception to
+/// *cards are never powered down*, not as the general rule, because the device it reaches is
+/// the reader.
+pub fn power_down_disk(disk_number: u32) -> Result<()> {
+    power_down(disk_number)
 }
 
 /// How one device's eject ended, and what it cost to get there.
@@ -212,17 +308,7 @@ pub fn eject(volume: &Volume, device: &Device, deadline: Instant) -> Result<Effo
 
 /// One pass: open, lock, dismount, release the handle, ask the enclosure to leave.
 fn attempt(volume: &Volume, device: &Device) -> Result<Outcome> {
-    // Write access is what `FSCTL_LOCK_VOLUME` requires; the query-only handle
-    // `storage::Volume::open` hands out cannot lock. Sharing stays permissive because the
-    // lock — not the open — is what has to win exclusivity, and failing the open would
-    // report the wrong thing.
-    const GENERIC_READ_WRITE: u32 = 0x8000_0000 | 0x4000_0000;
-    const FILE_SHARE_READ_WRITE: u32 = 0x0000_0001 | 0x0000_0002;
-
-    let file = std::fs::OpenOptions::new()
-        .access_mode(GENERIC_READ_WRITE)
-        .share_mode(FILE_SHARE_READ_WRITE)
-        .open(volume.device_path())
+    let file = open_for_control(volume.device_path())
         .with_context(|| format!("opening {} for eject", volume.guid_path))?;
 
     let handle = HANDLE(file.as_raw_handle());
