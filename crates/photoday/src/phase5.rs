@@ -164,13 +164,15 @@ impl Report {
 
         if self.across_segments > 0 && self.within_segment == 0 {
             return Some(format!(
-                "all of them across breaks in the recording{widest} — the logger stopped                  and restarted, and no gap limit can bridge that"
+                "all of them across breaks in the recording{widest} — the logger stopped \
+                 and restarted, and no gap limit can bridge that"
             ));
         }
 
         if self.within_segment > 0 && self.across_segments == 0 {
             return Some(format!(
-                "all of them inside one recording but past the limits{widest} — these are                  what --max-gap-seconds and --max-gap-meters govern"
+                "all of them inside one recording but past the limits{widest} — these are \
+                 what --max-gap-seconds and --max-gap-meters govern"
             ));
         }
 
@@ -455,7 +457,11 @@ mod tests {
         };
 
         let note = report.gap_note().expect("a gap note");
-        assert!(note.contains("logger stopped"), "{note}");
+        // The whole phrase, not the fragment before the line break. A `\` continuation
+        // that loses its leading space — or gains eighteen — reads fine in the source and
+        // prints a hole; asserting either side of the seam alone cannot see it, which is
+        // exactly how this string shipped broken on 2026-08-04.
+        assert!(note.contains("the logger stopped and restarted"), "{note}");
         assert!(note.contains("28m"), "{note}");
         assert!(
             !note.contains("--max-gap"),
@@ -476,7 +482,11 @@ mod tests {
         };
 
         let note = report.gap_note().expect("a gap note");
-        assert!(note.contains("--max-gap-seconds"), "{note}");
+        // Spanning the line break for the reason above.
+        assert!(
+            note.contains("these are what --max-gap-seconds and --max-gap-meters govern"),
+            "{note}"
+        );
     }
 
     #[test]

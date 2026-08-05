@@ -189,6 +189,23 @@ while `PathBuf`'s `Ord` is byte-wise, so only an explicit sort produces the asse
 **A test whose subject is an ordering has to be built on inputs the underlying source does
 not already order for you**, or it measures the filesystem rather than the code.
 
+**This project produced its own on 2026-08-05, and it is a different enough shape to be
+worth keeping beside it.** Four operator-facing strings had been reflowed so that fourteen
+to eighteen literal spaces sat mid-sentence — `the logger stopped··················and
+restarted` — and printed that way, one of them in `verify`'s verdict line. Two of the four
+had tests, and both passed: they asserted `note.contains("logger stopped")`, a fragment
+that ends exactly where the hole begins. **A test that asserts a fragment on one side of a
+string's line break cannot see a defect at the seam** — so assert across the join, or the
+continuation is unguarded.
+
+Two things make that worth a rule rather than a shrug. **Nothing else in the toolchain
+looks at string contents**: `cargo fmt` does not reformat them, clippy has no lint for
+them, and a green suite is therefore silent about every literal the program prints. And it
+arrived in two separate commits on one day, so it is an editing artifact that recurs rather
+than a typo — the scan is a regex for a run of three or more spaces between two word
+characters inside a `"…"`, and the only legitimate hits are the report's own column
+alignment.
+
 **If a mutation produces no failure, the test is decorative. Fix it then, while you still
 know what it was meant to catch.**
 

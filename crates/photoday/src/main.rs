@@ -136,7 +136,8 @@ fn dispatch(cli: &Cli) -> Result<ExitCode> {
         Some(Command::Verify { dest }) => return verify_destination(dest),
         Some(Command::Sync { dest }) => {
             eprintln!(
-                "photoday: sync is not implemented yet ({}) — see docs/DESIGN.md                  decision 20.",
+                "photoday: sync is not implemented yet ({}) — see docs/DESIGN.md \
+                 decision 20.",
                 dest.display()
             );
             return Ok(ExitCode::FAILURE);
@@ -196,16 +197,7 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     );
 
     let started = Instant::now();
-    // The card's mount point, so phase 3 can record each frame's card-relative path —
-    // which is what decision 4 pairs the two cards on.
-    let card_root = plan
-        .cards
-        .source
-        .volume
-        .mount_points
-        .first()
-        .cloned()
-        .unwrap_or_else(|| plan.cards.source.dcim.clone());
+    let card_root = card_root(&plan.cards.source);
 
     // Bound before the struct borrows it: the serial is formatted from the volume, and the
     // role names what was observed rather than a card type the tool cannot know
@@ -1052,7 +1044,8 @@ fn verify_destination(root: &Path) -> Result<ExitCode> {
         if report.clean() {
             "CLEAN — every recorded file is present and matches".to_string()
         } else if !report.unreadable_manifests.is_empty() && report.damaged() == 0 {
-            "CANNOT FULLY VERIFY — a manifest could not be read; the photographs it              covers were not checked, and nothing here says they are damaged"
+            "CANNOT FULLY VERIFY — a manifest could not be read; the photographs it \
+             covers were not checked, and nothing here says they are damaged"
                 .to_string()
         } else {
             format!(
