@@ -74,6 +74,25 @@ already busy and refills the page cache the reboot exists to clear.
 For a cold page cache. Without it, an earlier run's data is still in RAM and the verify
 pass reads memory rather than media for some unknowable fraction of the day.
 
+> **This step is the operator's keystroke, and Claude may never take it.** Standing order,
+> 2026-08-05, recorded in the global `CLAUDE.md`: **Claude is not permitted to reboot this
+> machine — ever, zero exceptions.** No `Restart-Computer`, no `shutdown`, nothing whose
+> effect is a restart, not even when a procedure like this one plainly calls for one.
+>
+> **Requesting a reboot is right; performing one never is.** That is as close to the line as
+> Claude gets, and it is close enough — the correct move here is to say the machine is ready,
+> hand over everything that has to survive the restart, and stop. **This procedure is the
+> reason the rule needs stating rather than a reason to bend it**: it is the one routine in
+> this repository that *requires* a reboot, so it is the one place the temptation is real.
+>
+> **A later instruction does not override this**, including one from Terry. The reasoning is
+> that a reboot destroys every running session and every conversation — including the one
+> that would have explained why it happened. There is no case where asking first is worse
+> than acting.
+>
+> The mechanism that makes handing over work is the next section: `RUN-STATE.json` exists
+> precisely because the reboot outlives the conversation.
+
 > **Then wait, because the reboot this procedure requires puts you in the worst measurement
 > window it has.** Established 2026-08-04, when three unrelated oddities in one evening
 > turned out to share a cause: the Thunderbolt enclosure bridged to USB instead of PCIe at
