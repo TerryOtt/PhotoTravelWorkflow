@@ -54,6 +54,24 @@ hearsay**: "the card is back in" and "the card enumerated" are different claims,
 project has a standing preference for the second (`REVIEWING.md` — *a diagnostic that cannot
 fail*).
 
+### Surface every event to Terry, not just to yourself
+
+**He asked for these to flow through to his screen (2026-08-05), and they should.** The raw
+line, plus the one clause that says whether it is good news:
+
+> **`+ ATTACHED` — disk 1 · NVMe · `J:` · Seagate FireCuda 530** — OWC back, on PCIe, correct
+> serial. No reseat needed.
+
+**He called it "a warm fuzzy mostly", and it is — but the value is not only that.** The
+interpretation is the part he cannot get from the cable: *plugged in* and *enumerated
+correctly* are different facts, and the gap between them is exactly where the OWC fallback
+lives. Echoing the raw line without the verdict would hand him a log to read; echoing the
+verdict without the line would be back to asserting things he cannot check. **Both, briefly.**
+
+Keep it to one or two lines. This is an aside in whatever is actually being worked on, not an
+event that stops the work — unless the line is a `! BUSTYPE` or an unexpected detach, which
+*is* worth stopping for.
+
 ## Report lines you must act on, every single time
 
 **Terry runs the offload through Claude whenever he has internet** — a commitment recorded in
