@@ -2971,9 +2971,18 @@ microseconds and no new dependency.
 > expensive rather than academic: there is no ExifTool to fall back on, so a MakerNotes-only
 > serial means decoding Canon's structure by hand.
 >
-> **One real CR3 settles it in thirty seconds.** If the serial turns out to be unreachable,
-> **`model` alone still carries the decision 23 payoff** — the part that actually pays — and
-> the serial degrades to a nice-to-have rather than blocking the feature.
+> ✔ **Settled 2026-08-05: the R5 writes it into standard EXIF.**
+> `crates/geotag/examples/body-identity.rs` against a real frame returns
+> `Make Canon · Model Canon EOS R5 · CameraSerialNumber 092023000050`, read with
+> `exif.get(ExifTag::CameraSerialNumber)` — the same call shape `raw.rs` already makes for
+> capture time. **No MakerNote decoding, no new dependency, no strain on binding constraint
+> 1.** The lens fields returned too, which was the control: a lens serial present with the
+> body serial absent would have meant Canon's tag layout rather than the parser failing to
+> reach the block, and there is no such ambiguity to chase.
+>
+> The fallback is therefore unneeded, and recorded only because it shaped the design: had the
+> serial been unreachable, **`model` alone still carried the decision 23 payoff** — the part
+> that actually pays — so the feature was never blocked on this, only sharpened by it.
 
 **One body, not a list**, per this project's preference for the flat thing until a real second
 case appears. A rental during a repair is the case that would promote it; until one happens,
