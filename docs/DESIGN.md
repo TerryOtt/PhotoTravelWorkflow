@@ -3302,6 +3302,44 @@ hub's single-connector hotel ritual for three cables to the laptop each night.
 > unexplained measurement rather than dressed in a mechanism**, which is the error this
 > document made about a 4K display earlier the same day.
 >
+> ### Both remaining questions answered, 2026-08-05 — and the answer is a new standard rig
+>
+> **The WD is not Gen 2x2.** On the same TB5 port that gives the SanDisk ~1,400, it sustains
+> **943 · 928 · 941 · 951 · 944 MB/s** — flat, the same ~10 Gbps ceiling it hits on a laptop
+> port and on USB-A. **A TB5 port buys it nothing**, which collapses the "do two SSDs contend"
+> question: only one drive here ever wants that port.
+>
+> **The TB5 ports do not contend**, which was the question that actually mattered — the
+> CFexpress reader is the phase 3 *source* while a destination writes, so that pair genuinely
+> coexists in a run. Reading both together, 4K display still attached:
+>
+> | | Alone | Together |
+> |---|---|---|
+> | CFexpress (source) | 1,266 MB/s | **1,294 — 102 %** |
+> | SanDisk (destination) | 1,464 | **1,487 — 102 %** |
+> | **Sum** | 2,730 | **2,781 MB/s ≈ 22.2 Gbps** |
+>
+> Both *gained* marginally in company, reproducibly across two passes — noise rather than a
+> real gain, but decisively not a loss. **22.2 Gbps of storage plus a ~12.5 Gbps display tunnel
+> on one 40 Gbps link, and nothing gives.**
+>
+> **The display stayed attached on purpose.** Its cost was measured this morning at 0.7 %,
+> inside the noise, and it is part of the standard rig — so a number taken without it would
+> describe a configuration nobody runs. **Removing a settled variable makes a measurement less
+> representative, not more.**
+>
+> ### And laptop ports are not interchangeable, which this document had been flattening
+>
+> **The left ports are Thunderbolt 4; the right is USB-only with DP out**, which Dell's
+> documentation recommends for projectors. The discriminator in `Get-PnpDevice` is which
+> controller a device lands on: **`Intel USB 3.10` is the right-hand USB-only port, `3.20` is
+> the Thunderbolt side.** Only a left port can carry the OWC's PCIe tunnel.
+>
+> Classifying a device by *what it negotiated* rather than by *what the port is* hides that
+> distinction, and it is the same error shape as the parent-chain probe that could not see the
+> hub. **Every earlier "laptop port" figure in this document should be read as "whichever port
+> it happened to be in."**
+
 > **The consequence is real and not yet acted on.** `CONOPS.md` says the two USB SSDs go in the
 > laptop's own ports and *not* the hub — a rule measured against the hub's **USB-A** ports and
 > silent about TB5. **For the SanDisk that advice is now backwards.** What is still unknown:
