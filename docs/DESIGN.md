@@ -525,6 +525,30 @@ forbids. **CPU headroom was never the constraint.**
 > against 3,065 for the OWC alone, which is higher as it must be, and ≈26.8 Gbps is about
 > where a TB4 PCIe tunnel tops out.
 >
+> ✔ **That ceiling is what makes a 4K display on the hub free — measured 2026-08-05.** The
+> operator plugged a Dell U3219Q (4K, DP 1.4) into the Element 5 for desk comfort, and a
+> tunnel-budget argument predicted it would rob the three hub-side devices. It does not.
+> `examples/contention.rs` with the display attached and then detached, nothing else changed:
+> the OWC read **3,273 MB/s** with it and **3,289 / 3,311 / 3,287** without — **−0.7 %, inside
+> the 0.7 % spread of the no-display passes themselves.**
+>
+> **The reason is neither "DisplayPort is reserved and therefore free" nor "there is plenty of
+> slack".** A PCIe tunnel tops out at the ~26.5 Gbps this section already records and never
+> could use the whole 40, which leaves ~13.5 Gbps against the ~12.5 a 4K60 stream wants.
+> **They coexist because the PCIe tunnel's own ceiling leaves a display-shaped hole:**
+> 26.5 + 12.5 ≈ 39 of 40.
+>
+> **A prediction rather than a measurement, flagged as such:** a second 4K display, or one at
+> higher refresh or 5K, does not fit in 13.5 Gbps and would have to take bandwidth from
+> somewhere. The practical margin is also far wider than the test implies — the probe drove
+> the OWC to its ceiling at 26 Gbps, where **a real offload asks the hub for roughly 10.**
+>
+> **Recorded because it replaced an inference of mine, not because it was surprising.** The
+> tunnel-budget reasoning was sound and its premise — that DP's share comes out of what PCIe
+> would otherwise have used — was false, since PCIe could not otherwise have used it. **A
+> plausible mechanism is not a measurement.** Every other correction in this section is a
+> number taken badly; this one was a number never taken at all.
+>
 > **Two results that change what to do next.** The SD path gets *slower* with concurrency
 > — 67 MB/s on one thread, 51 on eight — the signature of a device with no command
 > queuing, so its speed cannot be improved by how it is asked. That much holds; the
