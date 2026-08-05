@@ -119,6 +119,23 @@ pass reads memory rather than media for some unknowable fraction of the day.
 > destinations, so the cache the reboot just cleared stays cleared. **Give it 20 minutes,
 > and re-run `full-run-check.ps1` after the wait rather than before** — the enclosure's bus
 > type is exactly the thing that changes during it.
+>
+> **And it is not only Windows settling — third-party software wakes up on its own schedule,
+> deep into the window.** 2026-08-05, Terry, at **15 minutes** of uptime with a run staged:
+> Adobe Creative Cloud announced a Lightroom Classic update. Nothing was downloading yet — an
+> I/O sample found no process above 1 MB/s — but **the announcement is the tell.** An updater
+> that has just decided an update exists is an updater that may start fetching several
+> gigabytes, and a run launched at minute 21 would have overlapped it with no warning and no
+> way to tell afterwards which minutes were contended.
+>
+> **So the window is not merely "let the boot storm pass."** It is also the interval in which
+> you find out what *else* on this machine intends to do work tonight. **Quit the updaters
+> you can see before launching** — a tray app costs nothing to close and the alternative is
+> hoping. `full-run-check.ps1`'s *nothing else is using the machine* is a MUST for this
+> reason, and it is the one row on that list a script cannot fully check for you.
+>
+> *(Separately: a Lightroom Classic release is a [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) item —
+> the XMP checks are gated on Classic having had one. Note it; do not install it mid-run.)*
 
 ## Resuming the session after the reboot
 
