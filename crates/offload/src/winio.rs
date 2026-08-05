@@ -14,6 +14,24 @@
 //! already give. The read side keeps the flag precisely because the constraint never
 //! bites there — a short read at end-of-file is legal.
 //!
+//! # The verify read overlaps its hash, and that is what makes the pass fast
+//!
+//! [`unbuffered_sha256`] runs the read on one thread and the hash on another, two 16 MiB
+//! buffers ping-ponging between them. **Read a chunk, hash it, read the next** — the obvious
+//! loop — leaves the device idle for the whole hash and the CPU idle for the whole read, so a
+//! destination verifies at `1/(1/read + 1/hash)` rather than `min(read, hash)`. Measured
+//! 2026-08-05: the WD went 691 → 828 MB/s, and it is the drive that sets the verify pass, so
+//! that is 20 % off LANDED. Interleaved SHA-256 also beats *serialized* BLAKE3 on both USB
+//! drives, which is what let decision 17 keep SHA-256 without paying for it.
+//!
+//! **Roughly a quarter of the theoretical gain is still on the table, with a named cause:**
+//! a ~52 MB raw is only about 3.3 chunks, so every file starts with an unoverlapped read and
+//! ends with an unoverlapped hash and the pipeline never gets deep. Recovering it means
+//! pipelining *across* files rather than within one. Decision 17 has the table.
+//!
+//! This is orthogonal to decision 2's two-pass shape, which is about *when* a file is read
+//! back relative to the writes. This is about what happens inside one file's read.
+//!
 //! Nothing here needs the `windows` crate: `OpenOptionsExt::custom_flags` is std.
 
 use std::alloc::{self, Layout};

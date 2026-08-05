@@ -299,27 +299,35 @@ does not apply to it and `cargo update` reaches 3.x freely.
 
 ### A declared-but-unused workspace dependency is invisible too
 
-**Found 2026-08-05.** Three crates sit in `[workspace.dependencies]` and are imported by no
-member: `indicatif`, `console` and `windows-registry`. Nothing references them, so they
-never enter the dependency graph, **they are not in `Cargo.lock` at all, and
-`cargo outdated` does not check them** — it reports on what resolved, and these never did.
+**Found 2026-08-05.** Crates can sit in `[workspace.dependencies]` and be imported by no
+member. Nothing references them, so they never enter the dependency graph, **they are not in
+`Cargo.lock` at all, and `cargo outdated` does not check them** — it reports on what resolved,
+and these never did.
+
+> **Currently affected: `console` and `windows-registry`.** It was three when this was found;
+> `indicatif` left the list the same afternoon when `crates/offload/src/progress.rs` was
+> written, which is the gap closing itself exactly as predicted below.
 
 That is a direct consequence of a rule this workspace keeps on purpose: *a member's own
 manifest lists only what its code imports today, so a manifest never claims a dependency
 nothing uses.* Worth keeping — but its cost is this hole, and the hole lands on exactly the
-crates the table above calls most at risk. All three are pre-1.0, and one of them,
-`indicatif`, is the crate that actually went stale in RawGeotag.
+crates the table above calls most at risk. All of them are pre-1.0, and the one that has since
+left the list — `indicatif` — is the crate that actually went stale in RawGeotag.
 
-The reason all three are unused is that their features are unbuilt: `indicatif` and
-`console` belong to decision 14's full report, `windows-registry` to decision 9's Defender
-check. **They become visible the day their code is written**, which is the good news — this
-is a gap that closes itself, and until then it has to be checked by hand.
+The reason they are unused is that their features are unbuilt: `console` belongs to decision
+14's full report, `windows-registry` to decision 9's Defender check. **They become visible the
+day their code is written**, which is the good news — this is a gap that closes itself, and
+until then it has to be checked by hand.
 
 ```
-cargo search indicatif --limit 1
 cargo search console --limit 1
 cargo search windows-registry --limit 1
 ```
+
+**`indicatif` is the worked example of that closing.** It was declared for decision 14 and
+imported by nothing until `progress.rs` was written on 2026-08-05; from that commit it is in
+`Cargo.lock`, `cargo outdated` sees it, and it drops out of this hand-checked list. When
+decision 9's Defender check and decision 14's full report land, the list empties.
 
 **Compare the minor, not the whole version** — that is the same `0.x` rule one section up,
 and it is easy to get backwards when reading this output. `"0.18"` against a current 0.18.6

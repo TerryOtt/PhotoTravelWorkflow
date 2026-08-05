@@ -2490,7 +2490,7 @@ rather than per module at the moment each phase is written.
 | `rayon` | 1.12 | the `--jobs` CPU pool of decision 15 |
 | `walkdir` | 2.5 | card walks, destination walks, `verify`'s date-folder sweep |
 | `tempfile` | 3.27 | temp-then-rename, and the prefix pre-flight's orphan sweep keys on |
-| `indicatif` | 0.18 | `MultiProgress` — one bar per destination |
+| `indicatif` | 0.18 | `MultiProgress` — one bar per destination, **at a terminal only**; it hides itself off-tty, so `progress.rs` wraps it in a three-mode enum |
 | `console` | 0.16 | verdict styling, and whether this is a terminal at all |
 | `thiserror` | 2.0 | the two error types a caller must branch on, below |
 | `anyhow` | 1.0 | every other error, which decision 18 makes fatal |
@@ -2555,7 +2555,7 @@ individually. Two more need no crate because the standard library already answer
 ```
 Cargo.toml            [workspace] — the whole dependency set, declared once
 crates/geotag/        the CR3, GPX and XMP engine, lifted from RawGeotag (decision 17)
-crates/offload/      the binary: CLI, five phases and eject, the Windows storage layer
+crates/offload/       the binary: CLI, five phases and eject, the Windows storage layer
 ```
 
 A member's own manifest lists only what its code imports today, so a manifest never
@@ -3134,6 +3134,17 @@ stale, fix it before doing anything else.*
 13 m 49 s**, whole runs 33–38 minutes. `verify` has been shown to catch a single flipped bit
 in 201 GB and name the file.
 
+> ⚠ **Two changes made after the last of those runs have never been through one, and both sit
+> on the critical path.** The progress reporting (`progress.rs`, commit `e54623e`) and the
+> interleaved verify read (`winio.rs`, commit `693f321`) each landed on 2026-08-05 *after* the
+> final full run, and the second one rewrote the function that decides whether an archive is
+> declared clean. Both were verified in the way available at the time — 154 unit and
+> integration tests, `examples/verify-rate.rs` against all three archive SSDs, and
+> `examples/progress-demo.rs` in both a terminal and a redirect — and **none of that is a full
+> run.** The next end-to-end run under [`FULL-RUN.md`](FULL-RUN.md) is what closes this, and
+> until it happens the timings above describe a binary that no longer exists. Do not quote
+> them as current.
+
 **Still to build:**
 
 - ~~wiring phase 4 to the CLI~~ — **done 2026-08-04.** `manifest::corroborate` resolves the
@@ -3156,21 +3167,24 @@ in 201 GB and name the file.
   asymmetry held exactly as measured — the ProGrade router stayed enumerated, the USB SD
   reader powered down with its card
 - **the report** of decision 14 — the verdict shape exists in outline, not in full
-- **progress output while a phase is running** — decision 29 declared `indicatif` for
-  *"`MultiProgress` — one bar per destination"* and it was never wired, which is why that crate
-  is one of the three the workspace declares and no member imports. **The run prints
+- ~~**progress output while a phase is running**~~ — **done 2026-08-05.** The run used to print
   `ingesting 3,883 files…` and then nothing for twelve minutes, then nothing again for the
-  sixteen phase 4 takes.** On 2026-08-05 the operator resorted to watching the SD reader's LED
-  to guess which phase was running, and said the thing that makes this a defect rather than a
-  polish item: *"I feel like I shouldn't need to guess at that."*
+  sixteen phase 4 takes; the operator resorted to watching the SD reader's LED to work out which
+  phase was running, and said the thing that made it a defect rather than a polish item:
+  *"I feel like I shouldn't need to guess at that."* **Decision 22 had already won this argument
+  for a different stage** — eject became a *timed* stage because "an unlabeled twenty-minute
+  silence reads as a hang while a timed one reads as persistence" — and the conclusion was never
+  carried across to the phases that take twelve and sixteen minutes rather than fifteen seconds.
 
-  **Decision 22 already settled this argument for a different stage and the conclusion was not
-  carried across.** Eject was promoted to a timed stage because *"an unlabeled twenty-minute
-  silence reads as a hang while a timed one reads as persistence"* — and that reasoning applies
-  with more force to a twelve-minute phase 3 and a sixteen-minute phase 4 than to a
-  fifteen-second eject. The tool is a walk-away tool whose whole promise is that you can leave;
-  a screen that cannot say whether it is working is the one thing that makes an operator stay
-  and watch.
+  **`crates/offload/src/progress.rs` is a three-way enum, not a display and a no-op**, and the
+  reason is the trap it nearly shipped with: `indicatif` hides itself when its stream is not a
+  terminal, so bars would have rendered *nothing* in exactly the mode this feature is most
+  needed — captured to a log, which is how every run driven by Claude behaves. It would have
+  looked correct every time the operator tested it by hand. So: `Bars` at a terminal, `Lines`
+  (throttled plain text on stdout) when redirected, `Silent` for tests, with
+  `examples/progress-demo.rs` as the harness because a display cannot be unit-tested. See
+  [`REVIEWING.md`](REVIEWING.md), *A diagnostic that cannot fail*, and the memory note
+  *verify in the mode it will run*.
 - **`sync`** (decision 20), the recovery path `--without` implies
 - **log-driven resume** (decision 13). Convergence already works, via decision 5's
   skip-on-identical-hash, but it re-reads what the run log could have told it
@@ -3181,11 +3195,19 @@ in 201 GB and name the file.
   across all 3,883 manifest entries and every run-log record — `0E7A-0533`, the serial of the
   card pre-flight actually measured and chose as the source
 - **the body check** (decision 34) — name the camera in the config, compare one frame per
-  card at pre-flight, print it as INFO beside the timezone line. **Blocked on one measurement**:
-  whether the R5 writes `CameraSerialNumber` into standard ExifIFD or only into Canon's
-  MakerNotes, which one real CR3 settles. Model-only still delivers the decision 23 payoff
-- **the Defender exclusion check** (decision 9), and setting the exclusions themselves —
-  by extension and process rather than path, for the reasons decision 9 now records
+  card at pre-flight, print it as INFO beside the timezone line. **Unblocked 2026-08-05 and
+  still unbuilt**: the measurement it waited on came back the good way — the R5 writes
+  `CameraSerialNumber` into standard EXIF, so `exif.get(ExifTag::CameraSerialNumber)` reaches
+  it with no MakerNote decoding and no new dependency (`crates/geotag/examples/body-identity.rs`
+  is the probe). What remains is a `body` field in the config, one frame read per card at
+  pre-flight, and the INFO line — plus the standing instruction in [`../CLAUDE.md`](../CLAUDE.md)
+  that Claude acts on that line every time it appears
+- **the Defender exclusion check** (decision 9). **The exclusions themselves were set
+  2026-08-05** — by extension and process rather than by path, for the reasons decision 9
+  records — so what remains is the tool *reading* them at pre-flight and saying whether they
+  are in place, including the unreadable-registry outcome. That is still the only consumer
+  `windows-registry` has, which is why it stays a declared-but-unimported workspace dependency
+  ([`TRIP-HYGIENE.md`](TRIP-HYGIENE.md))
 - **naming whoever actually holds a vetoed volume.** Every claim that Defender or the
   indexer is responsible is inference: the veto names the *volume device object*, never a
   process, and the suspect has never been identified. `handle.exe -a -v <volume>` and

@@ -207,7 +207,10 @@ at 11pm is a wiring rule you will get wrong.
 > which no port can change, because it is Gen 2x1. Moving the SanDisk to TB5 sped up a drive
 > that was merely *tied* for last. **The wiring is right, the wall clock is unmoved**, and the
 > only levers that would move it are replacing the WD with a Gen 2x2 drive or overlapping the
-> verify read with its hash ([`DESIGN.md`](DESIGN.md), *Still to build*).
+> verify read with its hash. **The second was built later the same day** and took the WD from
+> 691 to 828 MB/s — 20 % off the binding constraint, and the wall clock *did* move
+> ([`DESIGN.md`](DESIGN.md), decision 17). The port rewiring's own verdict stands unchanged:
+> it is correct, and it is not what made the run faster.
 
 **The paragraph below is the earlier arrangement's rationale, kept because it explains why the
 laptop ports mattered at all.** It is worth about four and a half minutes a night against
