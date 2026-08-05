@@ -175,7 +175,10 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // heading held open across `report`'s ordinary `println!`s would have them fighting over
     // the same lines. Bars start at phase 3, where something actually moves.
     println!();
-    println!("Pre-Flight");
+    // **"Pre-Flight Checks", the operator's term** — he is an aviation geek and adopted it,
+    // and it fits the vocabulary the tool already had: the run ends at `LANDED`. Both words
+    // come from the same place, which is why neither reads as jargon here.
+    println!("Pre-Flight Checks");
     println!("    Enumerating files on camera cards…");
 
     let plan = preflight::run(
@@ -209,10 +212,26 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // sections below it, and it used to sit indented as though it were an item in a list.
     println!();
     println!();
+    // **`Offloading`, not `Ingesting`.** The binary is `offload`, `CONOPS.md` calls the act
+    // *the offload*, and the screen said a third word for the same thing — which is the exact
+    // drift `WRITING.md` rule 8 exists to stop. *Ingest* stays as the repository's name for
+    // phase 3 in `DESIGN.md` and `pipeline.rs`; it is the operator-facing string that has to
+    // match the word he uses, the same split as `primary` on disk and `Primary` on screen.
+    //
+    // **The estimate lives here rather than on the pre-flight summary**, because this is the
+    // line the eye goes to: the summary says what tonight *is*, and this says what is starting
+    // and how long it will take. Terry, 2026-08-05: *"That's where my eye looks for it."*
     println!(
-        "Ingesting {} files to {} destinations…",
+        "Offloading {} files to {} destinations… est. {}",
         count(plan.cards.files.len()),
-        targets.len()
+        targets.len(),
+        estimate(
+            plan.cards.bytes,
+            plan.cards
+                .other
+                .as_ref()
+                .map(|(_, speed)| speed.bytes_per_second()),
+        ),
     );
 
     let started = Instant::now();
@@ -939,7 +958,7 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
     // tracks — gets a heading at 12 with its rows at 16. A flat block of eleven lines makes
     // the reader work out which lines belong together; the indent says it.
     println!(
-        "    {} files {} · {} GiB · {} destinations verified distinct · est. {}",
+        "    {} files {} · {} GiB · {} destinations verified distinct",
         count(cards.files.len()),
         if cards.agreed {
             "on both cards".to_string()
@@ -948,7 +967,6 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
         },
         offload::human::gib(cards.bytes),
         rig.distinct_disks,
-        estimate(cards.bytes),
     );
 
     // **`primary`/`secondary`/`sole`, the same words the eject block and the manifest use.**
@@ -1134,16 +1152,62 @@ fn plan_names(plan: &preflight::Preflight) -> Result<usize> {
     Ok(unnameable)
 }
 
-/// Wall-clock estimate, bound by the slowest destination absorbing N of writes and N of
-/// read-back verification (decision 2's arithmetic).
-fn estimate(bytes: u64) -> String {
+/// Wall-clock estimate for **both** the moment the data is safe and the moment the program
+/// exits.
+///
+/// **It used to answer only the first, and that was the wrong question to answer alone.**
+/// Terry, 2026-08-05: *"I'd want that number to be estimate to program termination."* LANDED
+/// is the product, so it stays — but the operator is deciding whether to go to dinner, and
+/// dinner ends when the program does.
+///
+/// # The three terms, and why only one of them is a guess
+///
+/// **Phase 3, to LANDED** — the slowest destination absorbs N of writes and N of read-back
+/// (decision 2's arithmetic), at 450–800 MB/s. These stay constants because destination
+/// throughput is not measured at pre-flight; the spread is wide on purpose.
+///
+/// **Phase 4, corroboration** — computed from the second card's rate, which pre-flight *has
+/// just measured*, so this term is grounded rather than assumed. It reads all of N off the
+/// slowest device in the rig. [`CORROBORATION_EFFICIENCY`] is the read-then-hash serialization
+/// tax, measured 2026-08-04: 170 MB/s achieved against a 205 MB/s card.
+///
+/// **Phase 5 and eject** — a minute, near enough. Geotagging ran ~20 s and eject 6 s on the
+/// last three runs.
+///
+/// **Corroboration is added, not overlapped**, because that is what the code does: `phase4`
+/// begins after `pipeline::run` returns. Decision 2 argues for the two-pass shape partly on
+/// the grounds that it *lets* phase 4 start during the verify pass — a benefit that is
+/// described and not built. Estimating as though it were would understate every run by a
+/// quarter of an hour.
+///
+/// Checked against the 2026-08-05 run: predicted 26–33 min, actual 27 m 06 s.
+fn estimate(bytes: u64, corroboration_bytes_per_second: Option<f64>) -> String {
     const SLOW_SSD_BYTES_PER_SECOND: f64 = 450e6;
     const FAST_SSD_BYTES_PER_SECOND: f64 = 800e6;
 
-    let slow = (bytes as f64 * 2.0 / SLOW_SSD_BYTES_PER_SECOND / 60.0).ceil() as u64;
-    let fast = (bytes as f64 * 2.0 / FAST_SSD_BYTES_PER_SECOND / 60.0).ceil() as u64;
+    /// Corroboration reads *and* hashes on one thread, so it never reaches the card's raw
+    /// rate. Measured 2026-08-04: 170 MB/s from a card that reads 205.
+    const CORROBORATION_EFFICIENCY: f64 = 0.83;
 
-    format!("{fast}-{slow} min")
+    /// Geotagging plus eject, which are small and roughly fixed.
+    const TAIL_MINUTES: f64 = 1.0;
+
+    let bytes = bytes as f64;
+    let landed_fast = bytes * 2.0 / FAST_SSD_BYTES_PER_SECOND / 60.0;
+    let landed_slow = bytes * 2.0 / SLOW_SSD_BYTES_PER_SECOND / 60.0;
+
+    // No second card means corroboration is waived (decision 7), so it costs nothing rather
+    // than being estimated at zero — the same night, said two different ways.
+    let corroboration = corroboration_bytes_per_second
+        .map_or(0.0, |rate| bytes / (rate * CORROBORATION_EFFICIENCY) / 60.0);
+
+    format!(
+        "{}-{} min to LANDED, {}-{} min to done",
+        landed_fast.ceil() as u64,
+        landed_slow.ceil() as u64,
+        (landed_fast + corroboration + TAIL_MINUTES).ceil() as u64,
+        (landed_slow + corroboration + TAIL_MINUTES).ceil() as u64,
+    )
 }
 
 /// `offload verify <DEST>` — decision 20.

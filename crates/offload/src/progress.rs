@@ -45,13 +45,13 @@ use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 /// How deep a heading and its rows sit, in spaces.
 ///
 /// **Indent is a parameter rather than a constant because the phases are not all siblings.**
-/// `Pre-Flight`, `Ingesting`, `Corroborating` and `Geotagging` are peers at column 0, but
-/// `Writing` and `Verifying` are the two *passes of* ingesting — they belong under it, and a
+/// `Pre-Flight`, `Offloading`, `Corroborating` and `Geotagging` are peers at column 0, but
+/// `Writing` and `Verifying` are the two *passes of* offloading — they belong under it, and a
 /// flat list would claim otherwise. Rows always sit [`STEP`] further in than their heading, so
 /// the two cannot drift apart at a call site.
 pub const PHASE: usize = 0;
 
-/// A heading nested under a phase — the `Writing` and `Verifying` passes of `Ingesting`.
+/// A heading nested under a phase — the `Writing` and `Verifying` passes of `Offloading`.
 pub const PASS: usize = 4;
 
 /// One level of the hierarchy.

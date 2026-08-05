@@ -87,8 +87,17 @@ sections marked **COMPLETE** before any design.
    |---|---|---|
    | The whole at-home pre-departure routine | **trip hygiene** ([`TRIP-HYGIENE.md`](TRIP-HYGIENE.md)) | "pre-trip prep", "the update pass", "getting ready" |
    | The camera-config check before each shooting session | **daily hygiene** ([`CONOPS.md`](CONOPS.md)) | "the morning check", "pre-shoot setup" |
+   | The act the tool performs, and phase 3's heading on screen | **offload / offloading** | "ingesting", "importing", "copying" |
+   | Phases 1 and 2, and their heading on screen | **pre-flight checks** | "startup checks", "validation", "the checks" |
    | All four copies written and read-back verified | **LANDED** ([`DESIGN.md`](DESIGN.md) decision 14) | "done", "finished", "complete" |
    | The end-of-day offload the operator performs | **the nightly ritual** ([`CONOPS.md`](CONOPS.md)) | "the workflow", "the process" |
+
+   **The tool's own vocabulary is aviation, and that is deliberate rather than decorative.**
+   A run opens with **pre-flight checks** and ends at **LANDED** — one metaphor, carried end to
+   end, in the operator's own idiom. It earns its place by being *load-bearing*: a pre-flight
+   check is understood to be a thing you complete before committing, and landing is understood
+   to be the moment the risk is over. Both are exactly what those two stages mean here. A new
+   stage name **SHOULD** come from the same place rather than starting a second metaphor.
 
    **The two hygienes are a deliberate pair and the names should stay parallel** — same
    noun, different cadence: *trip* hygiene runs once, at home, and covers the whole rig;

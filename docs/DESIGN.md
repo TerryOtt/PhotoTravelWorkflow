@@ -636,6 +636,26 @@ verifier trailed the write front by a ~4 GB byte window. Three things decided it
 - **Less machinery.** No lag-window coordination between writer and verifier, and resume
   simplifies — see decision 13.
 
+> ⚠ **The second bullet describes something the code does not do, found 2026-08-05.** Phase 4
+> does not start during phase 3's verify pass: `main.rs` runs `pipeline::run` to completion,
+> prints LANDED, and *then* calls `phase4::run`. The overlap is argued for here as a reason to
+> prefer two-pass, and it was never built.
+>
+> **Two-pass is still the right shape** — the first and third bullets stand on their own, and
+> the primary metric genuinely cannot tell the difference. What is wrong is the *claimed
+> benefit*, which matters because it was being used as evidence.
+>
+> **And the size of it is worth knowing before anyone decides it is fine.** Corroboration is
+> ~16 minutes of the ~27-minute run, spent reading the SD card while every archive SSD sits
+> idle. Overlapping it with the verify pass is the largest remaining lever on the *secondary*
+> metric by a wide margin — and per *Both metrics are thresholds*, that is a reason to record
+> it rather than to go and do it: the run finishes in 27 minutes against a 60–90 minute bar,
+> so nothing here is worth trading clarity or safety for.
+>
+> **The estimate now adds corroboration rather than overlapping it**, because that is what the
+> program does. Estimating the design instead of the build would understate every run by a
+> quarter of an hour.
+
 On a big day the pass structure alone defeats the page cache: hundreds of gigabytes flow
 through between a file's write and its verify read. On a small day (a few GB) it does
 not, which is why `FILE_FLAG_NO_BUFFERING` stays mandatory — it defeats the OS cache at
