@@ -215,6 +215,16 @@ foreach ($dest in $config.destinations) {
     }
 }
 
+# **Every expectation must name a destination that exists**, or the table above is
+# decoration. `$ExpectedPath` is keyed by config label, so renaming a destination — which is
+# exactly what replacing a drive involves — would silently stop checking the very device whose
+# placement had just changed. Three lines to turn that from silent into loud.
+foreach ($label in $ExpectedPath.Keys) {
+    if ($label -notin @($config.destinations.label)) {
+        Report "expectation $label" $false "no destination has this label — the port table is stale, so nothing checked it"
+    }
+}
+
 # Four copies on fewer than four physical disks is the failure this assertion exists for.
 $destDiskCount = ($config.destinations | ForEach-Object {
     $dest = $_

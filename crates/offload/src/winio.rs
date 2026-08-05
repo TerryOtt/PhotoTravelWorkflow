@@ -22,8 +22,10 @@ use std::io::{Read, Write};
 use std::os::windows::fs::OpenOptionsExt;
 use std::path::Path;
 use std::ptr::NonNull;
+use std::sync::mpsc::sync_channel;
+use std::thread;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use tempfile::Builder;
 
 use crate::hash::Digest32;
@@ -124,25 +126,62 @@ pub fn unbuffered_sha256(path: &Path) -> Result<Digest32> {
         .open(path)
         .with_context(|| format!("opening {} for verification", path.display()))?;
 
-    let mut buffer = SectorBuf::new(VERIFY_CHUNK);
-    let mut hasher = crate::hash::Hasher::new();
+    // **Two buffers ping-ponging between a reader thread and this one**, because the
+    // obvious loop — read a chunk, hash it, read the next — leaves the device idle for
+    // the whole hash and the CPU idle for the whole read. That makes a destination's
+    // verify rate `1/(1/read + 1/hash)` rather than `min(read, hash)`, which is why a
+    // drive reading 1,486 MB/s verified at ~790. See the module note.
+    //
+    // `sync_channel(1)` on the filled side is what bounds memory: the reader may run one
+    // chunk ahead and no further, so the live set is two chunks per destination.
+    let (filled_tx, filled_rx) = sync_channel::<(SectorBuf, usize)>(1);
+    let (empty_tx, empty_rx) = sync_channel::<SectorBuf>(2);
 
-    loop {
-        // The *request* is always a sector multiple, which is what the flag demands.
-        // The returned count may be short at end-of-file, which is legal and is exactly
-        // why the partial final sector that rules this flag out on the write side is a
-        // non-issue here.
-        let read = file
-            .read(buffer.as_mut_slice())
-            .with_context(|| format!("reading {} back", path.display()))?;
-
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buffer.as_mut_slice()[..read]);
+    for _ in 0..2 {
+        empty_tx
+            .send(SectorBuf::new(VERIFY_CHUNK))
+            .expect("the receiver is alive — nothing has been dropped yet");
     }
 
-    Ok(hasher.finish())
+    thread::scope(|scope| {
+        let reader = scope.spawn(move || -> Result<()> {
+            while let Ok(mut buffer) = empty_rx.recv() {
+                // The *request* is always a sector multiple, which is what the flag
+                // demands. The returned count may be short at end-of-file, which is legal
+                // and is exactly why the partial final sector that rules this flag out on
+                // the write side is a non-issue here.
+                let read = file
+                    .read(buffer.as_mut_slice())
+                    .with_context(|| format!("reading {} back", path.display()))?;
+
+                // End of file, or the hasher has gone away. Dropping the sender here is
+                // what ends the hasher's loop below.
+                if read == 0 || filled_tx.send((buffer, read)).is_err() {
+                    break;
+                }
+            }
+            Ok(())
+        });
+
+        let mut hasher = crate::hash::Hasher::new();
+        while let Ok((buffer, read)) = filled_rx.recv() {
+            hasher.update(&buffer.as_slice()[..read]);
+            // Handing it back is what keeps the reader supplied. A closed channel means
+            // the reader has already stopped, which is not an error here — the `recv`
+            // above will end the loop on its next turn.
+            let _ = empty_tx.send(buffer);
+        }
+
+        // Joined before the digest is returned, so a read error becomes this function's
+        // error rather than a silently truncated hash over the bytes that did arrive.
+        // **That ordering is the whole safety of this rewrite**: a verify that hashed
+        // half a file and reported success would mark a damaged archive as clean.
+        reader
+            .join()
+            .map_err(|_| anyhow!("the verify reader thread panicked"))??;
+
+        Ok(hasher.finish())
+    })
 }
 
 /// Read up to `limit` bytes off the media, bypassing every cache, and return how many.
@@ -213,7 +252,18 @@ impl SectorBuf {
         // `Drop`, and `&mut self` guarantees this is the only live reference to it.
         unsafe { std::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len) }
     }
+
+    fn as_slice(&self) -> &[u8] {
+        // SAFETY: as above; `&self` is enough for a shared view.
+        unsafe { std::slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
+    }
 }
+
+// SAFETY: the buffer owns its allocation exclusively and hands it over by *move* — the
+// filled/empty channels never leave two references alive at once, so passing one to the
+// reader thread transfers sole ownership. `NonNull` is `!Send` only because the compiler
+// cannot know that; nothing else points at this memory.
+unsafe impl Send for SectorBuf {}
 
 impl Drop for SectorBuf {
     fn drop(&mut self) {

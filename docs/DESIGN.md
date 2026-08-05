@@ -1587,6 +1587,35 @@ Note how much smaller this is than the in-memory table above implies. BLAKE3 is 
 raw rate and 1.10× the run, because phase 3 spends most of its time on I/O that no hash
 touches. **Beware quoting the memory-bandwidth figures as though they were run times.**
 
+> ✔ **Built and measured 2026-08-05, and the prediction held.** `winio::unbuffered_sha256`
+> now runs the read and the hash on separate threads, two 16 MiB buffers ping-ponging through
+> a `sync_channel(1)`. Same SHA-256, same requests, same devices — **the difference is
+> scheduling alone**:
+>
+> | Drive | Read ceiling | SHA-256 serialized | BLAKE3 serialized | **SHA-256 interleaved** |
+> |---|---|---|---|---|
+> | SanDisk | 1,455 | 910 | 1,127 | **1,134 — 1.25×** |
+> | **WD** *(sets the verify pass)* | 957 | 691 | 798 | **828 — 1.20×** |
+> | OWC | 3,284 | 1,366 | 1,933 | **1,670 — 1.22×** |
+>
+> **On both USB drives, interleaved SHA-256 beats *serialized BLAKE3*** — 1,134 against 1,127,
+> and 828 against 798. So the lever recovers more than the hash swap would have, **while
+> keeping the property decision 17 spent two minutes a run to buy.** That is the claim the
+> paragraph below made when it was a prediction, now measured.
+>
+> **The floor moved, which is the only thing that matters.** The verify pass ends when the
+> slowest destination finishes, and that is the WD: 691 → 828 MB/s, a **20 % gain on the
+> binding constraint**. Unlike 2026-08-05's port rewiring, this one shortens LANDED.
+>
+> **And roughly a quarter is still on the table, with a named cause.** Perfect overlap would
+> reach `min(read, hash)` — 2,380 MB/s on the OWC against the 1,670 observed. The gap is
+> **per-file pipeline drain**: a ~52 MB raw is only about 3.3 chunks, so every file starts with
+> an unoverlapped read and ends with an unoverlapped hash, and the pipeline never gets deep.
+> Fixing it means pipelining *across* files rather than within one, which is a larger change
+> and is not attempted here.
+>
+> *The original note, kept because its reasoning is what produced this:*
+>
 > **The measurement found a better lever than the hash, and it is in `winio.rs` rather
 > than here.** `unbuffered_sha256` reads a chunk, hashes it, then reads the next —
 > nothing is in flight during the hash — so a destination's verify rate is
@@ -3171,8 +3200,14 @@ in 201 GB and name the file.
   `%APPDATA%\offload\history.json` covering cards *and* destinations, each sample carrying
   uptime and link generation. **Backfillable on day one**: every run log on the laptop
   already holds the per-destination rates, so this starts with history rather than empty
-- **overlapping the verify read with its hash** — **now measured as the binding constraint on
-  LANDED, and the largest remaining lever.** With the archive SSDs on their own laptop ports
+- ~~**overlapping the verify read with its hash**~~ — **done 2026-08-05**, 20–25 % across every
+  destination and 20 % on the WD, which is the one that binds. Interleaved SHA-256 now beats
+  serialized BLAKE3 on both USB drives. **What remains is per-file pipeline drain**: a ~52 MB
+  raw is ~3.3 chunks, so each file starts with an unoverlapped read and ends with an
+  unoverlapped hash. Pipelining across files would recover most of the remaining quarter —
+  the OWC reaches 1,670 against a 2,380 theoretical
+- *(superseded, kept for the reasoning)* **overlapping the verify read with its hash** — was
+  described here as the binding constraint on LANDED and the largest remaining lever. With the archive SSDs on their own laptop ports
   they are no longer tunnel-limited: on 2026-08-04 every destination verified within ~12% of
   `1/(1/read + 1/hash)`, so drives that read at 934–980 MB/s verified at 590–597. Worth far
   more than the hash choice ever was; see decision 17 and the cold-cache run below

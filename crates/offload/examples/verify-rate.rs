@@ -90,6 +90,40 @@ fn main() {
 
         println!("  {:<24} {rate:>9.0}  {relative:>8}", algorithm.name());
     }
+
+    // **The row that is not an algorithm choice.** Everything above reads a chunk and
+    // hashes it before issuing the next read, which is what `winio` used to do and what
+    // makes a destination's rate `1/(1/read + 1/hash)`. This one calls the real
+    // `winio::unbuffered_sha256`, which now overlaps the two on a second thread — same
+    // SHA-256, same 16 MiB requests, same device. The difference is scheduling alone.
+    //
+    // Kept beside the algorithm rows deliberately: it is the honest comparison for
+    // "how do we make verification faster", and it beats every hash choice here without
+    // giving up the one property decision 17 paid for.
+    let start = Instant::now();
+    let mut read = 0u64;
+    for file in files {
+        if read >= SAMPLE {
+            break;
+        }
+        match offload::winio::unbuffered_sha256(file.as_path()) {
+            Ok(_) => read += std::fs::metadata(file).map(|m| m.len()).unwrap_or(0),
+            Err(error) => {
+                eprintln!("  interleaved read failed on {}: {error:#}", file.display());
+                break;
+            }
+        }
+    }
+    let rate = read as f64 / start.elapsed().as_secs_f64() / 1e6;
+    let relative = if sha_rate > 0.0 {
+        format!("{:.2}x", rate / sha_rate)
+    } else {
+        "-".to_string()
+    };
+    println!(
+        "  {:<24} {rate:>9.0}  {relative:>8}",
+        "SHA-256, INTERLEAVED"
+    );
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
