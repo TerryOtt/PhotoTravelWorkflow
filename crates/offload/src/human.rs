@@ -108,7 +108,7 @@ mod tests {
     ///
     /// One byte under 1,688 GiB, so the rounding is exact rather than resting on how a
     /// decimal literal lands in binary — an earlier version of this test asserted `1,688.0`
-    /// for `1687.95`, which is stored as `1687.949999…` and formats to `1687.9`.
+    /// for `1687.95`, which is stored as `1687.949999...` and formats to `1687.9`.
     #[test]
     fn a_fraction_that_rounds_up_does_not_corrupt_the_separator() {
         assert_eq!(gib(1_688 * (1u64 << 30) - 1), "1,688.0");

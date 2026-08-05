@@ -106,7 +106,6 @@ pub fn run(
     // `secondary` is the word the card block and the eject block both use for this card.
     let _section = progress.section("Corroborating", crate::progress::PHASE);
     let bar = progress.bar("Secondary", ingested.len(), crate::progress::PHASE);
-    bar.set_message("reading the second card");
 
     for frame in ingested {
         bar.inc();

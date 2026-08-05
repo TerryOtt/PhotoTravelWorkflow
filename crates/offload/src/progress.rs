@@ -1,7 +1,7 @@
 //! Progress reporting — the difference between *working* and *hung*.
 //!
 //! **This exists because the operator watched a drive's activity LED to work out which phase
-//! was running.** The run printed `ingesting 3,883 files…` and then nothing for twelve
+//! was running.** The run printed `ingesting 3,883 files...` and then nothing for twelve
 //! minutes, then nothing again for the sixteen phase 4 takes. His words are the whole
 //! specification: *"I feel like I shouldn't need to guess at that."*
 //!
@@ -189,6 +189,26 @@ impl Progress {
                 Section { lines: Vec::new() }
             }
             Self::Silent => Section { lines: Vec::new() },
+        }
+    }
+
+    /// Hand the terminal back, erasing every bar and heading this phase drew.
+    ///
+    /// **Call this before printing anything at the end of a phase.** `MultiProgress` owns a
+    /// block of the screen and repaints it wherever the cursor happens to be, so an ordinary
+    /// `println!` while it is live does not appear below the bars — it collides with them.
+    /// On 2026-08-05 that put the LANDED banner in the middle of eight progress rows, with the
+    /// rows drawn twice around it.
+    ///
+    /// **The rows are not lost by clearing them.** Decision 14's report states the same
+    /// outcome in durable text — `3,883 written · 0 skipped · 3,883 verified   OK`, per
+    /// destination — and that is the record. The bars exist to show *which drive you are
+    /// waiting on while it is happening*, which is a question that stops being asked the
+    /// moment the phase ends.
+    pub fn clear(&self) {
+        if let Self::Bars(multi) = self {
+            // A failure here means the terminal is already in a state we cannot improve.
+            let _ = multi.clear();
         }
     }
 

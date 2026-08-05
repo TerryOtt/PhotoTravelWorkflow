@@ -141,7 +141,7 @@ Lightroom tree, clustering `YYYY-MM-DD` names into consecutive runs.*
 | `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` | Raws are safe on all four copies; certainty work remains. Do what it says. |
 | `SAFE TO STORE — UNPLUG <X>` | Everything is done. That drive is flushed and detached; Windows just would not power it down. **Pull it out and store it — there is nothing to do in the tray.** |
 | `SAFE TO STORE — EJECT <X> BY HAND` | Everything is done; one volume is still mounted and would not release. Eject it from the tray and store. |
-| `NOT SAFE — …` | Something did not finish. Eject nothing; run `offload` again and it continues where it stopped. |
+| `NOT SAFE — ...` | Something did not finish. Eject nothing; run `offload` again and it continues where it stopped. |
 
 The physical state carries the meaning: **an SSD this tool has ejected is a claim that
 every file from both cards is accounted for, verified, on that disk.** A still-mounted

@@ -203,7 +203,7 @@ looks at string contents**: `cargo fmt` does not reformat them, clippy has no li
 them, and a green suite is therefore silent about every literal the program prints. And it
 arrived in two separate commits on one day, so it is an editing artifact that recurs rather
 than a typo — the scan is a regex for a run of three or more spaces between two word
-characters inside a `"…"`, and the only legitimate hits are the report's own column
+characters inside a `"..."`, and the only legitimate hits are the report's own column
 alignment.
 
 **If a mutation produces no failure, the test is decorative. Fix it then, while you still
@@ -282,7 +282,7 @@ in a hurry, at the keyboard, while chasing something else — and they are belie
 
 | The check | What it reported | Why it could not work |
 |---|---|---|
-| `full-run-check.ps1` card link | every card "PCIe tunnelled" | matched PnP by `FriendlyName`; `Get-Disk` says `SANDISK SDDR-409` where `Get-PnpDevice` says `… USB Device`, so the chain came back empty and *every* card fell into the no-USB-parent branch. **The USB 2.0 warning could never fire** |
+| `full-run-check.ps1` card link | every card "PCIe tunnelled" | matched PnP by `FriendlyName`; `Get-Disk` says `SANDISK SDDR-409` where `Get-PnpDevice` says `... USB Device`, so the chain came back empty and *every* card fell into the no-USB-parent branch. **The USB 2.0 warning could never fire** |
 | `full-run-check.ps1` destinations | two USB destinations "absent" while plugged in | USB bridges pad serials to a fixed-width SCSI field, so an exact comparison missed them |
 | Element 5 topology probe | the OWC "on a laptop port" | matched chain names against `Element 5`; a PCIe-tunnelled device enumerates through anonymous `PCI Express Switch Port` entries that never name the hub |
 | dependency currency check | `indicatif 0.18 <-- BEHIND 0.18.6` | compared a *requirement* against a *version*. `"0.18"` reaches 0.18.6 — for a `0.x` crate the **minor** is the breaking position |
@@ -322,7 +322,7 @@ others just moves the broken window somewhere less visible.
 The same applies in the other direction. **Changing any one of the four is reason to look
 at the other three**, because a change rarely stays in its lane:
 
-| A change to… | …routinely stales |
+| A change to... | ...routinely stales |
 |---|---|
 | code | tests pinning the old shape; comments naming what moved; every doc showing a command or a sample output |
 | tests | the comments inside them, which are what explain why a case exists at all |

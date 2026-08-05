@@ -81,7 +81,7 @@ fn report(krate: &str, algorithm: &str, hash: impl FnOnce() -> Vec<u8>) {
     let rate = TOTAL_BYTES as f64 / elapsed.as_secs_f64() / 1_000_000.0;
 
     println!(
-        "{krate:<8}  {algorithm:<18}  {:>7} MB/s  {}…",
+        "{krate:<8}  {algorithm:<18}  {:>7} MB/s  {}...",
         separated(rate.round() as u64),
         hex_prefix(&digest)
     );

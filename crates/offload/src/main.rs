@@ -179,7 +179,11 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // and it fits the vocabulary the tool already had: the run ends at `LANDED`. Both words
     // come from the same place, which is why neither reads as jargon here.
     println!("Pre-Flight Checks");
-    println!("    Enumerating files on camera cards…");
+    // Three periods, not U+2026. Terry, 2026-08-05: the single-glyph ellipsis "bothers my old
+    // school DOS ANSI UI eyes." His screen, his call — and an ASCII ellipsis cannot render as
+    // a box on a console that is having a bad code-page day, which is a small real benefit
+    // beyond taste.
+    println!("    Enumerating files on camera cards...");
 
     let plan = preflight::run(
         &config,
@@ -212,6 +216,12 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // sections below it, and it used to sit indented as though it were an item in a list.
     println!();
     println!();
+    // **`·` and not `...` before the estimate.** The ellipsis was doing a separator's job in the
+    // middle of a line, while the summary line above uses a middle dot for exactly that — two
+    // punctuation marks for one role. The trailing `...` on `Enumerating files on camera cards...`
+    // stays, because there it is not a separator: it marks work in progress with nothing after
+    // it, which is the only thing an ellipsis should mean here.
+    //
     // **`Offloading`, not `Ingesting`.** The binary is `offload`, `CONOPS.md` calls the act
     // *the offload*, and the screen said a third word for the same thing — which is the exact
     // drift `WRITING.md` rule 8 exists to stop. *Ingest* stays as the repository's name for
@@ -222,7 +232,7 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // line the eye goes to: the summary says what tonight *is*, and this says what is starting
     // and how long it will take. Terry, 2026-08-05: *"That's where my eye looks for it."*
     println!(
-        "Offloading {} files to {} destinations… est. {}",
+        "Offloading {} files to {} destinations · est. {}",
         count(plan.cards.files.len()),
         targets.len(),
         estimate(
@@ -268,6 +278,12 @@ fn offload(args: &Offload) -> Result<ExitCode> {
         )?;
     }
 
+    // **Every phase hands the terminal back before its report prints**, here and again after
+    // corroboration and geotagging. `MultiProgress` owns a block and repaints it wherever the
+    // cursor is, so a plain `println!` while bars are live does not land below them — it
+    // collides. On 2026-08-05 that put the LANDED banner inside eight progress rows and drew
+    // the rows twice, once on each side of it.
+    progress.clear();
     landed(&outcome, elapsed, &runs_root);
 
     // Phases 4 and 5 both run after LANDED and may take as long as they like — decision 14
@@ -276,9 +292,11 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     let corroboration =
         corroboration_phase(&plan, &targets, &outcome, &runs_root, args, &progress)?;
     record_corroboration(&targets, &outcome, corroboration.as_ref())?;
+    progress.clear();
     report_corroboration(corroboration.as_ref());
 
     let geotag = geotag_phase(&plan, &targets, &outcome, args, &progress)?;
+    progress.clear();
     report_geotag(geotag.as_ref());
 
     // Decision 22: last, because phases 4 and 5 still write to the archives. The volumes

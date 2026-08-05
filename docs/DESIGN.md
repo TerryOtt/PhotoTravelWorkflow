@@ -1383,9 +1383,9 @@ about already settled.
   1,247 files · 56.1 GB · read from CFexpress
 
   laptop  C:\Travel\Images        1,247 written · 1,247 verified   OK
-  SSD-A   Samsung T9   S5H9NS…    1,247 written · 1,247 verified   OK
-  SSD-B   Samsung T9   S5H9NT…    1,247 written · 1,247 verified   OK
-  SSD-C   SanDisk E61  2312A9…    1,247 written · 1,247 verified   OK
+  SSD-A   Samsung T9   S5H9NS...    1,247 written · 1,247 verified   OK
+  SSD-B   Samsung T9   S5H9NT...    1,247 written · 1,247 verified   OK
+  SSD-C   SanDisk E61  2312A9...    1,247 written · 1,247 verified   OK
 
   Corroboration   1,246 matched · 1 mismatch
   Body            Canon EOS R5 · 012345000123 — as configured
@@ -1998,7 +1998,7 @@ actually differs is the *instruction* to the operator, which belongs in the repo
 > | 1. lock + dismount | still mounted | still mounted |
 > | 2. **eject medium** | **returns `ok`, releases nothing** | **returns `ok`, releases nothing** |
 > | 3. device eject | **RELEASED** | **RELEASED** |
-> | …and the reader? | **powered down too** | **still enumerated** |
+> | ...and the reader? | **powered down too** | **still enumerated** |
 >
 > **`IOCTL_STORAGE_EJECT_MEDIA` is not the answer, and the prediction that it would be was
 > mine.** It reports success on *both* cards and releases neither — the "succeeds at nothing"
@@ -2309,7 +2309,7 @@ remaining night.
 The default stays refusal, in the first ten seconds, naming the fix:
 
 ```
-DESTINATION MISSING — SSD-C (SanDisk E61 2312A9…) not connected.
+DESTINATION MISSING — SSD-C (SanDisk E61 2312A9...) not connected.
 Plug it in, or re-run with --without SSD-C and sync the disk when it returns.
 ```
 
@@ -2955,7 +2955,7 @@ cards present (decision 7), the pair holding one listing (decision 27), CR3 only
 So the config names it, and pre-flight compares:
 
 ```json
-"body": { "model": "Canon EOS R5", "serial": "…" }
+"body": { "model": "Canon EOS R5", "serial": "..." }
 ```
 
 **It reports; it never refuses.** Frames from an unexpected body are perfectly good
@@ -3272,7 +3272,7 @@ at least one recorded run was convergence, so the comparison above is anchored t
   reader powered down with its card
 - **the report** of decision 14 — the verdict shape exists in outline, not in full
 - ~~**progress output while a phase is running**~~ — **done 2026-08-05.** The run used to print
-  `ingesting 3,883 files…` and then nothing for twelve minutes, then nothing again for the
+  `ingesting 3,883 files...` and then nothing for twelve minutes, then nothing again for the
   sixteen phase 4 takes; the operator resorted to watching the SD reader's LED to work out which
   phase was running, and said the thing that made it a defect rather than a polish item:
   *"I feel like I shouldn't need to guess at that."* **Decision 22 had already won this argument

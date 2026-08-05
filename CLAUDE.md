@@ -143,7 +143,7 @@ facts about the hardware; each was caught because he pushed back on one that loo
 
 ## Read before you write
 
-| Before you… | Read | Its standing order |
+| Before you... | Read | Its standing order |
 |---|---|---|
 | propose or write anything | [`docs/DESIGN.md`](docs/DESIGN.md) | every decision numbered and argued, plus what was considered and rejected — `grep -c '^### [0-9]' docs/DESIGN.md` for the count |
 | change what the operator does | [`docs/CONOPS.md`](docs/CONOPS.md) | the nightly ritual, **daily hygiene** (the per-session camera-config check), and the shooting-day contract the guarantees rest on |

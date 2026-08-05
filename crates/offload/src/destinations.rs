@@ -143,7 +143,7 @@ pub fn survey_against(config: &Config, volumes: &[Volume]) -> Survey {
     // fan-out all inherit it — two lists of the same four drives in different orders would be
     // worse than one scrambled list.
     //
-    // A volume with no letter mounts at `\\?\Volume{…}` and sorts after the lettered ones,
+    // A volume with no letter mounts at `\\?\Volume{...}` and sorts after the lettered ones,
     // which is where an oddity belongs. **Nothing depends on this order**: destinations are
     // resolved by serial (decision 6) and the laptop is found by label, not position.
     survey.found.sort_by(|a, b| a.root.cmp(&b.root));
@@ -153,8 +153,8 @@ pub fn survey_against(config: &Config, volumes: &[Volume]) -> Survey {
 
 /// Whether two spellings name the same volume.
 ///
-/// **A config holds `{d10e8b02-…}` while Windows reports
-/// `\\?\Volume{d10e8b02-…}\`, and comparing those as strings is never equal.** That bug
+/// **A config holds `{d10e8b02-...}` while Windows reports
+/// `\\?\Volume{d10e8b02-...}\`, and comparing those as strings is never equal.** That bug
 /// shipped into the first real run and made every archive disk report *REFORMATTED —
 /// update the config's volume_guid* on a rig where nothing had been reformatted. It was
 /// harmless to the data and corrosive to the tool: a warning that fires regardless of
@@ -287,7 +287,7 @@ mod tests {
     }
 
     /// **The regression test for the false REFORMATTED warning.** A config holds a bare
-    /// braced GUID; Windows reports `\\?\Volume{…}\`. Comparing those as strings was
+    /// braced GUID; Windows reports `\\?\Volume{...}\`. Comparing those as strings was
     /// never equal, so every archive disk claimed to have been reformatted on a rig
     /// where nothing had. The first assertion here is the one that failed.
     #[test]
