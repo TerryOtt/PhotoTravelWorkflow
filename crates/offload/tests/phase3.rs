@@ -267,6 +267,27 @@ fn a_second_run_over_the_same_card_skips_rather_than_rewrites() {
         before,
         "a re-run must not add a suffixed duplicate"
     );
+
+    // **Convergence moves exactly as many bytes as a fresh run**, which is the claim
+    // `bytes_moved`'s doc comment makes and the reason the LANDED throughput line stays
+    // comparable across run shapes. A written file costs one write plus one verify read; a
+    // *skipped* one costs `place`'s hash check of the target plus the same verify read. Two
+    // units either way — convergence shifts the write half into reads rather than saving it.
+    //
+    // Asserted on both runs from one setup, because a claim that holds only for the shape you
+    // happened to test is how a headline number starts lying on the other one.
+    for (shape, run) in [("fresh", &first), ("convergence", &second)] {
+        for destination in &run.destinations {
+            assert_eq!(
+                destination.bytes_moved,
+                run.bytes * 2,
+                "{shape}: {} moved {} bytes against {} of payload",
+                destination.label,
+                destination.bytes_moved,
+                run.bytes
+            );
+        }
+    }
 }
 
 /// A frame the camera wrote but whose EXIF says nothing lands in `_unfiled` — still

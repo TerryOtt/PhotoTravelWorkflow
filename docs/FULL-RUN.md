@@ -122,11 +122,16 @@ pass reads memory rather than media for some unknowable fraction of the day.
 >
 > **And it is not only Windows settling — third-party software wakes up on its own schedule,
 > deep into the window.** 2026-08-05, Terry, at **15 minutes** of uptime with a run staged:
-> Adobe Creative Cloud announced a Lightroom Classic update. Nothing was downloading yet — an
-> I/O sample found no process above 1 MB/s — but **the announcement is the tell.** An updater
-> that has just decided an update exists is an updater that may start fetching several
-> gigabytes, and a run launched at minute 21 would have overlapped it with no warning and no
-> way to tell afterwards which minutes were contended.
+> Adobe Creative Cloud announced that a Lightroom Classic update **had completed**. Not that
+> one was available — that a multi-gigabyte download and install had *already run to
+> completion*, inside the window, entirely invisible until it announced itself at the end.
+>
+> **A run launched at minute five would have spent its first third contending with an Adobe
+> installer**, and produced a number indistinguishable from every other number in this
+> document. Terry's framing is the one to keep: ***big shit happens after reboots and it's not
+> easy to predict.*** That is stronger than the mechanism list above — Defender, the indexer,
+> prefetch — because a list implies the set is enumerable. It is not. **The window works
+> precisely because it does not require you to predict what is coming.**
 >
 > **So the window is not merely "let the boot storm pass."** It is also the interval in which
 > you find out what *else* on this machine intends to do work tonight. **Quit the updaters
@@ -305,6 +310,20 @@ run.**
   wrong caches at the wrong moment.
 - **You MUST NOT run anything else on the bus.** A throughput number taken alongside other
   I/O describes contention ([`REVIEWING.md`](REVIEWING.md) — *Measurements are evidence*).
+
+> **`scripts\watch-rig.ps1` is the one sanctioned exception, and it MUST be declared with the
+> number.** [`../CLAUDE.md`](../CLAUDE.md) calls it safe mid-procedure and this document says
+> nothing else may use the machine; both are right, and the reconciliation is that it reads
+> storage-stack metadata and never opens a volume. **Measured during the 2026-08-05 run**: two
+> pollers at a 2 s interval, and the SD reader they were touching showed **0.00 MB/s**. So it
+> is immaterial — but *immaterial* is a judgment, and this project records judgments rather
+> than acting on them silently. **It goes in the run record either way.**
+>
+> **One side effect worth knowing, because it is actively misleading here: polling blinks the
+> card reader's activity LED.** On 2026-08-05 that produced a false "the SD read has started"
+> during the verify pass. In a project whose operator has historically read those LEDs to infer
+> which phase is running, a watcher that blinks them is a watcher that lies — **take the phase
+> from the log, which is what the progress output exists for.**
 
 ## Launch, and what to record with the number
 

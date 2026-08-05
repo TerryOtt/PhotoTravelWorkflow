@@ -70,6 +70,18 @@ pub struct DestinationOutcome {
     pub verified: usize,
     /// Files whose read-back did not match. Non-empty means `NOT SAFE` (decision 14).
     pub failed: Vec<String>,
+    /// Bytes this destination actually moved, counted rather than assumed.
+    ///
+    /// **A fresh file and a converged one cost the same two units**, which is not obvious:
+    /// a written file pays one write plus one verify read, and a *skipped* one still pays an
+    /// `unbuffered_sha256` of the target in [`place`] to prove the hash matches before
+    /// skipping, plus the same verify read. So convergence does not move less data — it moves
+    /// the same data with the write half shifted into reads.
+    ///
+    /// Summed rather than derived from `files × size × 2` because a collision retry, a
+    /// mismatch, or a partial pass all make the derivation quietly wrong, and a headline
+    /// throughput figure that is quietly wrong is worse than none.
+    pub bytes_moved: u64,
 }
 
 /// What the phase did, in the terms decision 14's report is built from.
@@ -393,6 +405,8 @@ fn verify(
         skipped: landed.iter().filter(|p| p.skipped).count(),
         verified: 0,
         failed: Vec::new(),
+        // The write-or-skip-check half, already paid by the time this pass starts.
+        bytes_moved: landed.iter().map(|placed| placed.bytes).sum(),
     };
 
     let mut landed_by_folder: BTreeMap<PathBuf, Vec<manifest::Entry>> = BTreeMap::new();
@@ -401,6 +415,10 @@ fn verify(
         bar.inc();
         let target = destination.root.join(&placed.relative);
         let name = placed.relative.to_string_lossy().replace('\\', "/");
+
+        // Counted before the comparison: a file that fails still came off the media, and a
+        // throughput figure describes what the hardware did rather than what it proved.
+        outcome.bytes_moved += placed.bytes;
 
         if unbuffered_sha256(&target)? != placed.sha256 {
             outcome.failed.push(name);

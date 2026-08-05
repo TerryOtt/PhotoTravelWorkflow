@@ -785,6 +785,29 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration, runs_root: &Path) {
         count(outcome.files),
         outcome.bytes as f64 / 1e9
     );
+
+    // What the hardware actually did, which no single per-device rate shows. The source read
+    // plus every destination's write-or-skip-check and verify read — on a fresh run that is
+    // 9N, and it stays 9N under convergence because a skip still reads the target to compare.
+    //
+    // **This is a health signal, not a boast.** Half of it is unbuffered reads and the other
+    // half is write-through, so the number cannot be inflated by a cache; a run that comes in
+    // well under the last one says something is wrong on the bus before anyone goes looking.
+    let moved = outcome.bytes
+        + outcome
+            .destinations
+            .iter()
+            .map(|d| d.bytes_moved)
+            .sum::<u64>();
+    let seconds = elapsed.as_secs_f64();
+    if seconds > 0.0 {
+        println!(
+            "  {:.1} GB moved · {:.2} GB/s · {:.1} Gbps",
+            moved as f64 / 1e9,
+            moved as f64 / 1e9 / seconds,
+            moved as f64 * 8.0 / 1e9 / seconds
+        );
+    }
     println!();
 
     for destination in &outcome.destinations {

@@ -3157,16 +3157,77 @@ stale, fix it before doing anything else.*
 13 m 49 s**, whole runs 33–38 minutes. `verify` has been shown to catch a single flipped bit
 in 201 GB and name the file.
 
-> ⚠ **Two changes made after the last of those runs have never been through one, and both sit
-> on the critical path.** The progress reporting (`progress.rs`, commit `e54623e`) and the
-> interleaved verify read (`winio.rs`, commit `693f321`) each landed on 2026-08-05 *after* the
-> final full run, and the second one rewrote the function that decides whether an archive is
-> declared clean. Both were verified in the way available at the time — 154 unit and
-> integration tests, `examples/verify-rate.rs` against all three archive SSDs, and
-> `examples/progress-demo.rs` in both a terminal and a redirect — and **none of that is a full
-> run.** The next end-to-end run under [`FULL-RUN.md`](FULL-RUN.md) is what closes this, and
-> until it happens the timings above describe a binary that no longer exists. Do not quote
-> them as current.
+> ✔ **Closed 2026-08-05 by the run below.** The progress reporting (`e54623e`) and the
+> interleaved verify read (`693f321`) had never been through a full run when they were
+> written; both have now, and both did what the bench said they would.
+
+### The interleaved verify run, 2026-08-05 — LANDED 10 m 55 s
+
+**The fastest LANDED on record, and the first run exercising `unbuffered_sha256`'s
+read/hash interleave against a real day.** Cold boot, 20-minute settle, fresh destinations,
+exit 0, `EJECTED — SAFE TO STORE`.
+
+| | This run | Cold-cache fresh run, 2026-08-04 |
+|---|---|---|
+| Write pass | 6 m 44 s | 7 m 47 s |
+| **Verify pass** | **4 m 11 s** | 5 m 41 s |
+| **LANDED** | **10 m 55 s** | 13 m 28 s |
+| Whole run | 27 m 06 s | 34 m 51 s |
+
+**The verify pass fell 26 %, and that is the interleave doing exactly what
+`examples/verify-rate.rs` predicted.** Per-destination rates derived from `verified_utc` in
+the run log — the run measuring itself, not a probe:
+
+| Destination | In-run | Bench (interleaved) | Prior serialized |
+|---|---|---|---|
+| laptop | 1,511 MB/s | — | 1,150 |
+| OWC | 1,478 | 1,670 | 1,077 |
+| SanDisk | 1,104 | 1,134 | 409 *(on the dock)* |
+| **WD** *(sets the pass)* | **798** | 828 | 590–597 |
+
+**The WD came within 3.6 % of its bench figure and the SanDisk within 2.6 %**, under real
+conditions with three other destinations verifying concurrently. A bench number that survives
+contact with a live run is worth more than the bench.
+
+> **The write pass also fell 63 s and that is *not* the interleave** — the interleave touches
+> only the read side. It is recorded as **unattributed**. The strongest candidate is the
+> Defender exclusions set by extension and process earlier the same day (decision 9), since
+> freshly written files are exactly what Defender scans; the SanDisk's move to a hub TB5 port
+> is a weaker second. **Neither has been measured, and this is the kind of gap that gets
+> filled with a plausible story if it is not written down as open.**
+
+**Total I/O: 9N = 1,811.7 GB in 655 s — 2.77 GB/s, 22.1 Gbps sustained**, with 805 GB of it
+read unbuffered and 805 GB written write-through, from a cold cache. Worth stating because
+the design forbids every shortcut that would inflate it.
+
+> **A property worth knowing: 9N holds for convergence runs too.** A skipped file still costs
+> an `unbuffered_sha256` of the target in `place()` to prove the hash matches, plus its verify
+> read — two units, the same as a written file's write-plus-read. **Convergence does not move
+> less data; it moves the same data with 4N shifted from writes into reads.** That is why a
+> convergence LANDED of 13 m 04 s beat a fresh 16 m 35 s without being a different amount of
+> work.
+
+**What the run also confirmed, each by an instrument that could have said no:**
+
+- **`0 mismatched` across 15,532 pairs.** The rewritten verify function decides whether an
+  archive is declared clean; it got that right 15,532 times on real data.
+- **Progress reporting works redirected.** Every tick landed on its `⌈3883/10⌉` boundary in
+  `Lines` mode — the path that renders nothing under `indicatif` and would have shipped
+  invisible.
+- **All five removable devices released**, and `scripts\watch-rig.ps1` reported five
+  independent `- DETACHED` events from the storage stack. The tool's claim and the OS's
+  agreement are different facts and this run has both.
+- **The reader asymmetry held exactly**: the ProGrade Thunderbolt router stayed `OK`; the USB
+  SD reader went to `Error`, powered down with its card.
+- **Corroboration: 3,883 matched, 0 mismatched, and zero transient SD read errors** — the
+  second consecutive clean pass on that card.
+
+**Two caveats carried honestly.** Two `watch-rig.ps1` pollers were running throughout, hitting
+the storage stack every 2 s — metadata only, the SD reader measured 0.00 MB/s, and almost
+certainly immaterial, but *almost certainly* is a judgment and this project records those. And
+**the earlier claim that all four baseline runs were fresh was asserted rather than checked**;
+at least one recorded run was convergence, so the comparison above is anchored to the
+2026-08-04 cold-cache run specifically, which *is* documented as written fresh.
 
 **Still to build:**
 
