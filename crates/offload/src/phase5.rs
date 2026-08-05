@@ -219,8 +219,8 @@ pub fn run(
 
     // Heading plus one row, matching phase 3 and 4. `frames` rather than `Geotag`: the
     // heading says the phase, so the row says what is being counted.
-    let _section = progress.section("Geotagging");
-    let bar = progress.bar("frames", landed.len());
+    let _section = progress.section("Geotagging", crate::progress::PHASE);
+    let bar = progress.bar("Frames", landed.len(), crate::progress::PHASE);
     bar.set_message("correlating and writing sidecars");
 
     for photo in landed {

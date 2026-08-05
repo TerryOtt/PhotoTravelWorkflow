@@ -41,7 +41,7 @@ fn main() {
     let bars: Vec<_> = labels
         .iter()
         .map(|label| {
-            let bar = progress.bar(label, FRAMES);
+            let bar = progress.bar(label, FRAMES, offload::progress::PASS);
             bar.set_message("writing");
             bar
         })

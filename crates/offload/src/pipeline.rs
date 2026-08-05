@@ -31,7 +31,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
 
-use crate::progress::{Bar, Progress};
+use crate::progress::{self, Bar, Progress};
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use geotag::format::RawFormat;
@@ -194,21 +194,21 @@ pub fn run(
     // display** — decision 14 names the slowest device as the report's most useful number for
     // the same reason, and this is that, live.
     // Bound, not discarded: dropping a `Section` removes its heading from the screen.
-    let _writing = progress.section("Writing");
+    let _writing = progress.section("Writing", progress::PASS);
     let write_bars: Vec<Bar> = destinations
         .iter()
         .map(|destination| {
-            let bar = progress.bar(&destination.label, total);
+            let bar = progress.bar(&destination.label, total, progress::PASS);
             bar.set_pass("writing");
             bar
         })
         .collect();
 
-    let _verifying = progress.section("Verifying");
+    let _verifying = progress.section("Verifying", progress::PASS);
     let verify_bars: Vec<Bar> = destinations
         .iter()
         .map(|destination| {
-            let bar = progress.bar(&destination.label, total);
+            let bar = progress.bar(&destination.label, total, progress::PASS);
             bar.set_pass("verifying");
             bar
         })

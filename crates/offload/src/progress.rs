@@ -42,23 +42,42 @@ use std::io::IsTerminal;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
-/// A phase heading — `Writing`, `Verifying`, `Corroborating`, `Geotagging`.
+/// How deep a heading and its rows sit, in spaces.
 ///
-/// **Flush left, because a phase has no parent.** Its rows sit one level in, and the
-/// pre-flight block printed from `main.rs` follows the same shape: heading at 0, its
-/// contents and its group headings at 4, the rows under those groups at 8.
-const SECTION_TEMPLATE: &str = "{msg}";
+/// **Indent is a parameter rather than a constant because the phases are not all siblings.**
+/// `Pre-Flight`, `Ingesting`, `Corroborating` and `Geotagging` are peers at column 0, but
+/// `Writing` and `Verifying` are the two *passes of* ingesting — they belong under it, and a
+/// flat list would claim otherwise. Rows always sit [`STEP`] further in than their heading, so
+/// the two cannot drift apart at a call site.
+pub const PHASE: usize = 0;
 
-/// Column widths matching the report's, so a bar lines up with the lines printed around it.
+/// A heading nested under a phase — the `Writing` and `Verifying` passes of `Ingesting`.
+pub const PASS: usize = 4;
+
+/// One level of the hierarchy.
+const STEP: usize = 4;
+
+/// A heading at `indent` spaces.
+fn section_template(indent: usize) -> String {
+    format!("{:indent$}{{msg}}", "")
+}
+
+/// A destination row, one [`STEP`] in from its heading.
 ///
 /// `human_pos` and `human_len` are `indicatif`'s own separator-formatted counters, which is
 /// `WRITING.md` rule 6 applied to the bars — they rendered a bare `3883` until 2026-08-05 while
-/// the report two lines below printed `3,883`. `pct` is registered in [`Progress::bar`] because
-/// `indicatif`'s built-in percent is a whole number, and one decimal is what keeps the slowest
-/// destination from appearing to stall (see [`crate::human::percent`]).
+/// the report printed `3,883`. `pct` is registered in [`Progress::bar`] because `indicatif`'s
+/// built-in percent is a whole number, and one decimal is what keeps the slowest destination
+/// from appearing to stall (see [`crate::human::percent`]).
 ///
 /// Widths hold to 6 digits — `999,999` — where the biggest day on record is 7,350 frames.
-const TEMPLATE: &str = "    {prefix:<8} {bar:28} {human_pos:>6}/{human_len:<6} {pct:>6} {msg}";
+fn row_template(indent: usize) -> String {
+    let pad = indent + STEP;
+    format!(
+        "{:pad$}{{prefix:<8}} {{bar:28}} {{human_pos:>6}}/{{human_len:<6}} {{pct:>6}} {{msg}}",
+        ""
+    )
+}
 
 /// Plain-text updates per pass. Ten is a deliberate ceiling rather than a rate: it bounds a
 /// long run's log at a knowable number of lines regardless of how many frames the day holds,
@@ -120,38 +139,49 @@ impl Progress {
     /// takes its line away. **Both headings silently failed to appear**, which is the exact
     /// failure shape this module was built to avoid, in the one mode it cannot test itself in.
     #[must_use = "dropping the Section removes the heading from the screen"]
-    pub fn section(&self, title: &str) -> Section {
+    pub fn section(&self, title: &str, indent: usize) -> Section {
         match self {
             Self::Bars(multi) => {
+                // The blank line belongs to the heading rather than to the caller. Every
+                // section wants one above it, and a rule each call site has to remember is a
+                // rule one call site will forget.
+                let spacer = multi.add(ProgressBar::new(0));
+                if let Ok(style) = ProgressStyle::with_template("{msg}") {
+                    spacer.set_style(style);
+                }
+                spacer.tick();
+
                 let heading = multi.add(ProgressBar::new(0));
-                if let Ok(style) = ProgressStyle::with_template(SECTION_TEMPLATE) {
+                if let Ok(style) = ProgressStyle::with_template(&section_template(indent)) {
                     heading.set_style(style);
                 }
                 heading.set_message(title.to_owned());
                 // Forces a first draw. A bar that is never advanced is never rendered, so a
                 // heading — which by definition never advances — needs this or it is invisible.
                 heading.tick();
+
                 Section {
-                    heading: Some(heading),
+                    lines: vec![spacer, heading],
                 }
             }
             Self::Lines => {
-                println!("{title}");
-                Section { heading: None }
+                println!();
+                println!("{:indent$}{title}", "");
+                Section { lines: Vec::new() }
             }
-            Self::Silent => Section { heading: None },
+            Self::Silent => Section { lines: Vec::new() },
         }
     }
 
     /// One labelled tracker of `len` steps.
-    pub fn bar(&self, prefix: &str, len: usize) -> Bar {
+    pub fn bar(&self, prefix: &str, len: usize, indent: usize) -> Bar {
         match self {
             Self::Bars(multi) => {
                 let bar = multi.add(ProgressBar::new(len as u64));
                 // A malformed template is a programming error in the constant above, and the
                 // honest response is a plain bar rather than aborting a run with hundreds of
                 // gigabytes to move — nothing about the photographs depends on the rendering.
-                if let Ok(style) = ProgressStyle::with_template(TEMPLATE) {
+                if let Ok(style) = ProgressStyle::with_template(&row_template(indent)) {
                     let style = style.progress_chars("=> ").with_key(
                         "pct",
                         |state: &indicatif::ProgressState, out: &mut dyn std::fmt::Write| {
@@ -172,6 +202,7 @@ impl Progress {
                 bar: None,
                 plain: Some(Plain {
                     prefix: prefix.to_owned(),
+                    indent: indent + STEP,
                     len,
                     position: Cell::new(0),
                     reported: Cell::new(0),
@@ -195,9 +226,9 @@ impl Progress {
 pub struct Section {
     #[allow(
         dead_code,
-        reason = "held solely to keep the heading on screen until dropped"
+        reason = "held solely to keep the lines on screen until dropped"
     )]
-    heading: Option<ProgressBar>,
+    lines: Vec<ProgressBar>,
 }
 
 /// One phase's progress, however this run reports it.
@@ -211,6 +242,7 @@ pub struct Bar {
 
 struct Plain {
     prefix: String,
+    indent: usize,
     len: usize,
     position: Cell<usize>,
     reported: Cell<usize>,
@@ -236,8 +268,10 @@ impl Bar {
             plain.reported.set(position);
             // Same columns and the same formatting as the bars, so a log and a terminal
             // describe one run rather than looking like two tools.
+            let indent = plain.indent;
             println!(
-                "    {:<8} {:>6}/{:<6} {:>6} {}",
+                "{:indent$}{:<8} {:>6}/{:<6} {:>6} {}",
+                "",
                 plain.prefix,
                 crate::human::count(position),
                 crate::human::count(plain.len),
@@ -308,8 +342,10 @@ impl Bar {
             // The log gets a closing line so a captured run and a watched one end the same
             // way. Position is forced to `len` for the case where a pass ends early.
             plain.position.set(plain.len);
+            let indent = plain.indent;
             println!(
-                "    {:<8} {:>6}/{:<6} {:>6} {}",
+                "{:indent$}{:<8} {:>6}/{:<6} {:>6} {}",
+                "",
                 plain.prefix,
                 crate::human::count(plain.len),
                 crate::human::count(plain.len),

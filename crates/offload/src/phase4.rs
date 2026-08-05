@@ -104,8 +104,8 @@ pub fn run(
     // Heading plus one row, the same shape phase 3 uses. The row is labelled by what is
     // being read rather than by the phase — the heading already says the phase, and
     // `secondary` is the word the card block and the eject block both use for this card.
-    let _section = progress.section("Corroborating");
-    let bar = progress.bar("secondary", ingested.len());
+    let _section = progress.section("Corroborating", crate::progress::PHASE);
+    let bar = progress.bar("Secondary", ingested.len(), crate::progress::PHASE);
     bar.set_message("reading the second card");
 
     for frame in ingested {
