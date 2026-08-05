@@ -12,7 +12,7 @@
 //!
 //! Three steps, escalating, checked after each:
 //!
-//! 1. **Lock + dismount** — today's behavior, expected to release nothing.
+//! 1. **Lock + dismount** — what the card path did before 2026-08-05. Releases nothing.
 //! 2. **Eject the medium** — expected to work on removable media and to fail on fixed.
 //! 3. **Power the device down** — the tray icon's own call, and the only remaining option
 //!    for a card with no separable medium. **This reaches the reader**, which decision 22
@@ -65,12 +65,10 @@ fn main() -> ExitCode {
             }
         );
 
-        // Step 1 — today's behavior.
-        match eject::dismount_card(&card.volume) {
-            Ok(eject::CardOutcome::Dismounted) => println!("  1. dismount      ok"),
-            Ok(eject::CardOutcome::Held { reason }) => {
-                println!("  1. dismount      HELD — {reason}")
-            }
+        // Step 1 — what the card path used to do, and all it used to do.
+        match eject::dismount_only(&card.volume) {
+            Ok(eject::Outcome::Held { reason }) => println!("  1. dismount      HELD — {reason}"),
+            Ok(_) => println!("  1. dismount      ok"),
             Err(error) => println!("  1. dismount      ERROR — {error:#}"),
         }
         if report_released(&card.volume, "     after 1") {

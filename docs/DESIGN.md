@@ -1786,20 +1786,34 @@ the run — it is that **an asymmetry the operator has to remember is a cost pai
 a long day**, and this design spends real effort elsewhere to remove exactly that kind of
 decision (decisions 6 and 8).
 
-**Cards are dismounted, never powered down, and the difference is not cosmetic.** An archive
-SSD is unplugged whole, so success means the enclosure powered down. A card is pulled out of
-a reader that stays plugged in — powering the reader down would be the wrong device, and it
-need not re-enumerate cleanly when the next card goes in. So a card gets lock and dismount
-and nothing more, which is precisely what *safe to pull* means. `eject::CardOutcome` is a
-separate type from `Outcome` for that reason: sharing one would make `Dismounted` mean
-failure for a destination and success for a card.
+**Cards take the same three steps as an archive SSD — lock, dismount, power down — and that
+is a correction made 2026-08-05.** The evidence for it is two subsections below; the rule it
+replaced is kept here because the reasoning was sound and the premise was not:
+
+> ~~**Cards are dismounted, never powered down, and the difference is not cosmetic.** An
+> archive SSD is unplugged whole, so success means the enclosure powered down. A card is
+> pulled out of a reader that stays plugged in — powering the reader down would be the wrong
+> device, and it need not re-enumerate cleanly when the next card goes in. So a card gets lock
+> and dismount and nothing more, which is precisely what *safe to pull* means.
+> `eject::CardOutcome` is a separate type from `Outcome` for that reason: sharing one would
+> make `Dismounted` mean failure for a destination and success for a card.~~
+
+**Every clause of that is either false or irrelevant, which is worth seeing in full rather
+than quietly deleting.** *Lock and dismount is what safe-to-pull means* — it releases nothing
+and the card stays in the tray. *Powering the reader down would be the wrong device* — true of
+the USB reader, false of the Thunderbolt one, which is untouched. *It need not re-enumerate
+cleanly* — it does, on a replug, measured. And **`CardOutcome` has been deleted**: it existed
+solely because `Dismounted` was supposed to mean success for a card, and once that stopped
+being true both device kinds reached the same three states by the same three calls. What
+actually differs is the *instruction* to the operator, which belongs in the report.
 
 > ### ✗ Lock-and-dismount does not release a card, and the report has been overstating it
 >
 > **Found by the operator on 2026-08-04 and reproduced deterministically on 2026-08-05.** He
 > put the laptop to sleep after a run that reported both cards dismounted, checked the tray
 > out of habit, and found **both cards still attached with drive letters**.
-> `cargo run --release --example dismount-cards` reproduces it in two seconds:
+> `cargo run --release --example release-cards` reproduces it in two seconds — its first
+> rung is exactly the old behavior:
 >
 > ```text
 > === before ===
@@ -1896,6 +1910,42 @@ failure for a destination and success for a card.
 > impossible. The SD is the one that forces a choice, and it is sharpened by a fact from the
 > *Inputs* section: **multiple offloads a day are normal**, so a reader that must be reseated
 > between them is a real cost paid at lunchtime, not once at bedtime.
+>
+> ### ✔ Settled by the operator, 2026-08-05: eject both, and say what it costs
+>
+> **Both cards are released, and the report names the consequence rather than leaving it to be
+> discovered.** Three options were put to him — eject both; eject only the CFexpress and report
+> the SD honestly as still mounted; or eject both and warn. He took the third, in his words:
+> *"I'll catch it when we try the next run and SD is missing."*
+>
+> **That sentence is the whole justification, and it is a statement about the system rather
+> than about the reader.** The forgotten replug is not a silent failure — pre-flight refuses
+> with `ONLY ONE CARD FOUND` in the first ten seconds (decision 7), while the fix is a reach to
+> a cable. So the cost of the worst case is ten seconds at the desk, against a tray icon that
+> would otherwise be wrong after every single run. **A degradation that the next run refuses to
+> proceed past is not the same kind of thing as one nobody notices**, and choosing between them
+> is what decision 9's whole pre-flight exists to make possible.
+>
+> The rejected middle option is worth recording too: ejecting only the CFexpress would have
+> reinstated exactly the asymmetry this decision added card handling to remove — one card
+> settled, one in the tray, and the operator remembering which is which at the end of a long
+> day.
+>
+> **What the report says**, printed once when anything was released:
+>
+> ```text
+>   Cards
+>            primary   released — pull the card
+>            secondary released — pull the card
+>
+>   !  A USB card reader powers down with its card and needs a replug before the
+>      next offload. The Thunderbolt reader does not. If you forget, pre-flight
+>      refuses with ONLY ONE CARD FOUND rather than running short.
+> ```
+>
+> **It still may not touch the verdict or the exit code**, which is unchanged and load-bearing:
+> the tool never wrote to a card, so this was always tidiness. A card that will not release
+> leaves the night exactly as safe as one that does.
 
 **A card that will not dismount changes nothing**, and the report says so in those words
 rather than reporting a failure. It was safe to pull before the attempt and it is safe to
@@ -2815,7 +2865,7 @@ stale, fix it before doing anything else.*
 | `phase4` | corroboration — **wired and proven on the rig**: 3,883 matched, 0 mismatched (decisions 3, 4) |
 | `phase5` | geotag, wired and running (decisions 16, 23, 26) |
 | `eject` | lock, dismount, power down, **retried with backoff** — proven on both bus types, and the retry **observed recovering a vetoed drive** (decision 22) |
-| `eject::dismount_card` | **defective — the call succeeds and releases nothing.** Both cards keep their drive letters; `examples/dismount-cards.rs` reproduces it in two seconds. Decision 22 has the mechanism and why the fix is asymmetric between the two cards |
+| `eject` on the cards too | **fixed 2026-08-05** — cards take the same lock/dismount/power-down as a destination, because a dismount alone released nothing. `examples/release-cards.rs` is the harness that established it (decision 22) |
 
 **Four full runs on 2026-08-04/05**, same 3,883 frames to the same four destinations, every
 `(file, destination)` pair verified on each: **LANDED 13 m 28 s, 16 m 34 s, 14 m 04 s,
@@ -2833,14 +2883,14 @@ in 201 GB and name the file.
   **2.1 s**, USB in **2.9 s** on an idle drive. At the end of a real run it is less certain —
   **3 of 12 device ejects were vetoed on their first attempt** across four runs — and the
   whole-sequence retry has been observed recovering one in 15 s. **That is the three archive
-  SSDs only** — the card half is broken, see below
-- **releasing the camera cards** (decision 22). ~~The cards are now dismounted too~~ — struck
-  2026-08-05. `dismount_card` succeeds and releases nothing: both cards keep their drive
-  letters and stay in the tray, which is what the operator found after a run and what
-  `examples/dismount-cards.rs` now reproduces in two seconds. The SD half wants
-  `IOCTL_STORAGE_EJECT_MEDIA`; the CFexpress half is an open design question, because through
-  a Thunderbolt reader it *is* the NVMe device and has no separable medium. Decision 22 has
-  both
+  SSDs only** — the cards are covered separately below
+- ~~**releasing the camera cards**~~ (decision 22) — **done 2026-08-05.** A dismount released
+  nothing, so both cards sat in the tray after every run that claimed otherwise; they now take
+  the full lock/dismount/power-down. Media eject turned out to be a dead end twice over — it
+  reports success and releases neither card, and the physical-drive handle that might have
+  behaved differently needs administrator rights. **Not yet run inside a real offload**: the
+  sequence is proven by `examples/release-cards.rs` against both cards, which is not the same
+  as having run at the end of a 35-minute night
 - **the report** of decision 14 — the verdict shape exists in outline, not in full
 - **`sync`** (decision 20), the recovery path `--without` implies
 - **log-driven resume** (decision 13). Convergence already works, via decision 5's

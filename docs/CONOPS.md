@@ -141,6 +141,33 @@ The physical state carries the meaning: **an SSD this tool has ejected is a clai
 every file from both cards is accounted for, verified, on that disk.** A still-mounted
 SSD means work remains, and the report names it.
 
+### The cards are released too, and the USB reader goes with them
+
+**All five removable devices are put to bed, not three.** Both cards are released the same
+way the SSDs are — locked, dismounted, powered down — so nothing is left in the tray at the
+end of a run.
+
+**One consequence you will meet, and it is expected rather than a fault: releasing a card
+ejects its device, and for the USB SD reader that device *is* the reader.** It powers down
+with the card and will not wake when the next card goes in — **it needs its cable replugged.**
+The Thunderbolt CFexpress reader is untouched, because the card sits behind a PCIe port
+rather than being the reader itself.
+
+| | What happens at the end of a run | Before the next offload |
+|---|---|---|
+| CFexpress reader | stays present | nothing to do |
+| **USB SD reader** | **powers down with the card** | **replug its cable** |
+
+**This costs nothing on a normal night** — the whole rig is unpacked and rewired every
+evening anyway. It is only visible when two offloads happen in one day, which is normal
+enough to be worth knowing about: a lunchtime run leaves the SD reader down, and the evening
+run needs it back.
+
+**And forgetting is cheap by construction.** Pre-flight refuses in the first ten seconds with
+`ONLY ONE CARD FOUND` rather than quietly running on one card, so the worst case is ten
+seconds at the desk while the fix is a reach to a cable ([`DESIGN.md`](DESIGN.md) decisions 7
+and 22). That property is why this arrangement was chosen over leaving the SD in the tray.
+
 **If you walk in and it is still on the eject stage, it is working, not stuck.** Windows
 will sometimes refuse to power a freshly written drive down for many minutes, so the tool
 keeps asking — with a running clock, and until an hour after launch. Everything that

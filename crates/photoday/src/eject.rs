@@ -15,12 +15,25 @@
 //! 2. **Dismount** (`FSCTL_DISMOUNT_VOLUME`), which flushes and detaches the filesystem.
 //! 3. **Power down** (`CM_Request_Device_Eject`), which is exactly what the tray icon does.
 //!
+//! **All three run for camera cards too, which is a correction.** They used to get steps 1
+//! and 2 only, on the reasoning that a card is pulled from a reader that stays put. A
+//! dismount releases nothing — it detaches a filesystem and leaves the volume and its drive
+//! letter, and Windows remounts on next access — so both cards sat in the tray after every
+//! run that claimed to have settled them. Decision 22 has the measurement.
+//!
 //! # Why this is not simply `IOCTL_STORAGE_EJECT_MEDIA`
 //!
 //! That control code ejects *media* from a drive — a disc from an optical drive, a card
 //! from a reader. A USB or Thunderbolt SSD reports non-removable media in a removable
 //! enclosure, so it succeeds at nothing. Powering the enclosure down is a *device* operation
 //! and belongs to the configuration manager, which is why this walks to the device node.
+//!
+//! **That paragraph is right about SSDs and was wrong to stop there, which cost real time.**
+//! It names a card in a reader as the case where media eject *does* work, so the card path
+//! inherited an exclusion argued for a different device — and nobody checked. Measured
+//! 2026-08-05: media eject reports success and releases neither card, and the physical-drive
+//! handle that might have behaved differently needs administrator rights (binding constraint
+//! 4). See [`eject_media`], which is kept as a harness rather than a code path.
 //!
 //! # A refused eject is a result, not a failure
 //!
@@ -103,70 +116,70 @@ impl Outcome {
     }
 }
 
-/// What happened to one camera card.
-///
-/// **Separate from [`Outcome`] because a card ends in a different place.** An archive SSD is
-/// unplugged whole, so success means the enclosure powered down. A card is pulled out of a
-/// reader that stays plugged in, so success means the volume is dismounted and nothing more:
-/// powering the reader down would be the wrong device, and it need not come back cleanly
-/// when the next card goes in. Sharing one enum would have made `Dismounted` mean *failure*
-/// for a destination and *success* for a card.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CardOutcome {
-    /// Flushed and detached. Safe to pull.
-    Dismounted,
-    /// Something holds the volume. Still safe to pull — nothing was written to it.
-    Held { reason: String },
-}
+// **There is deliberately no `CardOutcome` type any more, and its deletion is the tidy half
+// of a bug.** It existed because a card was thought to end somewhere a destination does not:
+// an SSD is unplugged whole, so success meant the enclosure powered down, while a card was
+// pulled from a reader that stayed put, so success supposedly meant *dismounted and nothing
+// more*. Sharing one enum would then have made `Dismounted` mean failure for one and success
+// for the other — a real argument, resting on a premise measured false on 2026-08-05.
+//
+// A dismount releases nothing. Both kinds of device reach the same three states by the same
+// three calls, so they share [`Outcome`]: `Ejected` is released for either. What genuinely
+// differs is the *instruction* — unplug an enclosure, pull a card, replug a reader — and that
+// belongs in the report, which is where it now lives.
 
-/// Lock and dismount a camera card, so pulling it is tidy rather than a yank.
+/// Lock and dismount, and stop there. **A harness step, not a code path.**
 ///
-/// **This writes no photograph and touches no file.** It is here because the nightly ritual
-/// ends with five removable devices and only three of them were being settled, which is an
-/// asymmetry the operator has to remember at the end of a long day. See decision 22 for the
-/// one nuance it carries against the never-write-to-a-card non-goal.
+/// Nothing in the run calls this: it is the *first* rung of the escalation
+/// `examples/release-cards.rs` walks, kept so the bug it reproduces stays reproducible.
+/// **It releases nothing** — a dismount detaches the filesystem and leaves the volume and its
+/// drive letter, and Windows remounts on next access — which is precisely what made it look
+/// like a working card eject for as long as it did.
 ///
-/// **A failure here is cosmetic and must stay that way.** The tool never wrote to the card,
-/// so it was safe to pull before this ran and is safe to pull after it fails. The verdict and
-/// the exit code do not consider it.
-pub fn dismount_card(volume: &Volume) -> Result<CardOutcome> {
+/// [`eject`] is the real sequence; this is the same first two steps without the third.
+pub fn dismount_only(volume: &Volume) -> Result<Outcome> {
     let file = open_for_control(volume.device_path())
         .with_context(|| format!("opening {} to dismount", volume.guid_path))?;
 
     let handle = HANDLE(file.as_raw_handle());
 
     if let Err(error) = lock_with_backoff(handle) {
-        return Ok(CardOutcome::Held {
+        return Ok(Outcome::Held {
             reason: format!("{error:#}"),
         });
     }
 
-    if let Err(error) = control(handle, FSCTL_DISMOUNT_VOLUME) {
-        return Ok(CardOutcome::Held {
+    match control(handle, FSCTL_DISMOUNT_VOLUME) {
+        Ok(()) => Ok(Outcome::Dismounted {
+            reason: "dismounted only — no device eject was attempted".into(),
+        }),
+        Err(error) => Ok(Outcome::Held {
             reason: format!("locked, but dismount failed: {error:#}"),
-        });
+        }),
     }
-
-    Ok(CardOutcome::Dismounted)
 }
 
-/// Ask the drive to eject its **media**, which is the call that actually releases a card.
+/// Ask the drive to eject its **media**. **Measured useless on this rig, and kept anyway.**
 ///
-/// **This is the step `dismount_card` was missing, and the module doc above named it while
-/// arguing it was wrong.** That argument is correct about SSDs — a fixed disk in a removable
-/// enclosure has no medium to eject — and it is exactly backwards for the case it uses as its
-/// own example. A dismount detaches a filesystem and leaves the volume and its drive letter
-/// in place; Windows then remounts on next access, and the tray icon still offers the device.
-/// Ejecting the medium is what removes it.
+/// > **Nothing in the run calls this.** It was written as the obvious fix for cards that a
+/// > dismount would not release, and on 2026-08-05 it **returned success on both cards and
+/// > released neither** — including the SD, which advertises `Supports Removable Media`. That
+/// > is the "succeeds at nothing" outcome this module's own doc predicted for SSDs, observed
+/// > on the device the same sentence held up as the case where it works.
+/// >
+/// > The obvious objection — that a media operation belongs on the physical drive rather than
+/// > on a volume — is chased by [`eject_media_on_disk`], and closes the question from the
+/// > other side: that handle needs administrator rights, which binding constraint 4 forbids.
+/// > **So `CM_Request_Device_Eject` is the only mechanism an unelevated process has.**
+///
+/// It stays in the tree, exercised by `examples/release-cards.rs`, for the same reason the
+/// hash experiments do: a future rig with a different reader can **re-measure** the claim
+/// rather than re-argue it. Delete it only alongside that harness.
 ///
 /// **The lock is released first, deliberately.** `IOCTL_STORAGE_MEDIA_REMOVAL` with
 /// `PreventMediaRemoval = FALSE` clears any software lock a previous holder set — a lock
 /// nothing here sets, but which a card reader or another application may have — and a
 /// failure to clear it is not worth aborting over, so it is attempted and ignored.
-///
-/// Only meaningful where the device reports removable media. On a card that enumerates as a
-/// fixed NVMe disk — a CFexpress behind a Thunderbolt reader — the device *is* the card and
-/// there is nothing separable to eject; expect this to fail there, and see decision 22.
 pub fn eject_media(volume: &Volume) -> Result<()> {
     let file = open_for_control(volume.device_path())
         .with_context(|| format!("opening {} to eject its media", volume.guid_path))?;

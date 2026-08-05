@@ -21,7 +21,7 @@ use photoday::pipeline::Destination;
 use photoday::runlog::RunLog;
 use photoday::{
     cards, config, destinations, eject, manifest, marker, naming, phase4, phase5, pipeline, power,
-    preflight, verify,
+    preflight, storage, verify,
 };
 
 #[derive(Debug, Parser)]
@@ -249,7 +249,7 @@ fn offload(args: &Offload) -> Result<ExitCode> {
 
     // After the archives, because phase 4 read the SDXC and phase 3 the CFexpress — and
     // before the verdict, which does not consider the result (decision 22).
-    report_cards(&dismount_cards(&plan, args));
+    report_cards(&release_cards(&plan, args, started + RUN_BUDGET));
     verdict(&outcome, released.as_deref(), corroboration.as_ref(), args);
 
     Ok(exit_code(
@@ -541,15 +541,22 @@ fn report_eject(released: Option<&[Released]>, args: &Offload, elapsed: Duration
     }
 }
 
-/// Dismount both camera cards, so the ritual ends with all five removable devices settled.
+/// Release both camera cards, so the ritual ends with all five removable devices settled.
 ///
 /// **Nothing here may change the verdict or the exit code.** The tool never wrote to a card,
 /// so it was safe to pull before this ran and is safe to pull if it fails — this is tidiness,
 /// and letting it downgrade anything would claim it bought a guarantee it did not.
-fn dismount_cards(
+///
+/// **Cards take the same path as destinations, which is a correction.** They used to get lock
+/// and dismount only, on the reasoning that powering a reader down would be the wrong device.
+/// A dismount releases nothing (decision 22), so the cards stayed in the tray — and the
+/// measured cost of the full sequence is smaller than that reasoning assumed: the Thunderbolt
+/// reader survives it untouched, and the USB one comes back on a replug.
+fn release_cards(
     plan: &preflight::Preflight,
     args: &Offload,
-) -> Vec<(String, eject::CardOutcome)> {
+    deadline: Instant,
+) -> Vec<(String, eject::Outcome)> {
     if args.no_eject {
         return Vec::new();
     }
@@ -564,17 +571,22 @@ fn dismount_cards(
     std::iter::once((PRIMARY, &plan.cards.source))
         .chain(plan.cards.other.as_ref().map(|(card, _)| (SECONDARY, card)))
         .map(|(role, card)| {
-            let outcome = eject::dismount_card(&card.volume).unwrap_or_else(|error| {
-                eject::CardOutcome::Held {
-                    reason: format!("{error:#}"),
-                }
-            });
+            let outcome = match storage::device_of(&card.volume) {
+                Ok(device) => eject::eject(&card.volume, &device, deadline)
+                    .map(|effort| effort.outcome)
+                    .unwrap_or_else(|error| eject::Outcome::Held {
+                        reason: format!("{error:#}"),
+                    }),
+                Err(error) => eject::Outcome::Held {
+                    reason: format!("the card reports no device to release: {error:#}"),
+                },
+            };
             (role.to_string(), outcome)
         })
         .collect()
 }
 
-fn report_cards(cards: &[(String, eject::CardOutcome)]) {
+fn report_cards(cards: &[(String, eject::Outcome)]) {
     if cards.is_empty() {
         return;
     }
@@ -585,15 +597,36 @@ fn report_cards(cards: &[(String, eject::CardOutcome)]) {
     println!("  Cards");
     for (label, outcome) in cards {
         match outcome {
-            eject::CardOutcome::Dismounted => {
-                println!("           {label:<9} dismounted — safe to pull");
+            eject::Outcome::Ejected => {
+                println!("           {label:<9} released — pull the card");
             }
-            // Deliberately not phrased as a failure: the card was always safe to pull, and an
-            // operator reading "held" here would worry about data that was never at risk.
-            eject::CardOutcome::Held { reason } => println!(
-                "           {label:<9} still mounted — safe to pull regardless, nothing was written to it\n           {reason}",
+            // Both remaining branches are deliberately not phrased as failures. The tool
+            // never wrote to a card, so it was safe to pull before any of this ran; what was
+            // lost is tidiness, and an operator reading "failed" here would worry about data
+            // that was never at risk.
+            eject::Outcome::Dismounted { reason } => println!(
+                "           {label:<9} dismounted, still listed — safe to pull anyway\n           {reason}",
+            ),
+            eject::Outcome::Held { reason } => println!(
+                "           {label:<9} still mounted — safe to pull anyway, nothing was written to it\n           {reason}",
             ),
         }
+    }
+
+    // **The cost of doing this properly, said out loud rather than discovered.** Releasing a
+    // card means ejecting its device, and for a USB card reader that device *is* the reader:
+    // it powers down with the card and does not wake when the next card goes in. The
+    // Thunderbolt reader is untouched, because the NVMe disk's parent is a PCIe port rather
+    // than the reader itself. Naming the consequence here is what turns a mystery at the next
+    // offload into an expected chore — and pre-flight refuses anyway, so a forgotten replug
+    // costs ten seconds rather than a night.
+    if cards.iter().any(|(_, outcome)| outcome.is_ejected()) {
+        println!();
+        println!(
+            "  !  A USB card reader powers down with its card and needs a replug before the\n     \
+             next offload. The Thunderbolt reader does not. If you forget, pre-flight\n     \
+             refuses with ONLY ONE CARD FOUND rather than running short."
+        );
     }
 }
 
