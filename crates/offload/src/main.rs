@@ -1030,7 +1030,11 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
         .collect();
 
     let label_column = width(&labels) + 2;
-    let place_column = width(&places) + 2;
+    // Four, not two. Column 2 holds anything from `D:\` to `C:\Travel\Images`, so the gap
+    // the eye actually sees runs from fifteen spaces down to two — and two is tight enough to
+    // read as crowded on the destination rows, which are the ones being compared. Widening
+    // costs the card block, which is two rows deep and where nobody is tracking a gap.
+    let place_column = width(&places) + 4;
     let number_column = width(&numbers);
 
     println!();
