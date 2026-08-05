@@ -36,6 +36,25 @@ numbers, and an uncontrolled run produces a figure that looks like the others an
 4. **Name the hub.** A run on the desk dock is not a measurement of the travel rig, and
    that has already caught this project out once.
 5. **Both cards in their readers, tracks in the GPX directory.**
+6. **Rebuild the world, and mean it:**
+
+   ```
+   cargo clean
+   cargo build --release
+   ```
+
+   **Not an incremental build.** A measured run is not the moment to trust cargo's freshness
+   tracking — `UPDATING.md` already notes that it fingerprints `rustc` and not the linker, so
+   a changed MSVC toolset yields a stale binary cargo believes is current, and on 2026-08-04
+   a 37-minute run was launched against a release artifact 15 minutes older than the code it
+   was meant to exercise. Wiping `target/` removes the entire class of question.
+
+   **Before the reboot, deliberately.** A full rebuild is minutes of heavy CPU and disk; run
+   it after boot and it loads the machine during the settle window and fills the page cache
+   the reboot exists to clear. Build first, then reboot, and the reboot cleans up after it.
+
+   The post-boot check then reports **"nothing to rebuild"**, which at that point *verifies*
+   the clean build rather than standing in for one.
 
 ## Reboot — then let the machine settle
 

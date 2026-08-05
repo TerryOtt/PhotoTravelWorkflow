@@ -180,6 +180,11 @@ try {
 
     if (-not $SkipBuild) {
         # A stale binary runs happily and misattributes the number to the wrong code.
+        #
+        # This *verifies*; it does not substitute for the clean build. docs/FULL-RUN.md has
+        # `cargo clean` then `cargo build --release` before the reboot, so by the time this
+        # runs the correct answer is "nothing to rebuild" — and anything else means source
+        # changed after that build, which is exactly what needs catching.
         $build = cargo build --release 2>&1 | Out-String
         Report 'binary is HEAD''s' ($build -notmatch 'Compiling') `
             $(if ($build -match 'Compiling') { 'REBUILT — the binary was stale' } else { 'nothing to rebuild' })
