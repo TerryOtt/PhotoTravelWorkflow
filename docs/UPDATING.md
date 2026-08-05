@@ -148,6 +148,40 @@ forever. The exposure concentrates in the pre-1.0 crates, which as of decision 2
 `nom-exif` reads `"3.6"` and looks pre-1.0 at a glance; it is not, so Cargo's minor rule
 does not apply to it and `cargo update` reaches 3.x freely.
 
+### A declared-but-unused workspace dependency is invisible too
+
+**Found 2026-08-05.** Three crates sit in `[workspace.dependencies]` and are imported by no
+member: `indicatif`, `console` and `windows-registry`. Nothing references them, so they
+never enter the dependency graph, **they are not in `Cargo.lock` at all, and
+`cargo outdated` does not check them** — it reports on what resolved, and these never did.
+
+That is a direct consequence of a rule this workspace keeps on purpose: *a member's own
+manifest lists only what its code imports today, so a manifest never claims a dependency
+nothing uses.* Worth keeping — but its cost is this hole, and the hole lands on exactly the
+crates the table above calls most at risk. All three are pre-1.0, and one of them,
+`indicatif`, is the crate that actually went stale in RawGeotag.
+
+The reason all three are unused is that their features are unbuilt: `indicatif` and
+`console` belong to decision 14's full report, `windows-registry` to decision 9's Defender
+check. **They become visible the day their code is written**, which is the good news — this
+is a gap that closes itself, and until then it has to be checked by hand.
+
+```
+cargo search indicatif --limit 1
+cargo search console --limit 1
+cargo search windows-registry --limit 1
+```
+
+**Compare the minor, not the whole version** — that is the same `0.x` rule one section up,
+and it is easy to get backwards when reading this output. `"0.18"` against a current 0.18.6
+is *fine*, because the requirement reaches it. `"0.17"` against a current 0.18 is the trap.
+A checker that flags the first as behind produces a false alarm on a workspace with nothing
+to do, which is how a real one later gets ignored.
+
+*Checked 2026-08-05: `indicatif` 0.18 vs 0.18.6, `console` 0.16 vs 0.16.4,
+`windows-registry` 0.6 vs 0.6.1 — every declared minor is the current minor, so all three
+are current and nothing needed doing. The blind spot was real; the alarm was not.*
+
 ### The workflow pins dependencies too, and `cargo outdated` cannot see them
 
 `.github/workflows/ci.yml` pins its actions by major tag, which never moves on its own and
