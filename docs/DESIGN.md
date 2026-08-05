@@ -2081,6 +2081,14 @@ a run is the only place they occur.
 > | 2 | none | — |
 > | 3 | OWC — powered down on its second attempt | 15 s |
 > | 4 | none | 9 s |
+> | 5 — *cards included for the first time* | OWC — powered down on its second attempt | 11 s |
+>
+> **Updated 2026-08-05: 4 of 17 across five runs, once the two cards joined the count.** The
+> fifth run vetoed the OWC and recovered it on the second attempt in 11 s — the same device
+> and the same shape as run 3. **Both cards released on their first attempt**, so nothing
+> so far suggests a card is more prone to this than a freshly written SSD; if anything the
+> reverse, which fits, since a card was never written to and has no scanner working through
+> it.
 >
 > **One in four device ejects, and it clusters rather than spreading evenly** — two on one
 > run, none on the next two, one on the fourth. That is why a single-attempt implementation
@@ -3025,16 +3033,18 @@ in 201 GB and name the file.
 - ~~eject~~ — **built and proven on the rig, 2026-08-04/05.** Both bus types power down
   completely, the disk leaving the disk list rather than merely unmounting: Thunderbolt in
   **2.1 s**, USB in **2.9 s** on an idle drive. At the end of a real run it is less certain —
-  **3 of 12 device ejects were vetoed on their first attempt** across four runs — and the
+  **4 of 17 device ejects were vetoed on their first attempt** across five runs — and the
   whole-sequence retry has been observed recovering one in 15 s. **That is the three archive
   SSDs only** — the cards are covered separately below
 - ~~**releasing the camera cards**~~ (decision 22) — **done 2026-08-05.** A dismount released
   nothing, so both cards sat in the tray after every run that claimed otherwise; they now take
   the full lock/dismount/power-down. Media eject turned out to be a dead end twice over — it
   reports success and releases neither card, and the physical-drive handle that might have
-  behaved differently needs administrator rights. **Not yet run inside a real offload**: the
-  sequence is proven by `examples/release-cards.rs` against both cards, which is not the same
-  as having run at the end of a 35-minute night
+  behaved differently needs administrator rights. **Proven inside a real offload 2026-08-05**:
+  both cards released at the end of a 201 GB run, confirmed by `scripts\eject-check.ps1`
+  rather than by the report that had been lying about this the night before. The reader
+  asymmetry held exactly as measured — the ProGrade router stayed enumerated, the USB SD
+  reader powered down with its card
 - **the report** of decision 14 — the verdict shape exists in outline, not in full
 - **progress output while a phase is running** — decision 29 declared `indicatif` for
   *"`MultiProgress` — one bar per destination"* and it was never wired, which is why that crate
@@ -3057,8 +3067,9 @@ in 201 GB and name the file.
 - ~~`source_card` records an assumption~~ — **fixed 2026-08-05.** It now carries the role
   (`primary`, or `sole` under `--allow-single-source`) beside a new `source_volume_serial`
   holding what was actually observed. Decision 12 has the reasoning and the schema-compat
-  trap it walked into. **Not yet run against hardware** — it compiles and the suite passes,
-  which this project learned the hard way is not the same thing; the next offload prints it
+  trap it walked into. **Proven on the rig 2026-08-05**: one unique `source_volume_serial`
+  across all 3,883 manifest entries and every run-log record — `0E7A-0533`, the serial of the
+  card pre-flight actually measured and chose as the source
 - **the body check** (decision 34) — name the camera in the config, compare one frame per
   card at pre-flight, print it as INFO beside the timezone line. **Blocked on one measurement**:
   whether the R5 writes `CameraSerialNumber` into standard ExifIFD or only into Canon's

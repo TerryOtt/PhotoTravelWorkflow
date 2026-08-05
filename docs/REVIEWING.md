@@ -269,6 +269,41 @@ So, before a number goes in a document or a commit message:
 
 None of this is specific to one rig. The numbers are; the standard is not.
 
+## A diagnostic that cannot fail is worse than no diagnostic
+
+**The mutation rule above is about tests. This is the same rule about the scripts and probes
+that tell you what the rig is doing**, and it needed its own section because those get written
+in a hurry, at the keyboard, while chasing something else — and they are believed on sight.
+
+> **Before trusting a check, ask what it would print if the thing it looks for were absent.
+> If the answer is "the same thing", it is decoration.**
+
+**Five instances in this project, all of them confident and all of them wrong:**
+
+| The check | What it reported | Why it could not work |
+|---|---|---|
+| `full-run-check.ps1` card link | every card "PCIe tunnelled" | matched PnP by `FriendlyName`; `Get-Disk` says `SANDISK SDDR-409` where `Get-PnpDevice` says `… USB Device`, so the chain came back empty and *every* card fell into the no-USB-parent branch. **The USB 2.0 warning could never fire** |
+| `full-run-check.ps1` destinations | two USB destinations "absent" while plugged in | USB bridges pad serials to a fixed-width SCSI field, so an exact comparison missed them |
+| Element 5 topology probe | the OWC "on a laptop port" | matched chain names against `Element 5`; a PCIe-tunnelled device enumerates through anonymous `PCI Express Switch Port` entries that never name the hub |
+| dependency currency check | `indicatif 0.18 <-- BEHIND 0.18.6` | compared a *requirement* against a *version*. `"0.18"` reaches 0.18.6 — for a `0.x` crate the **minor** is the breaking position |
+| `eject-check.ps1` readers | "none found" about a reader sitting there healthy | filtered `-Class DiskDrive`, and a reader only presents a DiskDrive while a card is *in* it |
+
+**Four of the five reported the reassuring answer**, which is the part that makes this
+dangerous rather than merely annoying: a broken check that cries wolf gets fixed within
+minutes, and one that says *all clear* gets believed for months. The USB 2.0 row is the
+worst of them — a check written specifically to catch a 5.8× silent throughput loss, which
+could not have caught it on any rig, ever.
+
+**Two habits that would have caught all five**, and both are cheap:
+
+- **Run it against a known-bad state, not only a known-good one.** Unplug the thing, put the
+  card in the wrong port, point it at a stale serial. A check only earns trust by having been
+  *seen to fail*.
+- **Print the evidence, not just the verdict.** `eject-check.ps1` naming the device class it
+  found, and `full-run-check.ps1` printing `link UNKNOWN — parent chain unreadable` instead of
+  guessing PCIe, both convert a silent wrong answer into a visible one. **An empty result must
+  never be spelled the same way as a negative result.**
+
 ## A review is always all four
 
 **"Do a deep dive review" means all four of these, every time, without being asked for them
