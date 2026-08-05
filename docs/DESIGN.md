@@ -3291,6 +3291,39 @@ contact with a live run is worth more than the bench.
 > freshly written files are exactly what Defender scans; the SanDisk's move to a hub TB5 port
 > is a weaker second. **Neither has been measured, and this is the kind of gap that gets
 > filled with a plausible story if it is not written down as open.**
+>
+> ⚠ **And then it was filled with a plausible story anyway, the same evening, by the session
+> that wrote that sentence.** Recorded in full because the warning and the violation are hours
+> apart in one conversation, which is more instructive than either alone.
+>
+> **The story:** live sampling during a run showed the four destinations writing at ~490 MB/s
+> against this document's recorded ~292, and that 68 % gap was offered — repeatedly, and out
+> loud — as evidence for the Defender exclusions. **Two things were wrong with it.** The ~490
+> was an *instantaneous sample* of a few seconds, not a pass average. And the ~292 it was
+> compared against is a **per-device probe figure** from the wall-clock table, gathered a
+> different way entirely. Two numbers from two instruments, with a conclusion drawn from the
+> gap between them — which is precisely what *Measurements are evidence* forbids.
+>
+> **What the run logs actually say**, derived from `verified_utc` and LANDED rather than from
+> sampling:
+>
+> | | write pass | per destination |
+> |---|---|---|
+> | 2026-08-04, cold-cache measured run | 7 m 47 s | **431 MB/s** |
+> | 2026-08-05, casual run with the exclusions in place | 8 m 30 s | **395 MB/s** |
+>
+> **Slower, not faster** — and that comparison is worthless too, because the second run had no
+> reboot, warm caches, and a session compiling and running tests on the same machine
+> throughout. It measures contention, which is the same error one level up.
+>
+> **So the honest state is unchanged from when it was first written: unattributed.** The
+> Defender exclusions' effect on write throughput has never been measured, and settling it
+> needs a [`FULL-RUN.md`](FULL-RUN.md) run with them removed. The 63 seconds remain unexplained.
+>
+> **The generalisable part is not about Defender.** A gap explicitly marked *open* is not
+> protection against filling it — an open question is an itch, and a candidate written beside
+> it reads as a lead. What protects it is refusing to *quote* the candidate until it has been
+> measured, which is a discipline about speech rather than about record-keeping.
 
 **Total I/O: 9N = 1,811.7 GB in 655 s — 2.77 GB/s, 22.1 Gbps sustained**, with 805 GB of it
 read unbuffered and 805 GB written write-through, from a cold cache. Worth stating because
