@@ -101,6 +101,34 @@ Get-PnpDevice -PresentOnly |
     }
 ```
 
+**Budget real time for this step, and expect the *finding* to be the hard part rather than the
+flashing.** Attempted end to end on 2026-08-05 across the whole chain, and reading what is
+installed took minutes while establishing what is *current* mostly failed:
+
+| | Outcome |
+|---|---|
+| Dell BIOS | the public driver page listed **1.29.0** while the machine ran **1.31.0** — the web page was behind the machine |
+| CalDigit Element 5 | **clean** — version and date published, matched exactly |
+| OWC Express 1M2 | support page is JavaScript, downloads page omits the product, support manual has **no firmware section**. Distributed via support contact |
+| Seagate FireCuda 530 | behind an interactive per-serial form — not fetchable |
+
+**So "check for firmware updates" is not a lookup, it is an errand**, and three of those four
+needed a vendor tool or a human. Plan an hour, not ten minutes, and do not treat a web page as
+authoritative — it was wrong on the first device tried.
+
+**Two things make it tractable.** Vendor tools that read the device and self-check are the
+reliable path — Dell Command Update, Seagate Toolkit, Kingston SSD Manager, OWC's utility.
+And **when contacting a vendor, lead with the symptom rather than the request**: a precise,
+reproducible bug report is worth more to them, and to you, than "is there an update".
+
+> **And know the slot count before agreeing to any flash.** `Get-StorageFirmwareInformation`
+> (elevated) reports how many firmware slots an NVMe has. The FireCuda in the enclosure has
+> **four**, three empty and writable, so a bad image is reverted by an *activate* rather than a
+> re-flash. The laptop's boot drive has **one** — an in-place overwrite of the only copy, with
+> no fallback and the worst failure mode in the chain. **One slot and no symptom is a no**, and
+> that is the T-30 rule's own logic: a bricked enclosure means ordering a part while everything
+> else works; a bricked boot drive takes down the machine that runs trip hygiene.
+
 **One trap that will send you hunting the wrong thing: an enclosure that has fallen back to
 USB does not enumerate as a router at all.** It has no firmware property to read and simply
 appears absent from that list — so confirm `BusType` reads **NVMe** before concluding
