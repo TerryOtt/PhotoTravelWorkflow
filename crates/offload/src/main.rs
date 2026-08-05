@@ -175,6 +175,10 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // animates during pre-flight, and a live `MultiProgress` bar owns the cursor — so a
     // heading held open across `report`'s ordinary `println!`s would have them fighting over
     // the same lines. Bars start at phase 3, where something actually moves.
+    // Two blanks above a phase heading, matching `Progress::section`. These two headings are
+    // plain prints rather than managed bars — nothing animates during pre-flight, and the
+    // `Offloading` line is printed before any bar exists — so they carry their own spacing.
+    println!();
     println!();
     // **"Pre-Flight Checks", the operator's term** — he is an aviation geek and adopted it,
     // and it fits the vocabulary the tool already had: the run ends at `LANDED`. Both words
@@ -218,6 +222,11 @@ fn offload(args: &Offload) -> Result<ExitCode> {
 
     // Flush left: this is a phase heading, the parent of the `Writing` and `Verifying`
     // sections below it, and it used to sit indented as though it were an item in a list.
+    //
+    // Two blanks above, like every phase heading — but **no blank below, and it is the one
+    // phase heading without one.** Its content is entirely sub-sections, and `Writing` brings
+    // its own leading blank; adding one here would put two together. `Pre-Flight Checks`,
+    // `Corroborating` and `Geotagging` all have rows directly under them and do get the gap.
     println!();
     println!();
     // **`·` and not `...` before the estimate.** The ellipsis was doing a separator's job in the
@@ -874,7 +883,7 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     // encouragement. Everything after this line is corroboration, geotags and tidying, and
     // decision 14 exists to keep those from ever being confused with this.
     println!(
-        "═══ LANDED in {minutes}m {seconds:02}s — you can breathe, Terry, your data is safe ═══"
+        "═══ LANDED in {minutes}m {seconds:02}s · you can breathe, Terry, your data is safe ═══"
     );
     println!();
     println!(

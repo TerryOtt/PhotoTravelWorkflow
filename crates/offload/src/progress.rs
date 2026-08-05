@@ -58,6 +58,24 @@ pub const PASS: usize = 4;
 /// One level of the hierarchy.
 const STEP: usize = 4;
 
+/// Blank lines above a heading: two for a phase, one for a pass.
+///
+/// **A phase is a boundary in the run; a pass is a subdivision of one.** `Pre-Flight Checks`,
+/// `Offloading`, `Corroborating` and `Geotagging` each start something new and get the wider
+/// gap; `Writing` and `Verifying` are two halves of offloading and get the narrower one.
+fn leading_blanks(indent: usize) -> usize {
+    if indent == PHASE { 2 } else { 1 }
+}
+
+/// A blank line *under* a heading, for phases only.
+///
+/// A pass heading and its four destination rows read as one block; separating them would
+/// break the group up rather than set it apart. A phase heading introduces a whole stage, and
+/// its first line sat jammed against it until 2026-08-05.
+fn trailing_blanks(indent: usize) -> usize {
+    if indent == PHASE { 1 } else { 0 }
+}
+
 /// A heading at `indent` spaces.
 fn section_template(indent: usize) -> String {
     format!("{:indent$}{{msg}}", "")
@@ -178,18 +196,25 @@ impl Progress {
     pub fn section(&self, title: &str, indent: usize) -> Section {
         match self {
             Self::Bars(multi, drawn) => {
-                // The blank line belongs to the heading rather than to the caller. Every
-                // section wants one above it, and a rule each call site has to remember is a
-                // rule one call site will forget.
+                // **The blanks belong to the heading rather than to the caller**, and how
+                // many depends on the level: a phase is a boundary in the run, a pass is a
+                // subdivision of one, and two blanks against one says that without a word. A
+                // rule each call site has to remember is a rule one call site will forget.
                 //
                 // A literal space, not an empty `{msg}`: an empty render is no line at all,
-                // so the first attempt produced no gap and looked exactly like the bug it was
-                // meant to fix.
-                let spacer = multi.add(ProgressBar::new(0));
-                if let Ok(style) = ProgressStyle::with_template(" ") {
-                    spacer.set_style(style);
-                }
-                spacer.tick();
+                // so the first attempt at this produced no gap and looked exactly like the bug
+                // it was meant to fix.
+                let blank = || {
+                    let spacer = multi.add(ProgressBar::new(0));
+                    if let Ok(style) = ProgressStyle::with_template(" ") {
+                        spacer.set_style(style);
+                    }
+                    spacer.tick();
+                    spacer
+                };
+
+                let mut lines: Vec<ProgressBar> =
+                    (0..leading_blanks(indent)).map(|_| blank()).collect();
 
                 let heading = multi.add(ProgressBar::new(0));
                 if let Ok(style) = ProgressStyle::with_template(&section_template(indent)) {
@@ -199,18 +224,27 @@ impl Progress {
                 // Forces a first draw. A bar that is never advanced is never rendered, so a
                 // heading — which by definition never advances — needs this or it is invisible.
                 heading.tick();
+                lines.push(heading);
+
+                // A gap under the heading too, so its first row does not sit jammed against
+                // it. Only phases get this: a pass heading and its four destination rows read
+                // as one block, and separating them would break the thing up rather than
+                // group it.
+                lines.extend((0..trailing_blanks(indent)).map(|_| blank()));
 
                 if let Ok(mut drawn) = drawn.lock() {
-                    drawn.push(spacer.clone());
-                    drawn.push(heading.clone());
+                    drawn.extend(lines.iter().cloned());
                 }
-                Section {
-                    lines: vec![spacer, heading],
-                }
+                Section { lines }
             }
             Self::Lines => {
-                println!();
+                for _ in 0..leading_blanks(indent) {
+                    println!();
+                }
                 println!("{:indent$}{title}", "");
+                for _ in 0..trailing_blanks(indent) {
+                    println!();
+                }
                 Section { lines: Vec::new() }
             }
             Self::Silent => Section { lines: Vec::new() },
