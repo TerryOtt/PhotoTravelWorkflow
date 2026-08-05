@@ -186,15 +186,26 @@ numbers. Read it with the other eye, or in the morning.
 |---|---|---|
 | **SanDisk Extreme Pro** | **an Element 5 TB5 port** | the only drive that is Gen 2x2 — **1,486 MB/s there against ~980 on a laptop port** |
 | **OWC enclosure** | **a laptop port on the LEFT** | the left ports are Thunderbolt 4; **the right one is USB-only and cannot carry its PCIe tunnel** |
-| **WD My Passport** | anywhere convenient — the laptop's right port is fine | Gen 2x1, so it reads ~950 on every port there is. No placement helps it |
+| **WD My Passport** | **the laptop's right-side port** | Gen 2x1, so no port makes it *faster* than ~950 — but a port can make it much slower. On its own controller there it reads **934**; on the hub's shared USB tunnel it measured **360**. It ends the verify pass, so this is the drive whose placement moves LANDED |
 | **CFexpress reader** | an Element 5 TB5 port | measured not to contend with the SanDisk, which matters because the reader is the phase 3 *source* while a destination writes |
 | **SD card reader** | **any 10 Gbps USB port on the Element 5** — two USB-C and two USB-A on the front, one USB-A at the rear | it reads at ~222 MB/s, which is 1.8 Gbps against a 10 Gbps port. **Five-fold headroom: all five ports are equally golden** |
 | Monitor, if you want one | an Element 5 TB5 port | measured to cost the offload **0.7 %** — inside the noise |
 
-**Two of those rows are the ones to get right; the rest are forgiving.** The OWC must be on a
-*left* laptop port, and the SanDisk wants a TB5 port. Everything else has enough headroom that
-the choice does not matter — which is deliberate, because a wiring rule you have to think about
-at 11pm is a wiring rule you will get wrong.
+**Three of those rows are the ones to get right; the rest are forgiving.** The OWC must be on a
+*left* laptop port, the SanDisk wants a TB5 port, and the WD wants the laptop's right one. The
+readers and the monitor have enough headroom that the choice does not matter — which is
+deliberate, because a wiring rule you have to think about at 11pm is a wiring rule you will get
+wrong. **All three are asserted by `scripts\full-run-check.ps1`**, so the way to be sure is to
+run it rather than to remember this table.
+
+> **The WD row was the last to be got right, and it was wrong in an instructive way.** It used
+> to read *"anywhere convenient — Gen 2x1, so it reads ~950 on every port there is. No placement
+> helps it."* Every clause of that is true and the conclusion does not follow: no port makes the
+> drive *faster*, but the hub's shared USB tunnel makes it **much slower** — 360 against 934,
+> measured together-against-together. **"No placement helps it" got read as "no placement hurts
+> it."** On 2026-08-05 that row talked a session into writing hub USB into `FULL-RUN.md`'s
+> example topology, for the one drive whose rate ends the verify pass; Terry caught it on
+> sight. A row that names the *ceiling* when the risk is the *floor* is the shape to watch for.
 
 > **This replaced an earlier rule that said both USB SSDs go in the laptop's ports and *not* the
 > hub.** That was correct when written and measured honestly: with both SSDs on the hub's

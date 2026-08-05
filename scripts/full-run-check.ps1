@@ -112,7 +112,7 @@ function Get-PathClass {
     @{ Class = $class; Evidence = $ev }
 }
 
-# Mirrors CONOPS.md's wiring table, and deliberately only the two rows with a consequence.
+# Mirrors CONOPS.md's wiring table, and deliberately only the rows with a consequence.
 # Everything else is reported rather than asserted, because a check that fails on a harmless
 # choice teaches you to ignore it.
 $ExpectedPath = @{
@@ -124,6 +124,13 @@ $ExpectedPath = @{
         Class = @('hub-tb5')
         Why   = 'the only Gen 2x2 drive here - 1,486 MB/s on an Element 5 TB5 port against ~980 on any other port'
     }
+    # Added 2026-08-05, after this table's absence let a stale doc row talk a session into
+    # putting the pace-setter on the hub. Being Gen 2x1 means no port makes the WD faster; it
+    # does not mean no port makes it slower. It ends the verify pass, so its floor is LANDED.
+    'WD' = @{
+        Class = @('laptop-usb')
+        Why   = 'its own Intel xHCI on the laptop RIGHT port reads 934; the hub shared USB tunnel measured 360, and this drive ends the verify pass'
+    }
 }
 
 # The wiring, printed rather than assumed. CONOPS.md measures two trips a year in bursts of
@@ -131,7 +138,7 @@ $ExpectedPath = @{
 # **Assume no memory of any of it.**
 function Show-Wiring {
     ''
-    '  THE RIG, as measured 2026-08-05. Two rows matter; the rest are forgiving.'
+    '  THE RIG, as measured 2026-08-05. Three rows matter; the rest are forgiving.'
     ''
     '    MUST BE RIGHT'
     '      OWC enclosure   -> a laptop port on the LEFT SIDE'
@@ -141,10 +148,13 @@ function Show-Wiring {
     '      SanDisk SSD     -> any TB5 port on the Element 5 (the three on the REAR)'
     '                         it is the only 20 Gbps drive: 1,486 MB/s there, ~980 anywhere'
     '                         else. Works fine on the wrong port, just slower.'
+    '      WD SSD          -> the laptop RIGHT-SIDE port'
+    '                         its own USB controller there: 934 MB/s, against 360 on the'
+    '                         hub. Being 10 Gbps means no port makes it faster - not that'
+    '                         no port makes it slower. It is the drive that ends the'
+    '                         verify pass, so this one is worth walking around the desk for.'
     ''
     '    ANYWHERE CONVENIENT'
-    '      WD SSD          -> any port. It is 10 Gbps whatever you do, so it cannot be'
-    '                         plugged in wrong.'
     '      SD card reader  -> any of the five 10 Gbps USB ports on the Element 5'
     '                         (two USB-C + two USB-A on the front, one USB-A on the rear).'
     '                         It needs 1.8 Gbps of a 10 Gbps port. All five are equal.'

@@ -147,7 +147,7 @@ Write it **before** the reboot. Delete it once the run is recorded.
   "prohibited": "reading file data from any card or destination — see docs/FULL-RUN.md",
   "established": {
     "hub": "CalDigit Element 5",
-    "topology": "OWC on laptop left TB4 port; SanDisk + CFexpress on hub TB5; WD and SD reader on hub USB",
+    "topology": "OWC on laptop left TB4 port; WD on laptop right port; SanDisk + CFexpress on hub TB5; SD reader on hub USB",
     "destination_state": "convergence on laptop/SanDisk/WD, OWC empty",
     "binary": "8dd23e5, cargo build --release was a no-op"
   }
