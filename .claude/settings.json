@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File scripts/full-run-context.ps1",
+            "shell": "powershell",
+            "timeout": 10,
+            "statusMessage": "Checking run state"
+          }
+        ]
+      }
+    ]
+  }
+}

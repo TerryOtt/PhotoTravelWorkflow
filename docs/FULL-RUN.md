@@ -127,6 +127,26 @@ A session comes up knowing nothing and its first instinct is to go and look at t
 look around spends it before the run starts. So the order matters, and what is skipped
 matters more.
 
+> **A resumed session cannot see that the reboot happened, so a hook tells it.**
+> `claude --continue` restores the transcript across the restart, which means the session
+> reads as unbroken — the last thing in context is whatever was said before the machine went
+> down, and nothing anywhere marks the gap. On 2026-08-05 that produced a confident write-up
+> of a routine disk renumbering as a mystery, citing the rig watcher's silence as
+> corroboration; the watcher had died with the machine. **Terry had to point out that he had
+> rebooted.**
+>
+> `.claude/settings.json` now runs `scripts\full-run-context.ps1` on every prompt. It is
+> **silent unless `RUN-STATE.json` exists**, and when one does it reports the boot time
+> against the file's `staged_utc`, says plainly if a reboot has happened since staging, and
+> gives the settle window's remaining minutes. Metadata only — one WMI property and one small
+> JSON file on the system disk, so it is safe under the gate above.
+>
+> **The general shape is worth more than the hook.** A resumed session is confidently wrong
+> about anything it believes from *live state* rather than from a file: drive letters, disk
+> numbers, mounted volumes, running processes, armed monitors. `RUN-STATE.json` already
+> existed for exactly this reason; the gap was that nothing told the session to go and read
+> it *again* after the world changed underneath it.
+
 **Safe, and required first** — small text files on the system disk, nothing on a card or an
 archive destination:
 
