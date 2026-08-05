@@ -1794,6 +1794,64 @@ and nothing more, which is precisely what *safe to pull* means. `eject::CardOutc
 separate type from `Outcome` for that reason: sharing one would make `Dismounted` mean
 failure for a destination and success for a card.
 
+> ### ✗ Lock-and-dismount does not release a card, and the report has been overstating it
+>
+> **Found by the operator on 2026-08-04 and reproduced deterministically on 2026-08-05.** He
+> put the laptop to sleep after a run that reported both cards dismounted, checked the tray
+> out of habit, and found **both cards still attached with drive letters**.
+> `cargo run --release --example dismount-cards` reproduces it in two seconds:
+>
+> ```text
+> === before ===
+>   D:\  serial 1E68-1046  mounted at [D:\]
+>   E:\  serial 0E7A-0533  mounted at [E:\]
+> === dismounting ===
+>   D:\  dismounted in 0.0s
+>   E:\  dismounted in 0.0s
+> === after, re-enumerated ===
+>   D:\  serial 1E68-1046  mounted at [D:\]
+>   E:\  serial 0E7A-0533  mounted at [E:\]
+> ```
+>
+> **Both calls succeed and neither achieves anything the operator can see.**
+> `FSCTL_DISMOUNT_VOLUME` detaches the filesystem; it does not remove the volume or its drive
+> letter, and Windows remounts on next access — which the tray icon, Explorer and the indexer
+> supply continuously. This is not intermittent and was never a race we lost: it is the
+> guaranteed outcome of what the code asks for.
+>
+> **What is and is not damaged by this, stated precisely.** *Safe to pull* was true before the
+> attempt and is true after it — the tool never wrote to the card, which is the whole reason
+> this operation is cosmetic in the first place. **What fails is the only thing the feature was
+> for.** This decision added card dismount because *"an asymmetry the operator has to remember
+> is a cost paid at the end of a long day"*; the asymmetry is still there, and the report now
+> prints a line claiming otherwise. **A feature that delivers nothing but a reassuring line is
+> worse than no feature**, by decision 12's standard — it is a warning you learn to read past,
+> pointed at the wrong end of the run.
+>
+> **The call that was missing was named in `eject.rs`'s own module doc, describing this exact
+> case.** That doc explains why the module does not use `IOCTL_STORAGE_EJECT_MEDIA` — *"that
+> control code ejects media from a drive — a disc from an optical drive, **a card from a
+> reader**"* — an argument written about **SSDs**, where it is correct. The card path inherited
+> the exclusion without anyone noticing that cards are the case the sentence endorses.
+>
+> **And the two cards are not one problem.** Measured 2026-08-05 with
+> `Win32_DiskDrive.CapabilityDescriptions`:
+>
+> | | SD, via a USB reader | CFexpress, via a Thunderbolt reader |
+> |---|---|---|
+> | `BusType` | USB | **NVMe** |
+> | `MediaType` | **Removable Media** | **Fixed hard disk media** |
+> | `Supports Removable Media` | **yes** | **no** |
+>
+> **The PCIe tunnel exposes the card *as* the device** — the disk is named `AV PRO CFexpress
+> SE` and carries the card's own hardware serial — so there is no separable medium to eject,
+> and `IOCTL_STORAGE_EJECT_MEDIA` should be expected to do for it exactly what this module's
+> doc says it does for an SSD: nothing. **So the fix is asymmetric, and the CFexpress half is
+> an open design question rather than an implementation gap:** the only call that releases it
+> is a device eject, whose parent is the reader — which is the thing this decision forbids.
+> Resolving that needs the operator's call on whether powering down the ProGrade reader is
+> acceptable, and it is deliberately not assumed here.
+
 **A card that will not dismount changes nothing**, and the report says so in those words
 rather than reporting a failure. It was safe to pull before the attempt and it is safe to
 pull after. **Neither the verdict nor the exit code considers the result** — letting it
@@ -2712,7 +2770,7 @@ stale, fix it before doing anything else.*
 | `phase4` | corroboration — **wired and proven on the rig**: 3,883 matched, 0 mismatched (decisions 3, 4) |
 | `phase5` | geotag, wired and running (decisions 16, 23, 26) |
 | `eject` | lock, dismount, power down, **retried with backoff** — proven on both bus types, and the retry **observed recovering a vetoed drive** (decision 22) |
-| `eject::dismount_card` | the two cards dismounted too, so all five removable devices settle — proven 2026-08-05 (decision 22) |
+| `eject::dismount_card` | **defective — the call succeeds and releases nothing.** Both cards keep their drive letters; `examples/dismount-cards.rs` reproduces it in two seconds. Decision 22 has the mechanism and why the fix is asymmetric between the two cards |
 
 **Four full runs on 2026-08-04/05**, same 3,883 frames to the same four destinations, every
 `(file, destination)` pair verified on each: **LANDED 13 m 28 s, 16 m 34 s, 14 m 04 s,
@@ -2729,8 +2787,15 @@ in 201 GB and name the file.
   completely, the disk leaving the disk list rather than merely unmounting: Thunderbolt in
   **2.1 s**, USB in **2.9 s** on an idle drive. At the end of a real run it is less certain —
   **3 of 12 device ejects were vetoed on their first attempt** across four runs — and the
-  whole-sequence retry has been observed recovering one in 15 s. The cards are now dismounted
-  too (decision 22); the *readers* stay untouched, as they should
+  whole-sequence retry has been observed recovering one in 15 s. **That is the three archive
+  SSDs only** — the card half is broken, see below
+- **releasing the camera cards** (decision 22). ~~The cards are now dismounted too~~ — struck
+  2026-08-05. `dismount_card` succeeds and releases nothing: both cards keep their drive
+  letters and stay in the tray, which is what the operator found after a run and what
+  `examples/dismount-cards.rs` now reproduces in two seconds. The SD half wants
+  `IOCTL_STORAGE_EJECT_MEDIA`; the CFexpress half is an open design question, because through
+  a Thunderbolt reader it *is* the NVMe device and has no separable medium. Decision 22 has
+  both
 - **the report** of decision 14 — the verdict shape exists in outline, not in full
 - **`sync`** (decision 20), the recovery path `--without` implies
 - **log-driven resume** (decision 13). Convergence already works, via decision 5's
