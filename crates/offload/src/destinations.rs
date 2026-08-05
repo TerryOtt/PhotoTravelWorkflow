@@ -136,6 +136,18 @@ pub fn survey_against(config: &Config, volumes: &[Volume]) -> Survey {
         }
     }
 
+    // **Sorted by root, which sorts by drive letter, and sorted here so there is one order.**
+    // Config order is whatever the file happens to list, so the report printed `C:, J:, F:, I:`
+    // and read as scrambled to the operator who has to scan it at 11pm. Ordering the survey
+    // itself rather than the printout means the report, the progress bars and the pipeline's
+    // fan-out all inherit it — two lists of the same four drives in different orders would be
+    // worse than one scrambled list.
+    //
+    // A volume with no letter mounts at `\\?\Volume{…}` and sorts after the lettered ones,
+    // which is where an oddity belongs. **Nothing depends on this order**: destinations are
+    // resolved by serial (decision 6) and the laptop is found by label, not position.
+    survey.found.sort_by(|a, b| a.root.cmp(&b.root));
+
     survey
 }
 

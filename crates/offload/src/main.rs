@@ -17,6 +17,10 @@ use clap::{Args, Parser, Subcommand};
 use geotag::format::RawFormat;
 use geotag::raw::{Capture, MediaParser, capture_time};
 use geotag::track::GapLimits;
+// Thousands separators (`docs/WRITING.md` rule 6). It lives in the library rather than here
+// so `progress.rs` can hold the bars to the same rule the report follows — they printed a
+// bare `3883` beside the report's `3,883` until 2026-08-05.
+use offload::human::count;
 use offload::pipeline::Destination;
 use offload::runlog::RunLog;
 use offload::{
@@ -327,6 +331,11 @@ struct Released {
     label: String,
     effort: eject::Effort,
 }
+
+/// One gibibyte. The divisor Windows uses everywhere the operator can check a number —
+/// Explorer, PowerShell's `1GB`, a drive's properties dialog — so it is the divisor this
+/// report uses for every *size*. Rates against a link stay decimal; see [`offload::human`].
+const GIB: f64 = (1u64 << 30) as f64;
 
 /// The card phase 3 read from, in operator-facing output.
 ///
@@ -778,12 +787,24 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration, runs_root: &Path) {
     let seconds = elapsed.as_secs() % 60;
 
     println!();
-    println!("═══ LANDED · phase 3 took {minutes}m {seconds:02}s ═══",);
+    // **No phase number.** "phase 3" is this repository's word, not the operator's, and the
+    // reader of this line is six months out of practice at 11pm in a hotel — CONOPS measures
+    // two trips a year. A label that needs `DESIGN.md` to decode is a label that says nothing
+    // at the moment it is read.
+    //
+    // **The sentence is literally true, which is why it is safe to print.** LANDED is the
+    // point where every file exists on all four destinations and has been read back off the
+    // media and compared (decisions 2, 14) — so *the data is safe* is the guarantee, not
+    // encouragement. Everything after this line is corroboration, geotags and tidying, and
+    // decision 14 exists to keep those from ever being confused with this.
+    println!(
+        "═══ LANDED in {minutes}m {seconds:02}s — you can breathe, Terry, your data is safe ═══"
+    );
     println!();
     println!(
-        "  {} files · {:.1} GB · read once from the source card",
+        "  {} files · {} GiB · read once from the source card",
         count(outcome.files),
-        outcome.bytes as f64 / 1e9
+        offload::human::gib(outcome.bytes)
     );
 
     // What the hardware actually did, which no single per-device rate shows. The source read
@@ -802,9 +823,14 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration, runs_root: &Path) {
     let seconds = elapsed.as_secs_f64();
     if seconds > 0.0 {
         println!(
-            "  {:.1} GB moved · {:.2} GB/s · {:.1} Gbps",
-            moved as f64 / 1e9,
-            moved as f64 / 1e9 / seconds,
+            // **GiB and GiB/s here, not decimal**, so this line divides: the sizes above are
+            // GiB, and a reader who checks `moved ÷ elapsed` must get the rate printed beside
+            // it. `Gbps` stays decimal because it is a *bits* unit whose only purpose is
+            // comparison against a link — 10 Gbps is 10^10 bits by definition, and a figure
+            // in GiB/s cannot be held up against the number printed on the cable.
+            "  {} GiB moved · {:.2} GiB/s · {:.1} Gbps",
+            offload::human::gib(moved),
+            moved as f64 / GIB / seconds,
             moved as f64 * 8.0 / 1e9 / seconds
         );
     }
@@ -875,43 +901,64 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
 
     println!();
     println!(
-        "{} files {} · {:.1} GB · {} destinations verified distinct · est. {}",
+        "{} files {} · {} GiB · {} destinations verified distinct · est. {}",
         count(cards.files.len()),
         if cards.agreed {
             "on both cards".to_string()
         } else {
             format!("· single source ({})", cards.source.label())
         },
-        cards.bytes as f64 / 1e9,
+        offload::human::gib(cards.bytes),
         rig.distinct_disks,
         estimate(cards.bytes),
     );
     println!();
 
+    // **`primary`/`secondary`/`sole`, the same words the eject block and the manifest use.**
+    // These lines said `source` and `other` until 2026-08-05 — a second vocabulary for the
+    // same two cards, in the same screen of output, which `WRITING.md` rule 8 exists to stop.
+    // `sole` rather than `primary` when there is no second card is the informative case: it
+    // tells a tired operator that corroboration will be waived before the run starts, not
+    // after (decision 7).
+    //
+    // Rates are right-aligned to a fixed width so the two stack into a column the eye can
+    // compare at a glance. These are the numbers that say "this card is dying" (decision 32),
+    // and a ragged left edge is part of why a faulty 73 MB/s card read as unremarkable beside
+    // a healthy 222. Separators per rule 6; the width holds a four-digit rate with its comma.
+    let source_role = if cards.other.is_some() { PRIMARY } else { SOLE };
     println!(
-        "  source   {}  {:.0} MB/s",
+        "  {:<9} {}  {:>5} MB/s",
+        source_role,
         cards.source.label(),
-        cards.source_speed.bytes_per_second() / 1e6
+        count((cards.source_speed.bytes_per_second() / 1e6).round() as usize)
     );
     if let Some((other, speed)) = &cards.other {
         println!(
-            "  other    {}  {:.0} MB/s",
+            "  {:<9} {}  {:>5} MB/s",
+            SECONDARY,
             other.label(),
-            speed.bytes_per_second() / 1e6
+            count((speed.bytes_per_second() / 1e6).round() as usize)
         );
     }
     println!();
 
+    // Ordered by drive letter — `destinations::survey_against` sorts the survey itself, so
+    // this list, the progress bars and the fan-out all share one order (decision 6's note).
+    // Free space carries separators per `WRITING.md` rule 6 and is right-aligned, because the
+    // question these lines answer is *does tonight fit*, and comparing `1,509` against `4,001`
+    // down a ragged column is work the format should be doing.
+    // **No disk number.** It was here and it earned nothing: label, path and free space are
+    // what the operator decides on, and a Windows disk number is not an identity — it
+    // renumbers across a reboot with no device having moved (decision 6). On 2026-08-05 that
+    // renumbering was written up as a mystery before anyone checked the boot time, which is
+    // the cost of putting a meaningless identifier in front of a tired reader. It stays in
+    // `scripts\full-run-check.ps1`, where a diagnostic is the whole point.
     for resolved in &rig.survey.found {
         println!(
-            "  {:<8} {:<28} disk {:<3} {:.0} GB free{}",
+            "  {:<8} {:<28} {:>5} GiB free{}",
             resolved.label,
             resolved.root.display().to_string(),
-            resolved
-                .device
-                .as_ref()
-                .map_or("?".to_string(), |device| device.disk_number.to_string()),
-            resolved.volume.free_bytes as f64 / 1e9,
+            offload::human::gib_whole(resolved.volume.free_bytes),
             match &resolved.matched {
                 destinations::Match::SerialAtNewVolume { .. } =>
                     "   ! REFORMATTED — update the config's volume_guid",
@@ -1006,19 +1053,6 @@ fn estimate(bytes: u64) -> String {
     let fast = (bytes as f64 * 2.0 / FAST_SSD_BYTES_PER_SECOND / 60.0).ceil() as u64;
 
     format!("{fast}-{slow} min")
-}
-
-/// Thousands separators, per docs/WRITING.md rule 6.
-fn count(n: usize) -> String {
-    let digits = n.to_string();
-    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
-    for (i, digit) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i).is_multiple_of(3) {
-            out.push(',');
-        }
-        out.push(digit);
-    }
-    out
 }
 
 /// `offload verify <DEST>` — decision 20.

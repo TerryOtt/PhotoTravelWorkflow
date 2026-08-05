@@ -31,7 +31,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
 
-use crate::progress::Progress;
+use crate::progress::{Bar, Progress};
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use geotag::format::RawFormat;
@@ -184,18 +184,41 @@ pub fn run(
 
     let total = sources.len();
 
+    // **Two sections, both created before any thread starts**, so `MultiProgress` draws the
+    // `Writing` rows and then the `Verifying` rows underneath in a stable order rather than in
+    // whatever order the destinations happen to reach each pass.
+    //
+    // A destination appears in both, and that is deliberate: there is no barrier between the
+    // passes (see below), so the screen shows the laptop already reading back while a USB
+    // drive is still being written. **That overlap is the single most useful thing on the
+    // display** — decision 14 names the slowest device as the report's most useful number for
+    // the same reason, and this is that, live.
+    progress.section("Writing");
+    let write_bars: Vec<Bar> = destinations
+        .iter()
+        .map(|destination| {
+            let bar = progress.bar(&destination.label, total);
+            bar.set_pass("writing");
+            bar
+        })
+        .collect();
+
+    progress.section("Verifying");
+    let verify_bars: Vec<Bar> = destinations
+        .iter()
+        .map(|destination| {
+            let bar = progress.bar(&destination.label, total);
+            bar.set_pass("verifying");
+            bar
+        })
+        .collect();
+
     thread::scope(|scope| {
         let workers: Vec<_> = destinations
             .iter()
             .zip(receivers)
-            .map(|(destination, receiver)| {
-                // One bar per destination, which is what makes the *heterogeneity* visible:
-                // the laptop finishing its verify while a USB drive is still writing is the
-                // single most useful thing this display shows — decision 14 names the slowest
-                // device as the most useful number in the report, for the same reason.
-                let bar = progress.bar(&destination.label, total);
-                bar.set_message("writing");
-
+            .zip(write_bars.into_iter().zip(verify_bars))
+            .map(|((destination, receiver), (write_bar, verify_bar))| {
                 scope.spawn(move || {
                     let mut landed = Vec::new();
 
@@ -204,16 +227,17 @@ pub fn run(
                     for photo in receiver {
                         let outcome = place(destination, &photo)?;
                         landed.push(outcome);
-                        bar.inc();
+                        write_bar.inc();
                     }
+                    write_bar.finish();
 
                     // Verify pass. Every byte, off the media, with the page cache
-                    // bypassed. Starts the moment this destination's writes finish, so
+                    // bypassed. **Starts the moment this destination's writes finish**, so
                     // the laptop's NVMe verifies while the slowest SSD is still writing.
-                    bar.restart();
-                    bar.set_message("verifying");
-                    let done = verify(destination, landed, run_id, source, log, &bar);
-                    bar.finish();
+                    // Introducing a barrier here to tidy the display would idle the fast
+                    // drives and cost wall clock against the primary metric.
+                    let done = verify(destination, landed, run_id, source, log, &verify_bar);
+                    verify_bar.finish();
                     done
                 })
             })

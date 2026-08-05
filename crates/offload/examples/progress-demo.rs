@@ -76,5 +76,5 @@ fn main() {
         bar.finish();
     }
 
-    println!("\ndone — the report would print here, with the bars cleared above it");
+    println!("\ndone — the report would print here, below four bars left standing at 100%");
 }

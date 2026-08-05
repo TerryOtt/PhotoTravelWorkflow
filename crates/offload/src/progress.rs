@@ -42,8 +42,19 @@ use std::io::IsTerminal;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
+/// A pass heading — `Writing`, `Verifying` — indented one level under the ingest line.
+const SECTION_TEMPLATE: &str = "    {msg}";
+
 /// Column widths matching the report's, so a bar lines up with the lines printed around it.
-const TEMPLATE: &str = "  {prefix:<8} {bar:28} {pos:>5}/{len:<5} {msg}";
+///
+/// `human_pos` and `human_len` are `indicatif`'s own separator-formatted counters, which is
+/// `WRITING.md` rule 6 applied to the bars — they rendered a bare `3883` until 2026-08-05 while
+/// the report two lines below printed `3,883`. `pct` is registered in [`Progress::bar`] because
+/// `indicatif`'s built-in percent is a whole number, and one decimal is what keeps the slowest
+/// destination from appearing to stall (see [`crate::human::percent`]).
+///
+/// Widths hold to 6 digits — `999,999` — where the biggest day on record is 7,350 frames.
+const TEMPLATE: &str = "        {prefix:<8} {bar:28} {human_pos:>6}/{human_len:<6} {pct:>6} {msg}";
 
 /// Plain-text updates per pass. Ten is a deliberate ceiling rather than a rate: it bounds a
 /// long run's log at a knowable number of lines regardless of how many frames the day holds,
@@ -80,6 +91,38 @@ impl Progress {
         Self::Silent
     }
 
+    /// A pass heading, with the destination rows for that pass printed under it.
+    ///
+    /// **Both sections exist from the start and a destination appears in both**, which is not
+    /// merely a rendering choice. Phase 3 has no barrier between the passes: each destination
+    /// begins verifying the moment *its own* writes finish, so the laptop's NVMe is reading
+    /// back while the slowest USB drive is still being written. Adding a barrier to make the
+    /// sections tidy would idle the fast drives and cost real wall clock.
+    ///
+    /// So `Writing` fills top-to-bottom and `Verifying` starts filling underneath it while
+    /// some rows above are still moving. **That overlap is the most useful thing on the
+    /// screen** — it is the same heterogeneity decision 14 calls the report's most useful
+    /// number, shown live.
+    ///
+    /// In `Bars` this is a message-only bar that is never advanced, so `MultiProgress` keeps
+    /// it in place as an ordinary line. In `Lines` it is one heading printed once.
+    pub fn section(&self, title: &str) {
+        match self {
+            Self::Bars(multi) => {
+                let heading = multi.add(ProgressBar::new(0));
+                if let Ok(style) = ProgressStyle::with_template(SECTION_TEMPLATE) {
+                    heading.set_style(style);
+                }
+                heading.set_message(title.to_owned());
+                // The handle is dropped here and the line stays: `MultiProgress` owns the
+                // bar's state once added, so a heading needs no owner. Never ticked and never
+                // finished — it is a label that happens to be a bar.
+            }
+            Self::Lines => println!("    {title}"),
+            Self::Silent => {}
+        }
+    }
+
     /// One labelled tracker of `len` steps.
     pub fn bar(&self, prefix: &str, len: usize) -> Bar {
         match self {
@@ -89,7 +132,15 @@ impl Progress {
                 // honest response is a plain bar rather than aborting a run with hundreds of
                 // gigabytes to move — nothing about the photographs depends on the rendering.
                 if let Ok(style) = ProgressStyle::with_template(TEMPLATE) {
-                    bar.set_style(style.progress_chars("=> "));
+                    let style = style.progress_chars("=> ").with_key(
+                        "pct",
+                        |state: &indicatif::ProgressState, out: &mut dyn std::fmt::Write| {
+                            // Ignored deliberately: a formatting failure must not take down a
+                            // run, for the same reason a malformed template does not above.
+                            let _ = write!(out, "{:.1}%", state.fraction() * 100.0);
+                        },
+                    );
+                    bar.set_style(style);
                 }
                 bar.set_prefix(prefix.to_owned());
                 Bar {
@@ -149,13 +200,29 @@ impl Bar {
         let step = plain.len.div_ceil(UPDATES_PER_PASS).max(1);
         if position - plain.reported.get() >= step || position == plain.len {
             plain.reported.set(position);
+            // Same columns and the same formatting as the bars, so a log and a terminal
+            // describe one run rather than looking like two tools.
             println!(
-                "  {:<8} {:>5}/{:<5} {}",
+                "  {:<8} {:>6}/{:<6} {:>6} {}",
                 plain.prefix,
-                position,
-                plain.len,
+                crate::human::count(position),
+                crate::human::count(plain.len),
+                crate::human::percent(position, plain.len),
                 plain.message.borrow()
             );
+        }
+    }
+
+    /// Name this bar's pass **for the log only**.
+    ///
+    /// At a terminal the section heading above the row already says `Writing` or `Verifying`,
+    /// so repeating it on every row is noise. A captured log has no headings interleaved with
+    /// its rows — the two passes' lines arrive mixed together — so there the label is the only
+    /// thing that says which pass a line belongs to. Same information, put where each mode
+    /// needs it.
+    pub fn set_pass(&self, pass: &str) {
+        if let Some(plain) = &self.plain {
+            *plain.message.borrow_mut() = pass.to_owned();
         }
     }
 
@@ -183,10 +250,38 @@ impl Bar {
         }
     }
 
-    /// Done — take the bar off the screen, leaving the report's own lines behind.
+    /// Done — leave the bar on screen, full, carrying whatever message it already had.
+    ///
+    /// **It used to clear itself, and leaving it is worth more than the line it costs.** A
+    /// finished destination vanishing reads as *something happened to it*; a full bar at
+    /// `3,883/3,883 100.0%` is the tool showing its work. On a rig where the WD finishes
+    /// minutes after the other three, those completed rows are also the clearest possible
+    /// statement of *which* drive the run is waiting on — the question the operator used to
+    /// answer by watching activity LEDs.
+    ///
+    /// **No completion verb is added**, because in phase 3 the `Writing` / `Verifying` heading
+    /// above the row already says it and a row reading `100.0% written` under a `Writing`
+    /// heading says it twice. Phases 4 and 5 have no heading and set their own message, which
+    /// survives untouched — this method deliberately does not overwrite it.
     pub fn finish(&self) {
         if let Some(bar) = &self.bar {
-            bar.finish_and_clear();
+            // `finish` rather than `finish_and_clear`: fills the bar to `len` and leaves it
+            // drawn. `MultiProgress` keeps redrawing it and adds later phases' bars below,
+            // so the screen accumulates a record of the run rather than replacing itself.
+            bar.finish();
+        }
+        if let Some(plain) = &self.plain {
+            // The log gets a closing line so a captured run and a watched one end the same
+            // way. Position is forced to `len` for the case where a pass ends early.
+            plain.position.set(plain.len);
+            println!(
+                "  {:<8} {:>6}/{:<6} {:>6} {}",
+                plain.prefix,
+                crate::human::count(plain.len),
+                crate::human::count(plain.len),
+                crate::human::percent(plain.len, plain.len),
+                plain.message.borrow()
+            );
         }
     }
 }

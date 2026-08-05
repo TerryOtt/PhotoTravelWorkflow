@@ -14,6 +14,7 @@ pub mod config;
 pub mod destinations;
 pub mod eject;
 pub mod hash;
+pub mod human;
 pub mod manifest;
 pub mod marker;
 pub mod naming;

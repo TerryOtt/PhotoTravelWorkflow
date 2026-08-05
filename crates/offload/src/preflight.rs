@@ -217,12 +217,16 @@ pub fn phase2(
     for resolved in &survey.found {
         let needed = (needed_bytes as f64 * CAPACITY_MARGIN) as u64;
         if resolved.volume.free_bytes < needed {
+            // GiB, matching the free-space column this refusal sends the operator to check
+            // and matching File Explorer, which is where he will actually go look. A refusal
+            // that quotes a different unit than the drive's own properties dialog is a
+            // refusal he has to do arithmetic on before he can act on it.
             bail!(
-                "NOT ENOUGH ROOM ON {} — {:.1} GB free, {:.1} GB needed for tonight plus \
+                "NOT ENOUGH ROOM ON {} — {} GiB free, {} GiB needed for tonight plus \
                  margin.",
                 resolved.label,
-                resolved.volume.free_bytes as f64 / 1e9,
-                needed as f64 / 1e9
+                crate::human::gib(resolved.volume.free_bytes),
+                crate::human::gib(needed)
             );
         }
     }
