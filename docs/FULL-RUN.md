@@ -24,6 +24,11 @@ numbers, and an uncontrolled run produces a figure that looks like the others an
 
 ## Before the reboot
 
+**Do as much here as possible.** The standing order is the operator's: *after the reboot,
+the ideal is "launch the app."* Everything that mutates state or costs real I/O belongs on
+this side of the line, because anything done after boot competes with a machine that is
+already busy and refills the page cache the reboot exists to clear.
+
 1. **Settle the drives.** At least 20 minutes idle after any bulk write. An SSD measured
    straight after absorbing hundreds of gigabytes is reporting its garbage collection.
 2. **Decide the destination state, and write it down.** *Fresh* means every destination
@@ -31,6 +36,10 @@ numbers, and an uncontrolled run produces a figure that looks like the others an
    already present, so writes are skipped by hash while the card is still read and hashed
    end to end. The two produce different wall clocks and neither is wrong — but a figure
    that does not say which it was cannot be compared to anything.
+
+   **If the answer is *fresh*, clear the trees now rather than after the boot.** That is
+   several hundred gigabytes of deletion and the TRIM that follows it; done here, the drives
+   work through it during the reboot instead of during the run.
 3. **Wire the rig per [`CONOPS.md`](CONOPS.md)** — both archive USB SSDs into the laptop's
    own ports, the Thunderbolt enclosure and both card readers on the hub.
 4. **Name the hub.** A run on the desk dock is not a measurement of the travel rig, and
@@ -159,9 +168,25 @@ any fails, so the run can be gated on it. Prefer it to checking by hand — the 
 improvised at the keyboard once, and improvising is how a session ends up walking the
 archive trees it was told to leave alone. A fixed set of checks removes the decision.
 
-Every check is metadata-only — PnP enumeration, volume and disk properties, whether a
-directory exists. **None of it reads file data, so none of it warms what the reboot just
-cleared.** What the script asserts, and why each one is there:
+**These are the deliberate exception to "after the reboot, just launch," and they cannot
+move earlier**, because what they check is state that only exists once the machine has
+booted:
+
+- **The enclosure's bus type is a post-boot property.** On 2026-08-04 the Thunderbolt
+  enclosure bridged to USB *because of* a reboot — correct before it, correct hours after,
+  wrong in the window that matters. A check run before the reboot would have reported NVMe,
+  passed, and let the run proceed on a bridged enclosure at a third of its rate.
+  **Verifying the rig you had is not verifying the rig you have.**
+- **Drive letters move across a reboot** — decision 6 exists because they went `G/I/J` to
+  `F/I/J` in a single evening.
+
+**And the reason for doing everything early does not apply to them.** Every check is
+metadata-only — PnP enumeration, volume and disk properties, whether a directory exists —
+about two seconds in total, and **not one byte of file data.** They neither load the machine
+nor warm what the reboot cleared. What is worth minimizing after boot is *work*; reading a
+device's properties is not work.
+
+What the script asserts, and why each one is there:
 
 - **The Thunderbolt enclosure must be on PCIe, not bridged to USB.** `Get-Disk` must show
   the bare NVMe inside it with the serial `config.json` carries, `BusType` **NVMe**. If it
