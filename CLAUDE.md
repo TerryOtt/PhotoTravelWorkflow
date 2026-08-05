@@ -27,6 +27,33 @@ Three rules make it work rather than merely sound good:
 Where a step looks missing or wrong, **propose the doc change** rather than improvising a
 better checklist in chat.
 
+## Watch the rig; do not wait to be told
+
+**Standing guidance, 2026-08-05.** When a session involves hardware — a run, a probe, a
+reseat, anything where a cable is about to move — **arm the rig watcher at the start** and let
+it tell you:
+
+```
+Monitor  pwsh -NoProfile -File scripts/watch-rig.ps1     persistent
+```
+
+It prints one line per *change* — a disk arriving or leaving, a drive letter moving, and a
+`BusType` flipping, which is the OWC bridging to USB and is otherwise silent. A steady rig
+prints nothing, so it cannot flood the conversation. It reads the storage stack's own metadata
+and never opens a volume, so it is safe even mid-[`FULL-RUN.md`](docs/FULL-RUN.md) procedure.
+
+**Terry's framing, and it is the point:** *"plug in a TB cable you asked for and have you
+immediately go 'oh cool saw that, kicking off work'."* Asking him to plug something in and
+then asking whether he has done it spends his attention on a fact the machine already knows.
+**Ask for the cable, then watch for it.**
+
+**Two things this changes, beyond politeness.** A device that comes up *wrong* announces itself
+at the moment it happens rather than at the moment someone thinks to check — the OWC's USB
+fallback cost most of a morning before the watcher existed. And **confirmation stops being
+hearsay**: "the card is back in" and "the card enumerated" are different claims, and this
+project has a standing preference for the second (`REVIEWING.md` — *a diagnostic that cannot
+fail*).
+
 ## Report lines you must act on, every single time
 
 **Terry runs the offload through Claude whenever he has internet** — a commitment recorded in
