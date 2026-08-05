@@ -21,7 +21,13 @@ param(
     [string] $RepoPath   = (Split-Path $PSScriptRoot -Parent),
 
     # Skip the cargo freshness check, which is the only slow one.
-    [switch] $SkipBuild
+    [switch] $SkipBuild,
+
+    # **The hotel-room mode.** Checks only what a cable can fix and prints the wiring map
+    # when something is wrong. Skips the git and cargo checks entirely: those matter for a
+    # measured run and are noise on a trip, where a NOT READY about a dirty working tree
+    # teaches the operator to ignore the verdict.
+    [switch] $Nightly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,6 +66,94 @@ function Get-DriveLetterForDisk {
         Where-Object DriveLetter).DriveLetter
 }
 
+
+# Which physical path a device sits on. The mapping was established 2026-08-05 by moving one
+# drive through every port type on this rig and watching the parent chain change:
+#
+#   PCIe hops   hub layers   ->  where
+#       4           0            Element 5, PCIe tunnel
+#       2           0            laptop LEFT port (Thunderbolt 4) - the only laptop port
+#                                that can carry a PCIe tunnel at all
+#       0           0            laptop RIGHT port (USB only; Dell recommends it for projectors)
+#       0           1            Element 5 TB5 port
+#       0           2            Element 5 USB-A port
+#
+# **An unreadable chain returns 'unknown' rather than guessing.** A check that spells "I could
+# not tell" the same way it spells a real answer is the failure this project has already made
+# twice - see REVIEWING.md, *A diagnostic that cannot fail*.
+function Get-PathClass {
+    param([int] $DiskNumber)
+
+    $pnp = (Get-CimInstance Win32_DiskDrive -Filter "Index=$DiskNumber" -ErrorAction SilentlyContinue).PNPDeviceID
+    if (-not $pnp) { return @{ Class = 'unknown'; Evidence = 'no PNPDeviceID for that disk index' } }
+
+    $id = $pnp; $chain = @()
+    while ($id -and $chain.Count -lt 9) {
+        $dev = Get-PnpDevice -InstanceId $id -ErrorAction SilentlyContinue
+        if (-not $dev) { break }
+        $chain += $dev.FriendlyName
+        $id = (Get-PnpDeviceProperty -InstanceId $id -KeyName 'DEVPKEY_Device_Parent' -ErrorAction SilentlyContinue).Data
+    }
+    if ($chain.Count -le 1) { return @{ Class = 'unknown'; Evidence = 'parent chain unreadable' } }
+
+    $usb  = @($chain | Where-Object { $_ -match 'SuperSpeed USB Hub' }).Count
+    $pcie = @($chain | Where-Object { $_ -match 'PCI Express (Up|Down)stream Switch Port' }).Count
+    $ctrl = @($chain | Where-Object { $_ -match 'eXtensible Host Controller' })[0]
+    $ctrlNum = if ($ctrl -match 'USB (\d+\.\d+)') { $Matches[1] } else { $null }
+
+    $class = if     ($pcie -ge 4) { 'hub-pcie'   }
+             elseif ($pcie -ge 2) { 'laptop-tb4' }
+             elseif ($usb  -eq 1) { 'hub-tb5'    }
+             elseif ($usb  -ge 2) { 'hub-usba'   }
+             else                 { 'laptop-usb' }
+
+    $ev = "$pcie PCIe hop(s), $usb hub layer(s)"
+    if ($ctrlNum) { $ev += ", xHCI $ctrlNum" }
+    @{ Class = $class; Evidence = $ev }
+}
+
+# Mirrors CONOPS.md's wiring table, and deliberately only the two rows with a consequence.
+# Everything else is reported rather than asserted, because a check that fails on a harmless
+# choice teaches you to ignore it.
+$ExpectedPath = @{
+    'OWC' = @{
+        Class = @('laptop-tb4', 'hub-pcie')
+        Why   = 'needs a PCIe tunnel; the laptop RIGHT port is USB-only and cannot carry one'
+    }
+    'SanDisk' = @{
+        Class = @('hub-tb5')
+        Why   = 'the only Gen 2x2 drive here - 1,486 MB/s on an Element 5 TB5 port against ~980 on any other port'
+    }
+}
+
+# The wiring, printed rather than assumed. CONOPS.md measures two trips a year in bursts of
+# eight nights, so night one is performed by someone who last did this six months ago.
+# **Assume no memory of any of it.**
+function Show-Wiring {
+    ''
+    '  THE RIG, as measured 2026-08-05. Two rows matter; the rest are forgiving.'
+    ''
+    '    MUST BE RIGHT'
+    '      OWC enclosure   -> a laptop port on the LEFT SIDE'
+    '                         the right-side port is USB-only and cannot carry its PCIe'
+    '                         tunnel. If it comes up as "OWC Express 1M2" instead of'
+    '                         "Seagate FireCuda", it is on the wrong port or needs a reseat.'
+    '      SanDisk SSD     -> any TB5 port on the Element 5 (the three on the REAR)'
+    '                         it is the only 20 Gbps drive: 1,486 MB/s there, ~980 anywhere'
+    '                         else. Works fine on the wrong port, just slower.'
+    ''
+    '    ANYWHERE CONVENIENT'
+    '      WD SSD          -> any port. It is 10 Gbps whatever you do, so it cannot be'
+    '                         plugged in wrong.'
+    '      SD card reader  -> any of the five 10 Gbps USB ports on the Element 5'
+    '                         (two USB-C + two USB-A on the front, one USB-A on the rear).'
+    '                         It needs 1.8 Gbps of a 10 Gbps port. All five are equal.'
+    '      CFexpress rdr   -> a TB5 port on the Element 5.'
+    '      Monitor         -> a TB5 port. Measured to cost the offload 0.7% - free.'
+    ''
+    '    Then: both cards in their readers, tracks in C:\Travel\GPX, and run  offload'
+    ''
+}
 ''
 '=== Rig checks — metadata only, no file data read ==='
 ''
@@ -105,6 +199,20 @@ foreach ($dest in $config.destinations) {
     $letter = Get-DriveLetterForDisk -DiskNumber $disk.Number
     $destinationLetters += $letter
     Report "dest $($dest.label)" $true "$($letter): disk $($disk.Number) · $($disk.BusType) · $($disk.FriendlyName)"
+
+    # Where it is plugged in, which no other check can see. A drive on the wrong port works
+    # perfectly and runs slow, which is this rig's recurring failure shape.
+    $path = Get-PathClass -DiskNumber $disk.Number
+    $want = $ExpectedPath[$dest.label]
+    if ($want) {
+        $ok = $path.Class -in $want.Class
+        $detail = "$($path.Class)  [$($path.Evidence)]"
+        if (-not $ok) { $detail += "  -- expected $($want.Class -join ' or '): $($want.Why)" }
+        Report "  port $($dest.label)" $ok $detail
+    }
+    else {
+        '      port {0,-16} {1}  [{2}]  (no requirement)' -f $dest.label, $path.Class, $path.Evidence
+    }
 }
 
 # Four copies on fewer than four physical disks is the failure this assertion exists for.
@@ -172,6 +280,12 @@ Report 'gpx tracks' ($tracks.Count -gt 0) "$($tracks.Count) in $($config.gpx_dir
 
 # ---- the binary ------------------------------------------------------------
 
+if ($Nightly) {
+    ''
+    '  (nightly mode: skipping the git and binary checks - they matter for a measured'
+    '   run, not for tonight. Run without -Nightly before quoting any timing.)'
+}
+else {
 Push-Location $RepoPath
 try {
     $dirty = git status --porcelain
@@ -191,6 +305,7 @@ try {
     }
 }
 finally { Pop-Location }
+}
 
 # ---- the machine is idle ---------------------------------------------------
 
@@ -202,9 +317,23 @@ Report 'no run in flight' ($null -eq $running) `
 
 ''
 if ($script:Failures -eq 0) {
-    'READY — nothing read from a card or destination. Launch when you are.'
+    if ($Nightly) { 'READY — the rig is wired correctly. Run:  offload' }
+    else          { 'READY — nothing read from a card or destination. Launch when you are.' }
     exit 0
 }
-"NOT READY — $($script:Failures) check(s) failed. Fix before launching; a run started now"
-'is not comparable with the numbers in DESIGN.md.'
+
+"NOT READY — $($script:Failures) check(s) failed."
+''
+'  Every FAIL above is something a cable can fix, except the git and binary rows,'
+'  which only matter when a timing is going to be quoted. Read the FAIL line: it names'
+'  the device and what was expected of it.'
+
+# The map, because a failure the operator cannot act on is the same as no check at all.
+Show-Wiring
+
+if (-not $Nightly) {
+    '  (running with -Nightly skips the git and binary checks, which do not matter'
+    '   on a trip.)'
+    ''
+}
 exit 1
