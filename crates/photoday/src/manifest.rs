@@ -84,7 +84,24 @@ pub struct Entry {
     /// Absent for a file in `_unfiled`, which is there precisely because it has none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub captured_utc: Option<String>,
+    /// Which card fed the run — the *role*, `primary` or `sole`, never a card type
+    /// (decision 12). The tool cannot know a card is a CFexpress.
     pub source_card: String,
+    /// The source volume's serial, `XXXX-XXXX`, as observed at pre-flight.
+    ///
+    /// **Both serde attributes are load-bearing, and the second one is the subtle one.**
+    /// `default` lets a schema-1 manifest — written before this field existed — still parse,
+    /// which decision 28 promises forever. `skip_serializing_if` is what stops it *breaking
+    /// its own checksum*: the manifest's self-hash covers `body` canonicalized through
+    /// `serde_json::Value`, so writing `"source_volume_serial": ""` into a re-read schema-1
+    /// manifest changes those bytes and the checksum stops validating. Every archive already
+    /// in the safe would have begun reporting as damaged — the exact false alarm on
+    /// irreplaceable data that decision 12 exists to prevent.
+    ///
+    /// Caught by the committed schema-1 fixture on the first run after this field was added,
+    /// which is what that test is for.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub source_volume_serial: String,
     pub run_id: String,
     pub verified_utc: String,
     /// Phase 4's verdict, `None` while still pending.
@@ -375,7 +392,8 @@ mod tests {
                 sha256: "9f2b".into(),
                 bytes: 47_185_920,
                 captured_utc: Some("2026-08-03T14:22:37Z".into()),
-                source_card: "cfexpress".into(),
+                source_card: "primary".into(),
+                source_volume_serial: "A4E2-91CC".into(),
                 run_id: "2026-08-03T18-22-04Z".into(),
                 verified_utc: "2026-08-03T18:23:31Z".into(),
                 corroborated: Some(Corroborated::Matched),

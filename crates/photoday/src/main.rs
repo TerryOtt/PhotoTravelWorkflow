@@ -207,11 +207,20 @@ fn offload(args: &Offload) -> Result<ExitCode> {
         .cloned()
         .unwrap_or_else(|| plan.cards.source.dcim.clone());
 
+    // Bound before the struct borrows it: the serial is formatted from the volume, and the
+    // role names what was observed rather than a card type the tool cannot know
+    // (decision 12).
+    let source_serial = plan.cards.source.volume.serial_text();
+    let source = pipeline::Source {
+        role: source_role(&plan),
+        volume_serial: &source_serial,
+    };
+
     let outcome = pipeline::run(
         &plan.cards.files,
         &targets,
         &run_id,
-        source_card(&plan),
+        source,
         &card_root,
         &log,
     )?;
@@ -314,12 +323,8 @@ fn exit_code(
 /// premise measured rather than assumed — the two are unambiguous, near 65 ms against
 /// UHS-II's 240 ms. A declared single-source run cannot know which type survived, so it
 /// records the card rather than guessing at it.
-fn source_card(plan: &preflight::Preflight) -> &'static str {
-    if plan.cards.agreed {
-        "cfexpress"
-    } else {
-        "single"
-    }
+fn source_role(plan: &preflight::Preflight) -> &'static str {
+    if plan.cards.agreed { PRIMARY } else { SOLE }
 }
 
 /// One destination's eject result, kept with its label for the verdict.
@@ -337,6 +342,13 @@ const PRIMARY: &str = "primary";
 
 /// The card phase 4 corroborated against.
 const SECONDARY: &str = "secondary";
+
+/// The only card there was, under `--allow-single-source` (decision 7).
+///
+/// Distinct from [`PRIMARY`] because the record must not imply a second card existed:
+/// `waived` corroboration and a sole source are the same night, and a reader years later
+/// should be able to see that from either field.
+const SOLE: &str = "sole";
 
 /// How long after launch eject stops trying (decision 22).
 ///

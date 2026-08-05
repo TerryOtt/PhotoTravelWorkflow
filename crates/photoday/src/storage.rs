@@ -55,9 +55,9 @@ pub struct Volume {
     pub label: Option<String>,
     pub filesystem: Option<String>,
     /// **Reassigned by every format**, which is exactly what makes it the identity of a
-    /// *card generation* (decision 13) and useless as the identity of a disk.
+    /// *card generation* (decision 13) and useless as the identity of a disk. Rendered for
+    /// humans by [`Volume::serial_text`].
     pub volume_serial: u32,
-
     /// `GetDriveTypeW` said `DRIVE_REMOVABLE`.
     ///
     /// **Do not use this to find camera cards, and do not trust it to mean anything
@@ -72,6 +72,21 @@ pub struct Volume {
 }
 
 impl Volume {
+    /// The volume serial as Windows itself prints it — `A4E2-91CC`.
+    ///
+    /// **A string rather than the raw `u32`, deliberately**, despite this project's habit of
+    /// keeping types in JSON. This is an identifier, not a quantity: nothing sums or compares
+    /// it arithmetically, and the hex-pair form is what `vol` shows, so an operator can
+    /// cross-check a manifest against the machine. `2749763532` is technically typed and
+    /// practically useless.
+    pub fn serial_text(&self) -> String {
+        format!(
+            "{:04X}-{:04X}",
+            self.volume_serial >> 16,
+            self.volume_serial & 0xFFFF
+        )
+    }
+
     /// The form `CreateFileW` wants: the GUID path **without** its trailing backslash.
     ///
     /// The two forms are not interchangeable and the failure is not obvious — with the

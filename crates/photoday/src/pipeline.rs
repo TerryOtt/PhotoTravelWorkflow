@@ -123,16 +123,35 @@ struct Photo {
     bytes: Vec<u8>,
 }
 
+/// Which card fed the run, as *observed* rather than assumed (decision 12).
+///
+/// **Two fields in one struct rather than two adjacent `&str` parameters**, because those
+/// are trivially swapped at a call site and the compiler would never notice — this project
+/// prefers a mistake that cannot compile to one that surfaces in a manifest years later.
+#[derive(Debug, Clone, Copy)]
+pub struct Source<'a> {
+    /// `primary` when two cards were present, `sole` under `--allow-single-source`.
+    ///
+    /// **Not a card type.** The tool cannot know a card is a CFexpress: decision 7 identifies
+    /// cards by measurement precisely because serial, removability and bus type all fail, and
+    /// a CFexpress in a bridge reader enumerates as USB.
+    pub role: &'a str,
+    /// The source volume's serial, `XXXX-XXXX`. Reassigned by every in-camera format, so it
+    /// identifies the card *generation* that fed this run — which is what a run is a property
+    /// of (decision 13).
+    pub volume_serial: &'a str,
+}
+
 /// Run phase 3.
 ///
 /// `sources` are the CR3 paths phase 1 enumerated on the ingest card, already filtered
-/// to `*.CR3` (decision 24). `source_card` is which card fed the run, recorded per file
+/// to `*.CR3` (decision 24). `source` is which card fed the run, recorded per file
 /// so a single-source night is legible afterwards (decision 7).
 pub fn run(
     sources: &[PathBuf],
     destinations: &[Destination],
     run_id: &str,
-    source_card: &str,
+    source: Source<'_>,
     card_root: &Path,
     log: &RunLog,
 ) -> Result<Outcome> {
@@ -167,7 +186,7 @@ pub fn run(
                     // Verify pass. Every byte, off the media, with the page cache
                     // bypassed. Starts the moment this destination's writes finish, so
                     // the laptop's NVMe verifies while the slowest SSD is still writing.
-                    verify(destination, landed, run_id, source_card, log)
+                    verify(destination, landed, run_id, source, log)
                 })
             })
             .collect();
@@ -348,7 +367,7 @@ fn verify(
     destination: &Destination,
     landed: Vec<Placed>,
     run_id: &str,
-    source_card: &str,
+    source: Source<'_>,
     log: &RunLog,
 ) -> Result<DestinationOutcome> {
     let mut outcome = DestinationOutcome {
@@ -386,7 +405,8 @@ fn verify(
             sha256: hex(&placed.sha256),
             bytes: placed.bytes,
             captured_utc: captured_utc.clone(),
-            source_card: source_card.to_owned(),
+            source_card: source.role.to_owned(),
+            source_volume_serial: source.volume_serial.to_owned(),
             verified_utc: verified_utc.clone(),
         })?;
 
@@ -405,7 +425,8 @@ fn verify(
                     sha256: hex(&placed.sha256),
                     bytes: placed.bytes,
                     captured_utc,
-                    source_card: source_card.to_owned(),
+                    source_card: source.role.to_owned(),
+                    source_volume_serial: source.volume_serial.to_owned(),
                     run_id: run_id.to_owned(),
                     verified_utc,
                     // Phase 4 has not run, so corroboration is genuinely *pending*

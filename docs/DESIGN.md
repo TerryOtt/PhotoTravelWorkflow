@@ -1163,6 +1163,23 @@ to be split on a colon by every reader, which is the stringly-typed shape this p
 JSON-by-default rule exists to avoid. Adding a field an old `verify` ignores is explicitly
 not a schema bump (decision 28); redefining `source_card`'s type would have been one.
 
+> **Adding it broke every existing archive on the first attempt, and the schema-1 fixture
+> caught it immediately.** `#[serde(default)]` alone makes the field optional on *read* while
+> still *writing* it — so a schema-1 manifest, re-read and re-canonicalized, gains
+> `"source_volume_serial": ""`, its `body` serializes to different bytes, and **its own
+> checksum stops validating.** Every disk in the safe would have begun reporting as damaged:
+> precisely the false alarm on irreplaceable data that decision 12's self-checksum exists to
+> prevent, produced by the mechanism meant to prevent it.
+>
+> The fix is `skip_serializing_if = "String::is_empty"` alongside the default, so an absent
+> value round-trips to absent. **The general rule for this manifest: a new field must be
+> invisible in the serialized form when it has no value**, because the checksum covers the
+> bytes and not the meaning.
+>
+> This is the fourth test of decision 18's four, doing the exact job it was written for — a
+> defect that would otherwise have surfaced years later, on a disk pulled from a safe, with
+> nothing left to fix it with.
+
 `corroborated` carries phase 4's verdict per file — `matched`, `waived`, `forfeited`,
 or `null` while still pending. `waived` is the single-source run's mark (decision 7):
 no second card existed to consult — and `source_card` records which card fed the run,

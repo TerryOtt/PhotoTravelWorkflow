@@ -35,7 +35,12 @@ pub struct Verified {
     /// Absent for a file in `_unfiled`, which is there precisely because it has none.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub captured_utc: Option<String>,
+    /// The *role* the source card played — `primary` or `sole` — never a card type.
     pub source_card: String,
+    /// The source volume's serial, `XXXX-XXXX`. Defaulted for the same reason as the
+    /// manifest's copy: a log written before this field existed must still parse on resume.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub source_volume_serial: String,
     pub verified_utc: String,
 }
 
@@ -157,7 +162,8 @@ mod tests {
             sha256: "9f2b".into(),
             bytes: 47_185_920,
             captured_utc: Some("2026-08-03T14:22:37Z".into()),
-            source_card: "cfexpress".into(),
+            source_card: "primary".into(),
+            source_volume_serial: "A4E2-91CC".into(),
             verified_utc: "2026-08-03T18:23:31Z".into(),
         }
     }
