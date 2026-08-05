@@ -182,13 +182,36 @@ numbers. Read it with the other eye, or in the morning.
 
 ### Where each drive plugs in, and why it is not arbitrary
 
-| Device | Goes into |
-|---|---|
-| **The two USB SSDs** | **the laptop's own USB-C ports**, one each — *not* the hub |
-| The OWC (Thunderbolt) | the hub |
-| Both card readers | the hub |
+| Device | Goes into | Why this one |
+|---|---|---|
+| **SanDisk Extreme Pro** | **an Element 5 TB5 port** | the only drive that is Gen 2x2 — **1,486 MB/s there against ~980 on a laptop port** |
+| **OWC enclosure** | **a laptop port on the LEFT** | the left ports are Thunderbolt 4; **the right one is USB-only and cannot carry its PCIe tunnel** |
+| **WD My Passport** | anywhere convenient — the laptop's right port is fine | Gen 2x1, so it reads ~950 on every port there is. No placement helps it |
+| **CFexpress reader** | an Element 5 TB5 port | measured not to contend with the SanDisk, which matters because the reader is the phase 3 *source* while a destination writes |
+| **SD card reader** | **any 10 Gbps USB port on the Element 5** — two USB-C and two USB-A on the front, one USB-A at the rear | it reads at ~222 MB/s, which is 1.8 Gbps against a 10 Gbps port. **Five-fold headroom: all five ports are equally golden** |
+| Monitor, if you want one | an Element 5 TB5 port | measured to cost the offload **0.7 %** — inside the noise |
 
-**This is worth about four and a half minutes a night, and it costs nothing.** A dock reaches
+**Two of those rows are the ones to get right; the rest are forgiving.** The OWC must be on a
+*left* laptop port, and the SanDisk wants a TB5 port. Everything else has enough headroom that
+the choice does not matter — which is deliberate, because a wiring rule you have to think about
+at 11pm is a wiring rule you will get wrong.
+
+> **This replaced an earlier rule that said both USB SSDs go in the laptop's ports and *not* the
+> hub.** That was correct when written and measured honestly: with both SSDs on the hub's
+> **USB-A** ports they shared one 10 Gbps tunnel at 360 MB/s each. **Nobody had tried a TB5
+> port**, where a Gen 2x2 drive gets its own link. See [`DESIGN.md`](DESIGN.md) for the
+> measurements and for the honest caveat below.
+
+> **And it is worth being honest that this arrangement does not make the run faster.** The
+> verify pass ends when the *slowest* destination finishes, and that is the WD at ~592 MB/s —
+> which no port can change, because it is Gen 2x1. Moving the SanDisk to TB5 sped up a drive
+> that was merely *tied* for last. **The wiring is right, the wall clock is unmoved**, and the
+> only levers that would move it are replacing the WD with a Gen 2x2 drive or overlapping the
+> verify read with its hash ([`DESIGN.md`](DESIGN.md), *Still to build*).
+
+**The paragraph below is the earlier arrangement's rationale, kept because it explains why the
+laptop ports mattered at all.** It is worth about four and a half minutes a night against
+putting both SSDs on the hub's USB-A ports, and it costs nothing. A dock reaches
 its USB ports by tunnelling them over one shared 10 Gbps USB4 connection — a spec limit, not
 a property of any particular hub — so every USB device on it divides a single pipe. With both
 archive SSDs there, each managed 360 MB/s during the verify pass. Given a port of their own on
