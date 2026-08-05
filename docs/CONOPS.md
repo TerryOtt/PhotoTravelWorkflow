@@ -224,8 +224,59 @@ the deal:
   decision 23): a wrong *timezone* self-corrects — the recorded offset puts every frame
   in its true UTC date, and the report flags the deviation — but a wrong *clock* shifts
   every date and geotag uniformly and looks perfectly normal doing it. The report's
-  systematic-miss heuristic may catch it after the fact; thirty seconds with the camera
-  menu is the real defense.
+  systematic-miss heuristic may catch it after the fact.
+
+  **The real defense is a frame, not the menu — and that is a correction.** This used to
+  read *"thirty seconds with the camera menu is the real defense"*, which is wrong in the
+  direction that matters: the menu shows what was *set*, and every timezone bug here has
+  lived in the gap between that and what the camera actually *writes*. Note the true UTC,
+  take one frame, read its EXIF. [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) has the procedure and
+  both properties to check. **The R5 has no UTC timezone, so the setting is London with
+  DST off** — London with DST left on is BST, `+01:00`, all summer, and it looks correct
+  in the menu.
+
+## Daily hygiene — before each shooting session
+
+**"Daily hygiene" is the term**, and it is the field counterpart to
+[trip hygiene](TRIP-HYGIENE.md): that one runs once at home before departure, this one runs
+as you pick the camera up. The shooting-day contract above says what has to be *true*; this
+is the thirty seconds in which you confirm it is still true today.
+
+**It is entirely a *camera config* check** — the clock and the settings in the body. Nothing
+here is about the laptop, the drives or the tool; those were settled by trip hygiene and are
+re-checked by pre-flight at offload.
+
+1. **Sync the camera clock to true UTC.** Not "check it looks right" — set it against a
+   clock you trust. It drifts, and a body flash or a battery pull can reset it.
+2. **Both slots are recording every frame** — the same image to both cards, not an
+   overflow/relay arrangement where the second card only starts once the first fills.
+3. **Uncompressed RAW, and nothing else** — no compressed raw, no JPEG, no HEIF, no video.
+4. **Both cards formatted in the body**, per the contract, at the start of the session.
+5. **The GPS logger is actually running**, if you want tracks for this session.
+
+### Which of these the tool backstops, and which it cannot see at all
+
+**This is the part worth internalizing, because two of them have no safety net anywhere
+downstream.** Daily hygiene exists for those two; the others merely fail earlier and more
+cheaply when you check.
+
+| If this is wrong | What happens | Does the tool catch it? |
+|---|---|---|
+| Slots in overflow/relay instead of both | Some frames exist on one card only | **Yes** — decision 27's gate refuses at offload. But the day is already shot |
+| JPEG, HEIF or video left on | Strays on the card, not backed up | **Yes** — decision 24 names them in the report, exit 2 |
+| **Compressed raw instead of uncompressed** | Compressed frames enter the archive, permanently | **No. Never.** Both are `.CR3` — the extension, the container and the pipeline are identical, so nothing at any stage can tell them apart |
+| **The clock is wrong as an absolute instant** | Every date folder and geotag shifts together | **No.** Decision 23: honest arithmetic on lying metadata, no error anywhere |
+
+**The two "No" rows are the whole argument for this being a routine rather than a habit.**
+Everything else here degrades loudly — a refusal at the desk, a line in the report, an exit
+code. Those two degrade silently and permanently, and the only place they can be caught is
+in front of the camera before the day starts.
+
+**The clock row is also why daily hygiene says *sync* rather than *check*.** Reading the
+menu tells you what was set; it cannot tell you the body has drifted or been reset. Trip
+hygiene verifies the clock by taking a frame and reading its EXIF, which is the stronger
+form of the same test — do that one whenever a session matters enough to be worth two
+minutes.
 
 ## Four backups, and nothing edits them
 
@@ -305,17 +356,23 @@ Two boundaries keep the flag honest:
   and tells a remainder from a lone source on its own ([`DESIGN.md`](DESIGN.md)
   decisions 7 and 13).
 
-## Before a trip, at home
+## Trip hygiene — before a trip, at home
 
-The full checklist lives in [`UPDATING.md`](UPDATING.md); the shape of it:
+**"Trip hygiene" is this project's name for the whole pre-departure routine**, and the one
+term to use for it. The full checklist lives in [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md); the
+shape of it:
 
+- **Device firmware — hub, enclosure, card readers *and the camera body* — at T-30 days or
+  earlier, and never inside thirty days of departure.** A bright line, not a preference.
+  The freeze is sized by how long a *replacement* takes to order and arrive, because a bad
+  flash is not a rollback — it is new hardware. A bricked enclosure at T-40 is an errand;
+  the same failure at T-5 is a trip that leaves with three copies instead of four. The body
+  is on the list because the fleet is exactly one camera and there is no spare to shoot with.
+- **Then set the camera to UTC and *verify it by taking a frame*** — after any body flash,
+  never before, since a flash can reset the clock. Not frozen at T-30: it is reversible in
+  ten seconds, so do it late and do it again at trip start.
 - Update dependencies and toolchain **before leaving, never on the road** — travel with
   a verified binary rather than a current one.
-- **Update device firmware — hub, enclosure, card readers — and do it early in the
-  window.** Same rule as the binary and with sharper teeth: a bad crate bump reverts, a
-  bad flash can brick an enclosure holding an archive copy. Flash *before* the dry run so
-  the rehearsal exercises the firmware you will actually travel with, and if departure is
-  too close to re-verify, skip it and go.
 - **`photoday --dry-run` against the real rig** — both readers, all three SSDs. This is
   the rehearsal that catches a reformatted drive, a changed reader, or a stale config
   entry while the fix is a walk to a drawer rather than a ruined evening.

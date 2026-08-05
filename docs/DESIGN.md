@@ -943,8 +943,8 @@ notably eject, which applies to exactly the destinations resolved by serial (dec
 **It lives at `%APPDATA%\photoday\config.json`** — settled 2026-08-03, having been shown
 here without ever being located. The Windows convention, and the one a Windows developer
 looks in first; it survives rebuilding the binary, which a config sitting beside
-`target\release\photoday.exe` does not, and that matters because `UPDATING.md`'s pre-trip
-ritual is *rebuild, then dry-run against the real rig*. Reading one environment variable
+`target\release\photoday.exe` does not, and that matters because `TRIP-HYGIENE.md`'s trip
+hygiene ends in *rebuild, then dry-run against the real rig*. Reading one environment variable
 is the whole implementation, which is why decision 29 declined the `directories` crate.
 
 A missing config is a pre-flight fatal that names the path it looked in, not a prompt and
@@ -2181,7 +2181,7 @@ data is its own kind of failure, and *I cannot read this* must never wear the co
 incomplete.** Adding a field that an old `verify` ignores while still checking every hash
 correctly is not a bump. Redefining an existing field, removing one, or making a new one
 load-bearing for verification is. That is the same compatible-versus-breaking line
-`UPDATING.md` already draws around semver, applied to this project's own artifact.
+`TRIP-HYGIENE.md` already draws around semver, applied to this project's own artifact.
 
 **The photo facts are a stable core that no bump may redefine.** Decision 12 has the
 four copies cross-checking each other's manifests, and decision 20 lets `sync`
@@ -2233,7 +2233,7 @@ rather than per module at the moment each phase is written.
 | `time` | 0.3 | `gpx`'s public type only, converted at one named boundary |
 
 Versions are what crates.io served on 2026-08-03, confirmed rather than recalled;
-[`UPDATING.md`](UPDATING.md) has the standing order and now names the pre-1.0 entries
+[`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) has the standing order and now names the pre-1.0 entries
 that go stale silently.
 
 **Three choices in that table are genuine judgment calls rather than the only answer,
@@ -2311,12 +2311,12 @@ moot. The strategy records which *parser path* a format survives, not how much o
 file to read, and NEF parses through only one of them.
 
 **The lift has one coupling worth writing down before it happens.**
-[`UPDATING.md`](UPDATING.md) sends the reader to RawGeotag's `docs/LIGHTROOM-XMP.md`
+[`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) sends the reader to RawGeotag's `docs/LIGHTROOM-XMP.md`
 after a Lightroom major release, because that is where the XMP engine's verification
 lives. Moving the engine here without moving that document would leave the pointer
 aiming at the verification record of code that no longer lives beside it — a
 one-canonical-place violation ([`WRITING.md`](WRITING.md) rule 2) that would surface at
-the worst moment, which is the pre-trip check.
+the worst moment, which is trip hygiene.
 
 > **Corrected while doing the lift (2026-08-03), in both directions.**
 >
@@ -2337,7 +2337,7 @@ the worst moment, which is the pre-trip check.
 > *drives* `rawgeotag.exe`, staging real frames through it and diffing the sidecars
 > against Lightroom's. `photoday` cannot write a sidecar yet, so the document's first
 > instruction would be unrunnable in the repository holding it, which is precisely the
-> failure [`WRITING.md`](WRITING.md) opens with. The pointer in `UPDATING.md` stays
+> failure [`WRITING.md`](WRITING.md) opens with. The pointer in `TRIP-HYGIENE.md` stays
 > aimed at RawGeotag, and the move happens when phase 5 can execute the procedure.
 >
 > **So the lift leaves a deliberate duplication, and it is not resolvable from here.**

@@ -2,7 +2,7 @@
 
 *Its reader is about to run a full offload and record what it cost. This is the sequence
 that makes that number comparable with the wall clocks in [`DESIGN.md`](DESIGN.md). If you
-only want to know whether the rig is sound before a trip, [`UPDATING.md`](UPDATING.md)'s
+only want to know whether the rig is sound before a trip, [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md)'s
 `--dry-run` is the cheaper thing and this is overkill.*
 
 > **There is no such thing as an informal run.** On 2026-08-04 a 37-minute offload was
@@ -53,7 +53,7 @@ already busy and refills the page cache the reboot exists to clear.
    ```
 
    **Not an incremental build.** A measured run is not the moment to trust cargo's freshness
-   tracking — `UPDATING.md` already notes that it fingerprints `rustc` and not the linker, so
+   tracking — `TRIP-HYGIENE.md` already notes that it fingerprints `rustc` and not the linker, so
    a changed MSVC toolset yields a stale binary cargo believes is current, and on 2026-08-04
    a 37-minute run was launched against a release artifact 15 minutes older than the code it
    was meant to exercise. Wiping `target/` removes the entire class of question.

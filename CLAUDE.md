@@ -47,10 +47,10 @@ facts about the hardware; each was caught because he pushed back on one that loo
 | Before you… | Read | Its standing order |
 |---|---|---|
 | propose or write anything | [`docs/DESIGN.md`](docs/DESIGN.md) | 32 numbered decisions, each with its reasoning, plus what was considered and rejected |
-| change what the operator does | [`docs/CONOPS.md`](docs/CONOPS.md) | the nightly ritual and the shooting-day contract the guarantees rest on |
+| change what the operator does | [`docs/CONOPS.md`](docs/CONOPS.md) | the nightly ritual, **daily hygiene** (the per-session camera-config check), and the shooting-day contract the guarantees rest on |
 | put anything on `main` | [`docs/REVIEWING.md`](docs/REVIEWING.md) | a branch can be as ugly as it needs to be; `main` has no broken windows |
 | write a document or a comment | [`docs/WRITING.md`](docs/WRITING.md) | every document leads with what *its* reader came for |
-| touch a dependency | [`docs/UPDATING.md`](docs/UPDATING.md) | once per trip, before you leave — never on the road |
+| touch a dependency, or prepare for a trip | [`docs/TRIP-HYGIENE.md`](docs/TRIP-HYGIENE.md) | **trip hygiene** — the pre-departure routine, once per trip, at home. Firmware is frozen inside T-30 days |
 | take a wall clock from a full run | [`docs/FULL-RUN.md`](docs/FULL-RUN.md) | the sequence that makes a number comparable, and the metadata-only checks that precede it |
 
 **"Deep dive review" always means all four:** code, tests, code comments (in the code
@@ -165,7 +165,7 @@ patch releases.
 What makes it bite is Cargo's `0.x` rule — for a pre-1.0 crate the *minor* is the
 breaking position, so `"0.17"` can never resolve to 0.18, and `cargo update` reports
 "Locking 0 packages" while three releases behind. **A clean `cargo update` is not
-evidence of being current.** `UPDATING.md` names which crates here are exposed.
+evidence of being current.** `TRIP-HYGIENE.md` names which crates here are exposed.
 
 ## The workflow
 

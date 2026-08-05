@@ -1,4 +1,9 @@
-# Updating dependencies
+# Trip hygiene
+
+*Everything that gets updated, checked and rehearsed **at home** so that nothing surprises
+you in a hotel room. **"Trip hygiene" is this project's name for this routine** — the one
+term, used in docs, commit messages, memory and conversation alike. Do not coin a synonym
+for it; a routine with three names is three habits nobody performs completely.*
 
 **Cadence: once per photo trip, before you leave.** Not on the road. The whole point of
 doing it on a schedule is that a surprise — a crate that changed behavior, a toolchain that
@@ -9,6 +14,22 @@ card readers and 2,000 photographs waiting to be offloaded.
 If a trip is imminent and the update looks at all interesting, **skip it and travel with
 the binary you have.** A version that is four point releases behind and verified is worth
 more than a current one you have not run against real cards.
+
+## The timeline, and the one hard line in it
+
+Most of trip hygiene can happen at any point before departure. **One item cannot, and it is
+a bright line rather than a judgment call:**
+
+| When | What |
+|---|---|
+| **T-30 days and earlier — never after** | **Device firmware:** hub, enclosure, card readers, **and the camera body** |
+| Any time — **and the later the better** | **The camera clock: set to UTC, then *verified* by taking a frame.** Not frozen; see below |
+| Any time before you leave | Dependencies, toolchain, MSVC Build Tools, workflow action pins |
+| Any time before you leave | Lightroom XMP checks, if Classic had a major release |
+| **Last, after everything above** | `photoday --dry-run` against the real rig |
+
+The dry run is last on purpose and for the same reason throughout: it is the rehearsal, so
+anything changed after it is untested. **Change, then rehearse — never the reverse.**
 
 ## Also before you leave
 
@@ -31,7 +52,30 @@ checks in RawGeotag's `docs/LIGHTROOM-XMP.md` — the XMP engine lives there and
 where its verification stays. Same reasoning as this file, different trigger: find out that
 Lightroom moved while you are at home. Dot releases do not warrant it.
 
-### Device firmware — strongly encouraged, and only ever at home
+### Device firmware — T-30 days or not at all
+
+> **Standing order, and a bright line: firmware is updated at T-30 days or earlier, never
+> inside thirty days of departure.** Not "prefer not to". Inside the window the answer is
+> no, whatever has shipped and however tempting the changelog.
+
+**The freeze is sized by replacement lead time, not by how risky the flash is.** That is
+the whole reasoning and it is why the number is thirty rather than seven: if a flash bricks
+an enclosure, the recovery is not a rollback, it is **ordering new hardware and waiting for
+it to arrive** — and then running trip hygiene again against the replacement. Thirty days
+buys the order, the delivery and the re-verification with room to spare. Seven buys panic.
+
+**The point is not avoiding the drama, it is choosing when the drama happens.** A bricked
+enclosure discovered at T-40 is an errand. The identical failure at T-5 is a trip that
+leaves with three copies instead of four, or does not leave at all. The hardware does not
+know the difference; the calendar is the entire variable, so the calendar is what gets
+governed.
+
+**Which cuts the other way too, and is why this reads as a schedule rather than a
+prohibition: at T-30 and earlier, do it.** Firmware is the one layer of this rig that
+nothing else in this document can see, and skipping it indefinitely is how a device sits
+years behind. The freeze exists so the update has a home, not so it never happens.
+
+**Only ever at home** — the rest of this section holds regardless of the calendar.
 
 The rig is a Thunderbolt chain, and a chain is firmware at both ends: the hub, the
 enclosure, the card readers, and the laptop's own host router. **`cargo outdated` cannot
@@ -62,12 +106,76 @@ USB does not enumerate as a router at all.** It has no firmware property to read
 appears absent from that list — so confirm `BusType` reads **NVMe** before concluding
 anything about its firmware.
 
-**Flash early in the pre-trip window, then dry-run — not the other way around.** This
-file's opening rule applies with more force to firmware than to crates: *travel with what
-you have verified, not with what is current.* A dry run performed before the flash
-validated firmware you are no longer carrying. And if departure is close enough that there
-is no room left to re-verify, **skip the flash and go** — a device one revision behind that
-you have run the whole rig against beats a freshly flashed one you have not.
+**Then dry-run, never the reverse** — the timeline above, applied to this item
+specifically. A rehearsal performed before the flash validated firmware the rig is no
+longer carrying, which is this file's opening rule with more force behind it: *travel with
+what you have verified, not with what is current.* The T-30 line is what guarantees there
+is room left to re-verify at all; inside it there would not be, which is the second reason
+the freeze exists.
+
+### The camera body is a trip device too
+
+**Its firmware sits under the same T-30 line**, and for the same reason: a body that will
+not boot is replaced, not rolled back, and the fleet is exactly one camera
+([`CONOPS.md`](CONOPS.md)). There is no spare to shoot with.
+
+**And a body flash can reset the clock and the timezone, which is why the clock check comes
+after it and never before.** Verifying the clock and then flashing over it proves nothing —
+the same *change, then rehearse* ordering that governs everything else here.
+
+**The clock check itself is explicitly *not* frozen at T-30, and the distinction is the
+whole logic of the freeze.** What T-30 governs is *irreversibility*: a flash that goes wrong
+is replaced hardware and a delivery window. Setting a menu item and shooting one frame is
+reversible in ten seconds, costs nothing, and cannot brick anything — so it carries none of
+what the freeze exists to hold back. **Do it as late as you like, and preferably late**: it
+is the item most likely to be quietly undone between now and the airport, by a flash, a
+battery pull, or a menu reset. `CONOPS.md` already asks for it again at trip start and after
+every zone crossing, for exactly that reason.
+
+**Read the freeze as scoped to the risky thing, never to the checklist it appears on.**
+Anything else here that is cheap and reversible is likewise fine inside thirty days; the
+firmware rows are the only ones with a date on them.
+
+#### Set UTC — which on an R5 means London with DST **off**
+
+**The R5 offers no UTC timezone.** London is the stand-in, and that is the whole trap:
+London with daylight saving left on is **BST, `+01:00`**, all summer. The setting *looks*
+right in the menu and is wrong in the file.
+
+#### Then verify it by taking a picture, because the menu is not evidence
+
+**The menu shows what was set. The frame shows what the camera writes.** Those are different
+claims, and every timezone bug this project has seen lives in the gap between them. So:
+
+1. **Note the true UTC** at the moment you press the shutter — `Get-Date -AsUTC` on the
+   laptop, or any clock you trust.
+2. **Take one frame.**
+3. **Hand it to Claude**, who reads its EXIF and checks *both* properties below.
+
+| What is checked | Reading it wrong means | Caught later? |
+|---|---|---|
+| `OffsetTimeOriginal` is `+00:00`, not `+01:00` | DST is on — London is running as BST | **Yes** — the tool self-corrects and the report flags it |
+| Wall time **minus** that offset equals the UTC you noted | **The clock itself is wrong** | **No. Nothing can.** |
+
+**The second row is the one that matters, and it is the reason this check exists at all.**
+Decision 23 is explicit that no timezone *setting* can misfile a photo — the offset is
+recorded, the arithmetic self-corrects, and a BST frame still lands in its true UTC folder.
+A wrong *clock* is the opposite: it derives a wrong UTC from honest arithmetic, so the date
+folders and every geotag shift together with no error anywhere, because the metadata is
+lying rather than broken. **A frame taken at a known instant is the only thing that catches
+it, and there is no second chance after the trip.**
+
+The failure worth naming, because it is how a merely-cosmetic problem becomes the fatal
+one: noticing `+01:00` and "fixing" it by winding the *clock* back an hour instead of
+turning DST off. That trades a self-correcting offset for a wrong absolute instant — it
+looks like a fix, the menu now reads `+00:00`, and every frame on the trip is an hour out
+in a way nothing downstream can detect.
+
+**The zero-tooling version of the important half**, if Claude is not to hand: put the card
+in and run `photoday --dry-run`. Output names are `HHMMZ_NNNN.CR3` derived from UTC, so the
+printed filename *is* the camera's derived UTC — compare it against the instant you noted.
+That does not show the offset, so it does not distinguish the two rows above, but it
+catches the row that cannot be caught later.
 
 **The asymmetry that earns firmware its own rule:** a bad crate bump fails loudly at
 compile time and reverts with `git checkout Cargo.lock`. A bad flash can brick an enclosure

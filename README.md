@@ -34,7 +34,7 @@ bearing.
 | [`docs/CONOPS.md`](docs/CONOPS.md) | the operator, mid-trip — how this is intended to be used |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | someone changing the design |
 | [`docs/REVIEWING.md`](docs/REVIEWING.md) | someone about to put a change on `main` |
-| [`docs/UPDATING.md`](docs/UPDATING.md) | someone about to bump a dependency — or leave on a trip |
+| [`docs/TRIP-HYGIENE.md`](docs/TRIP-HYGIENE.md) | someone about to leave on a trip — or bump a dependency |
 | [`docs/WRITING.md`](docs/WRITING.md) | someone writing or reviewing a document |
 
 ## License
