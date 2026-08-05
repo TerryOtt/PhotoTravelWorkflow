@@ -809,24 +809,28 @@ a hub change and two replugs, with nothing reformatted and no configuration touc
 design that pinned letters would not fail on some unlucky future night; it would fail most
 nights.
 
-> **And the *disk number* is worse than the letter, which was not obvious until it was
-> watched.** On 2026-08-05, staging a run, `full-run-check.ps1` reported the OWC as disk 1
-> and the SanDisk as disk 4. Two hours later, same session, they had **swapped — OWC on 4,
-> SanDisk on 1** — while `J:`, `F:` and `I:` all stayed exactly where they were.
+> **Disk numbers renumber across a reboot even when letters do not.** 2026-08-05: before the
+> reboot `full-run-check.ps1` reported the OWC as disk 1 and the SanDisk as disk 4; after it,
+> they had swapped to 4 and 1 while `J:`, `F:` and `I:` all stayed put. Port classes were
+> byte-identical either side — OWC `laptop-tb4` at 2 PCIe hops, SanDisk `hub-tb5` on xHCI
+> 3.20, WD `laptop-usb` on xHCI 3.10 — so nothing physical moved. A modest refinement to the
+> row above: the two unstable identifiers are unstable *independently*, and a design pinning
+> either would break on a night the other survived.
 >
-> **Nothing was unplugged.** `scripts\watch-rig.ps1` was armed across the entire window and
-> logged not one event, which is correct rather than a miss: it keys on serial and watches
-> attach, detach, drive letter and `BusType`, none of which changed. Re-running the rig check
-> confirmed every port class byte-identical — OWC `laptop-tb4` at 2 PCIe hops, SanDisk
-> `hub-tb5` on xHCI 3.20, WD `laptop-usb` on xHCI 3.10. **The physical topology never moved;
-> only Windows' numbering did.**
+> ⚠ **This was first written up here as a mystery, and the error is worth more than the
+> observation.** The claim was that the swap happened *within one session with nothing
+> unplugged* — presented with the watcher's silence as corroboration and a flourish about it
+> needing "nothing at all." **A reboot had happened in between.** The session had resumed
+> across it via `claude --continue`, which preserves the conversation and hides the boot, and
+> the operator had to say so. `scripts\watch-rig.ps1` logged nothing because the pre-reboot
+> watcher died *with* the machine and its replacement started fresh afterwards — so the
+> silence that read as evidence was an artifact of the very event being missed.
 >
-> This is the sharper version of the evidence above. The letter observation needed a hub
-> change and two replugs to produce movement; **this needed nothing at all**, which makes
-> disk number the least trustworthy identifier of the three and not merely an equal
-> alternative to the letter. The cause was not chased — under this decision it cannot matter,
-> and chasing it would have spent a staged cold-cache run to learn something the design
-> already routes around. **That it was a non-event is the finding.**
+> **The lesson is this project's oldest one, in a new costume: check the mundane cause before
+> narrating a novel one.** Decision 6 already said letters move across a reboot; the boot time
+> was one `LastBootUpTime` away; and *the resuming session had been told in its own state file
+> that a reboot was the next step*. **A plausible mechanism is not a measurement** — and a
+> silent instrument is not a negative result until you have checked the instrument was alive.
 
 | Identifier | Survives letter change | Survives reformat | Portable to another PC |
 |---|---|---|---|
