@@ -316,11 +316,11 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // must be released only once nothing remains to put on them.
     let ejecting = Instant::now();
     let released = eject_phase(&plan, &outcome, args, started + RUN_BUDGET);
-    report_eject(released.as_deref(), args, ejecting.elapsed());
 
-    // After the archives, because phase 4 read the SDXC and phase 3 the CFexpress — and
-    // before the verdict, which does not consider the result (decision 22).
-    report_cards(&release_cards(&plan, args, started + RUN_BUDGET));
+    // Cards after the archives, because phase 4 read the SDXC and phase 3 the CFexpress — and
+    // the whole list before the verdict, which does not consider the result (decision 22).
+    let cards = release_cards(&plan, args, started + RUN_BUDGET);
+    report_release(released.as_deref(), &cards, args, ejecting.elapsed());
     verdict(&outcome, released.as_deref(), corroboration.as_ref(), args);
 
     Ok(exit_code(
@@ -585,54 +585,6 @@ fn labels(released: &[Released], wanted: impl Fn(&eject::Outcome) -> bool) -> Ve
         .collect()
 }
 
-fn report_eject(released: Option<&[Released]>, args: &Offload, elapsed: Duration) {
-    println!();
-    let Some(released) = released else {
-        if args.no_eject {
-            println!("  Eject    withheld by --no-eject");
-        }
-        return;
-    };
-
-    // **Eject is a timed stage, and the clock is the point** (decision 22). A retry that runs
-    // for twenty minutes is the tool working; unlabeled, twenty silent minutes read as a
-    // hang. The operator asked for this specifically, and the difference between the two
-    // readings is entirely whether the duration is on the screen.
-    println!("  Eject    ({})", duration(elapsed));
-
-    for r in released {
-        // What it cost, but only when it cost anything — a device that powered down on the
-        // first ask should read as cleanly as it behaved. When Windows did make the run work
-        // for it, that is worth printing: decision 22 can only be tuned from real numbers,
-        // and these are the only ones a run produces.
-        let effort = if r.effort.attempts > 1 {
-            format!(
-                " after {} attempts over {}",
-                r.effort.attempts,
-                duration(r.effort.waited)
-            )
-        } else {
-            String::new()
-        };
-
-        match &r.effort.outcome {
-            eject::Outcome::Ejected => {
-                println!("           {:<8} powered down{effort}", r.label);
-            }
-            // Worth its own wording: the bytes are flushed and detached either way, and an
-            // operator who reads "failed" for this would worry about the wrong thing.
-            eject::Outcome::Dismounted { reason } => println!(
-                "           {:<8} dismounted, not powered down — safe to unplug{effort}\n           {reason}",
-                r.label
-            ),
-            eject::Outcome::Held { reason } => println!(
-                "           {:<8} still mounted — eject it from the tray{effort}\n           {reason}",
-                r.label
-            ),
-        }
-    }
-}
-
 /// Release both camera cards, so the ritual ends with all five removable devices settled.
 ///
 /// **Nothing here may change the verdict or the exit code.** The tool never wrote to a card,
@@ -683,32 +635,119 @@ fn release_cards(
         .collect()
 }
 
-fn report_cards(cards: &[(String, eject::Outcome)]) {
-    if cards.is_empty() {
+/// Every removable device the run released, in one list.
+///
+/// **`Eject` and `Cards` used to be two blocks and they reported the same event.** Terry,
+/// 2026-08-05: *"They are telling me the same thing."* Splitting them made the reader assemble
+/// one list of five devices out of two lists, and implied a difference in kind where the only
+/// real difference is **what you physically do next** — which now lives in the row's wording,
+/// where the reader is already looking.
+///
+/// **They keep sub-headings, though.** `Travel SSDs` and `Cards` at one level in: the two
+/// groups genuinely differ in what you do with them and in what a failure would mean, and
+/// grouping five rows is what stops the list reading as an undifferentiated pile. Same
+/// shape as `Pre-Flight Checks` — phase at column 0, groups at 4, rows at 8.
+fn report_release(
+    released: Option<&[Released]>,
+    cards: &[(String, eject::Outcome)],
+    args: &Offload,
+    ejecting: Duration,
+) {
+    if released.is_none() && cards.is_empty() {
+        if args.no_eject {
+            println!();
+            println!();
+            println!("Eject");
+            println!();
+            println!("    withheld by --no-eject");
+        }
         return;
     }
 
-    // Heading once, then indented rows — the same shape as the eject block above it. The
-    // first version repeated "Cards" on every line and read as two unrelated events.
     println!();
-    println!("  Cards");
-    for (label, outcome) in cards {
-        match outcome {
+    println!();
+    println!("Eject");
+    println!();
+
+    // **The clock is not on the heading.** Decision 22 made eject a *timed* stage because an
+    // unlabeled twenty-minute retry reads as a hang while a timed one reads as persistence —
+    // that argument is about the stage, and a number beside the heading covered only the three
+    // archive SSDs. It prints once, below, over everything released.
+    let mut devices = 0;
+
+    let ssds = released.unwrap_or_default();
+    if !ssds.is_empty() {
+        println!("    Travel SSDs");
+    }
+    for r in ssds {
+        devices += 1;
+        // What it cost, but only when it cost anything — a device that powered down on the
+        // first ask should read as cleanly as it behaved. When Windows did make the run work
+        // for it, that is worth printing: decision 22 can only be tuned from real numbers, and
+        // these are the only ones a run produces.
+        let effort = if r.effort.attempts > 1 {
+            format!(
+                " after {} attempts over {}",
+                r.effort.attempts,
+                duration(r.effort.waited)
+            )
+        } else {
+            String::new()
+        };
+
+        match &r.effort.outcome {
+            // **"ready to disconnect", not "powered down".** The operator's phrasing, and it
+            // answers the question actually being asked at this moment: may I pull the cable.
             eject::Outcome::Ejected => {
-                println!("           {label:<9} released — pull the card");
+                println!(
+                    "        {:<10} ejected; ready to disconnect{effort}",
+                    r.label
+                );
             }
-            // Both remaining branches are deliberately not phrased as failures. The tool
-            // never wrote to a card, so it was safe to pull before any of this ran; what was
-            // lost is tidiness, and an operator reading "failed" here would worry about data
-            // that was never at risk.
+            // Worth its own wording: the bytes are flushed and detached either way, and an
+            // operator who reads "failed" for this would worry about the wrong thing.
             eject::Outcome::Dismounted { reason } => println!(
-                "           {label:<9} dismounted, still listed — safe to pull anyway\n           {reason}",
+                "        {:<10} dismounted, not powered down — safe to unplug{effort}\n            {reason}",
+                r.label
             ),
             eject::Outcome::Held { reason } => println!(
-                "           {label:<9} still mounted — safe to pull anyway, nothing was written to it\n           {reason}",
+                "        {:<10} still mounted — eject it from the tray{effort}\n            {reason}",
+                r.label
             ),
         }
     }
+
+    if !cards.is_empty() {
+        println!();
+        println!("    Cards");
+    }
+    for (label, outcome) in cards {
+        devices += 1;
+        match outcome {
+            // A card comes *out*; an SSD gets *unplugged*. Same event, different next action.
+            eject::Outcome::Ejected => {
+                println!("        {label:<10} ejected; remove card from reader");
+            }
+            // Neither remaining branch is phrased as a failure. The tool never wrote to a card,
+            // so it was safe to pull before any of this ran; what was lost is tidiness, and an
+            // operator reading "failed" here would worry about data that was never at risk.
+            eject::Outcome::Dismounted { reason } => println!(
+                "        {label:<10} dismounted, still listed — safe to pull anyway\n            {reason}",
+            ),
+            eject::Outcome::Held { reason } => println!(
+                "        {label:<10} still mounted — safe to pull anyway, nothing was written to it\n            {reason}",
+            ),
+        }
+    }
+
+    // Flush left: the closing fact of a stage rather than a row in the list above it.
+    println!();
+    println!();
+    println!(
+        "Released {} devices in {}",
+        count(devices),
+        duration(ejecting)
+    );
 
     // **The cost of doing this properly, said out loud rather than discovered.** Releasing a
     // card means ejecting its device, and for a USB card reader that device *is* the reader:
