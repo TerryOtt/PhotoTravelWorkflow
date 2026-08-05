@@ -40,7 +40,7 @@
 use std::cell::{Cell, RefCell};
 use std::io::IsTerminal;
 
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 
 /// How deep a heading and its rows sit, in spaces.
 ///
@@ -79,6 +79,19 @@ fn row_template(indent: usize) -> String {
     )
 }
 
+/// How often the bars may repaint, in hertz.
+///
+/// **One, because the estimate is honest and unstable at the same time.** A row advances once
+/// per file — six or so a second on this rig — and `indicatif` repaints on every advance, so
+/// the ETC recomputed and flickered several times a second while it was still settling. Terry,
+/// 2026-08-05: *"I don't mind the VALUE jumping often, it's the Hz of updates."*
+///
+/// **The fix is the paint rate, not the estimate.** Smoothing the number would be lying about
+/// what is known; painting it less often is just not shouting. Capping the draw target also
+/// costs nothing on the run itself — fewer terminal writes on the thread that is moving two
+/// hundred gigabytes.
+const REDRAW_HZ: u8 = 1;
+
 /// Plain-text updates per pass. Ten is a deliberate ceiling rather than a rate: it bounds a
 /// long run's log at a knowable number of lines regardless of how many frames the day holds,
 /// where a time-based throttle would produce forty lines on a slow night and four on a fast
@@ -103,7 +116,9 @@ impl Progress {
     /// are ephemeral and would litter a saved log with half-drawn frames.
     pub fn detect() -> Self {
         if std::io::stderr().is_terminal() {
-            Self::Bars(MultiProgress::new())
+            Self::Bars(MultiProgress::with_draw_target(
+                ProgressDrawTarget::stderr_with_hz(REDRAW_HZ),
+            ))
         } else {
             Self::Lines
         }
