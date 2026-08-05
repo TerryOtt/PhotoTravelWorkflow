@@ -101,7 +101,11 @@ pub fn run(
 
     // The longest silent stretch in the whole run before this: phase 4 reads the entire
     // corroborating card, which is ~16 minutes on a 201 GB day even at a healthy 205 MB/s.
-    let bar = progress.bar("Corrob", ingested.len());
+    // Heading plus one row, the same shape phase 3 uses. The row is labelled by what is
+    // being read rather than by the phase — the heading already says the phase, and
+    // `secondary` is the word the card block and the eject block both use for this card.
+    let _section = progress.section("Corroborating");
+    let bar = progress.bar("secondary", ingested.len());
     bar.set_message("reading the second card");
 
     for frame in ingested {

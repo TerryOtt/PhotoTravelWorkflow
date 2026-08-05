@@ -121,7 +121,13 @@ Lightroom tree, clustering `YYYY-MM-DD` names into consecutive runs.*
 
 1. Load both camera cards into the readers on the Thunderbolt hub. Plug the three archive
    SSDs in — **and where each one goes matters** (see below).
-2. Run **`offload`**.
+2. Run **`offload`**, in a **full-screen console**. Terry, 2026-08-05: *"I'll likely run this
+   full screen CMD."* Worth recording because it is a licence rather than a preference —
+   **the display may assume width.** Phase headings indent four levels deep, the bars carry a
+   28-character gauge beside a count and a percentage, and the pre-flight block groups cards,
+   destinations and tracks under their own headings. None of that has to survive an 80-column
+   window, and designing for one would cost the grouping that makes the screen readable at a
+   glance. If that assumption ever stops holding, the layout is the thing to revisit.
 3. Read the pre-flight summary — file count identical on both cards, gigabytes, four
    destinations confirmed distinct, estimated time. That one line is what earns walking
    away.

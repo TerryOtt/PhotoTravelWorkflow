@@ -42,8 +42,12 @@ use std::io::IsTerminal;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
-/// A pass heading — `Writing`, `Verifying` — indented one level under the ingest line.
-const SECTION_TEMPLATE: &str = "    {msg}";
+/// A phase heading — `Writing`, `Verifying`, `Corroborating`, `Geotagging`.
+///
+/// **Flush left, because a phase has no parent.** Its rows sit one level in, and the
+/// pre-flight block printed from `main.rs` follows the same shape: heading at 0, its
+/// contents and its group headings at 4, the rows under those groups at 8.
+const SECTION_TEMPLATE: &str = "{msg}";
 
 /// Column widths matching the report's, so a bar lines up with the lines printed around it.
 ///
@@ -54,7 +58,7 @@ const SECTION_TEMPLATE: &str = "    {msg}";
 /// destination from appearing to stall (see [`crate::human::percent`]).
 ///
 /// Widths hold to 6 digits — `999,999` — where the biggest day on record is 7,350 frames.
-const TEMPLATE: &str = "        {prefix:<8} {bar:28} {human_pos:>6}/{human_len:<6} {pct:>6} {msg}";
+const TEMPLATE: &str = "    {prefix:<8} {bar:28} {human_pos:>6}/{human_len:<6} {pct:>6} {msg}";
 
 /// Plain-text updates per pass. Ten is a deliberate ceiling rather than a rate: it bounds a
 /// long run's log at a knowable number of lines regardless of how many frames the day holds,
@@ -104,9 +108,19 @@ impl Progress {
     /// screen** — it is the same heterogeneity decision 14 calls the report's most useful
     /// number, shown live.
     ///
-    /// In `Bars` this is a message-only bar that is never advanced, so `MultiProgress` keeps
-    /// it in place as an ordinary line. In `Lines` it is one heading printed once.
-    pub fn section(&self, title: &str) {
+    /// In `Bars` this is a message-only bar that is never advanced; in `Lines` it is one
+    /// heading printed once.
+    ///
+    /// **The returned [`Section`] MUST be held for as long as the heading should stay on
+    /// screen.** Dropping it removes the line.
+    ///
+    /// That is the whole reason this returns anything, and it cost a run to learn: the first
+    /// version dropped the handle immediately, on the assumption that `MultiProgress` owns a
+    /// bar once added. It does not — `ProgressBar`'s `Drop` finishes an unfinished bar, which
+    /// takes its line away. **Both headings silently failed to appear**, which is the exact
+    /// failure shape this module was built to avoid, in the one mode it cannot test itself in.
+    #[must_use = "dropping the Section removes the heading from the screen"]
+    pub fn section(&self, title: &str) -> Section {
         match self {
             Self::Bars(multi) => {
                 let heading = multi.add(ProgressBar::new(0));
@@ -114,12 +128,18 @@ impl Progress {
                     heading.set_style(style);
                 }
                 heading.set_message(title.to_owned());
-                // The handle is dropped here and the line stays: `MultiProgress` owns the
-                // bar's state once added, so a heading needs no owner. Never ticked and never
-                // finished — it is a label that happens to be a bar.
+                // Forces a first draw. A bar that is never advanced is never rendered, so a
+                // heading — which by definition never advances — needs this or it is invisible.
+                heading.tick();
+                Section {
+                    heading: Some(heading),
+                }
             }
-            Self::Lines => println!("    {title}"),
-            Self::Silent => {}
+            Self::Lines => {
+                println!("{title}");
+                Section { heading: None }
+            }
+            Self::Silent => Section { heading: None },
         }
     }
 
@@ -166,6 +186,20 @@ impl Progress {
     }
 }
 
+/// A pass heading, on screen for as long as this value is alive.
+///
+/// **Holding it is not bookkeeping — it is what keeps the line drawn.** `ProgressBar`'s `Drop`
+/// finishes an unfinished bar and takes its line with it, so a heading dropped at the end of
+/// the statement that made it is a heading nobody ever sees. `Lines` and `Silent` carry
+/// nothing and exist only so callers can treat all three modes the same way.
+pub struct Section {
+    #[allow(
+        dead_code,
+        reason = "held solely to keep the heading on screen until dropped"
+    )]
+    heading: Option<ProgressBar>,
+}
+
 /// One phase's progress, however this run reports it.
 ///
 /// Owned by the thread that advances it — one per destination in phase 3 — so the interior
@@ -203,7 +237,7 @@ impl Bar {
             // Same columns and the same formatting as the bars, so a log and a terminal
             // describe one run rather than looking like two tools.
             println!(
-                "  {:<8} {:>6}/{:<6} {:>6} {}",
+                "    {:<8} {:>6}/{:<6} {:>6} {}",
                 plain.prefix,
                 crate::human::count(position),
                 crate::human::count(plain.len),
@@ -275,7 +309,7 @@ impl Bar {
             // way. Position is forced to `len` for the case where a pass ends early.
             plain.position.set(plain.len);
             println!(
-                "  {:<8} {:>6}/{:<6} {:>6} {}",
+                "    {:<8} {:>6}/{:<6} {:>6} {}",
                 plain.prefix,
                 crate::human::count(plain.len),
                 crate::human::count(plain.len),

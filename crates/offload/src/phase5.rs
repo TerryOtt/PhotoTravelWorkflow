@@ -217,7 +217,10 @@ pub fn run(
     let (first, last) = track.span();
     report.track_span = Some((first, last));
 
-    let bar = progress.bar("Geotag", landed.len());
+    // Heading plus one row, matching phase 3 and 4. `frames` rather than `Geotag`: the
+    // heading says the phase, so the row says what is being counted.
+    let _section = progress.section("Geotagging");
+    let bar = progress.bar("frames", landed.len());
     bar.set_message("correlating and writing sidecars");
 
     for photo in landed {

@@ -162,6 +162,22 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     let config = config::load()?;
     let awake = power::StayAwake::request();
 
+    // **Created before pre-flight, not after, because pre-flight is the first thing that
+    // makes the operator wait.** Walking both cards takes two to four seconds with nothing on
+    // screen — short enough to be harmless and long enough to wonder, which is precisely the
+    // gap this module exists to close. Bars at a terminal, plain lines when captured to a
+    // file, and shared by every phase so their output stacks rather than fighting for the
+    // cursor (`CONOPS.md`).
+    let progress = offload::progress::Progress::detect();
+
+    // **Plain prints, not `Progress` bars, and the distinction is load-bearing.** Nothing
+    // animates during pre-flight, and a live `MultiProgress` bar owns the cursor — so a
+    // heading held open across `report`'s ordinary `println!`s would have them fighting over
+    // the same lines. Bars start at phase 3, where something actually moves.
+    println!();
+    println!("Pre-Flight");
+    println!("    Enumerating files on camera cards…");
+
     let plan = preflight::run(
         &config,
         args.allow_single_source,
@@ -189,17 +205,14 @@ fn offload(args: &Offload) -> Result<ExitCode> {
         })
         .collect();
 
+    // Flush left: this is a phase heading, the parent of the `Writing` and `Verifying`
+    // sections below it, and it used to sit indented as though it were an item in a list.
     println!();
     println!(
-        "  ingesting {} files to {} destinations…",
+        "Ingesting {} files to {} destinations…",
         count(plan.cards.files.len()),
         targets.len()
     );
-
-    // Bars at a terminal, plain throttled lines when this run is captured to a file — which
-    // is how it runs whenever Claude is driving it (`CONOPS.md`). Shared by every phase so
-    // their bars stack rather than fighting for the cursor.
-    let progress = offload::progress::Progress::detect();
 
     let started = Instant::now();
     let card_root = card_root(&plan.cards.source);
@@ -337,22 +350,38 @@ struct Released {
 /// report uses for every *size*. Rates against a link stay decimal; see [`offload::human`].
 const GIB: f64 = (1u64 << 30) as f64;
 
-/// The card phase 3 read from, in operator-facing output.
+/// The card phase 3 read from, **as recorded on disk**.
 ///
-/// The manifest calls the same thing `source_card` and keeps that name, because a field on
-/// disk is read by `verify` years later and renaming it would be a schema change under
-/// decision 28. The report is read by a tired human at a desk; these are for them.
+/// The manifest and the run log carry this verbatim as `source_card`, which `verify` reads
+/// years later — decision 28 makes changing the spelling a schema change. Lowercase, and it
+/// stays lowercase however the screen chooses to render it.
 const PRIMARY: &str = "primary";
 
-/// The card phase 4 corroborated against.
-const SECONDARY: &str = "secondary";
-
-/// The only card there was, under `--allow-single-source` (decision 7).
+/// The only card there was, under `--allow-single-source` (decision 7). Also on disk.
 ///
 /// Distinct from [`PRIMARY`] because the record must not imply a second card existed:
 /// `waived` corroboration and a sole source are the same night, and a reader years later
 /// should be able to see that from either field.
 const SOLE: &str = "sole";
+
+/// The same roles, capitalized, **for the screen only**.
+///
+/// **The split is not cosmetic.** [`PRIMARY`] and [`SOLE`] are written into the manifest and
+/// the run log; these three are written to a terminal. Capitalizing the screen ones lines the
+/// cards up with the destination labels printed beside them; capitalizing the stored ones
+/// would be a schema change under decision 28, silently invalidating every archive written
+/// before it.
+///
+/// **There is deliberately no stored counterpart to [`SECONDARY_LABEL`]**, and its absence is
+/// the tell: only the *source* card's role is ever recorded, and the second card is by
+/// definition not the source. A `secondary` on disk would be a field nothing reads.
+const PRIMARY_LABEL: &str = "Primary";
+
+/// The card phase 4 corroborated against. Screen only — see [`PRIMARY_LABEL`].
+const SECONDARY_LABEL: &str = "Secondary";
+
+/// See [`PRIMARY_LABEL`].
+const SOLE_LABEL: &str = "Sole";
 
 /// How long after launch eject stops trying (decision 22).
 ///
@@ -580,8 +609,13 @@ fn release_cards(
     // USB. What is actually known is which card fed phase 3 and which corroborated it, so
     // that is what the report says. `source_card` in the manifest is the same concept under
     // its durable name (decision 12).
-    std::iter::once((PRIMARY, &plan.cards.source))
-        .chain(plan.cards.other.as_ref().map(|(card, _)| (SECONDARY, card)))
+    std::iter::once((PRIMARY_LABEL, &plan.cards.source))
+        .chain(
+            plan.cards
+                .other
+                .as_ref()
+                .map(|(card, _)| (SECONDARY_LABEL, card)),
+        )
         .map(|(role, card)| {
             let outcome = match storage::device_of(&card.volume) {
                 Ok(device) => eject::eject(&card.volume, &device, deadline)
@@ -899,9 +933,12 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
     let cards = &plan.cards;
     let rig = &plan.rig;
 
-    println!();
+    // **Indented by logical grouping**, at the operator's request 2026-08-05: the pre-flight
+    // heading sits at 4, its summary at 8, and each group of things — cards, destinations,
+    // tracks — gets a heading at 12 with its rows at 16. A flat block of eleven lines makes
+    // the reader work out which lines belong together; the indent says it.
     println!(
-        "{} files {} · {} GiB · {} destinations verified distinct · est. {}",
+        "    {} files {} · {} GiB · {} destinations verified distinct · est. {}",
         count(cards.files.len()),
         if cards.agreed {
             "on both cards".to_string()
@@ -912,7 +949,6 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
         rig.distinct_disks,
         estimate(cards.bytes),
     );
-    println!();
 
     // **`primary`/`secondary`/`sole`, the same words the eject block and the manifest use.**
     // These lines said `source` and `other` until 2026-08-05 — a second vocabulary for the
@@ -925,61 +961,111 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
     // compare at a glance. These are the numbers that say "this card is dying" (decision 32),
     // and a ragged left edge is part of why a faulty 73 MB/s card read as unremarkable beside
     // a healthy 222. Separators per rule 6; the width holds a four-digit rate with its comma.
-    let source_role = if cards.other.is_some() { PRIMARY } else { SOLE };
-    println!(
-        "  {:<9} {}  {:>5} MB/s",
+    // **Cards and destinations share one set of column widths**, measured across both blocks
+    // before either prints. They are two lists of the same shape — a name, where it is, and a
+    // number — so letting each size its own columns made `E:\` and `C:\Travel\Images` start in
+    // different places and the two numbers land in different places, which is exactly the
+    // ragged edge that made a faulty 73 MB/s card read as unremarkable beside a healthy 222
+    // (decision 32).
+    //
+    // Measured rather than constant: the destination subpath is configurable, so any hardcoded
+    // width is a bet on one config. Counted in `chars`, not bytes, so a non-ASCII path does not
+    // over-pad. Numbers carry separators per `WRITING.md` rule 6.
+    let source_role = if cards.other.is_some() {
+        PRIMARY_LABEL
+    } else {
+        SOLE_LABEL
+    };
+
+    let mut card_rows = vec![(
         source_role,
         cards.source.label(),
-        count((cards.source_speed.bytes_per_second() / 1e6).round() as usize)
-    );
+        count((cards.source_speed.bytes_per_second() / 1e6).round() as usize),
+    )];
     if let Some((other, speed)) = &cards.other {
-        println!(
-            "  {:<9} {}  {:>5} MB/s",
-            SECONDARY,
+        card_rows.push((
+            SECONDARY_LABEL,
             other.label(),
-            count((speed.bytes_per_second() / 1e6).round() as usize)
-        );
+            count((speed.bytes_per_second() / 1e6).round() as usize),
+        ));
     }
-    println!();
 
-    // Ordered by drive letter — `destinations::survey_against` sorts the survey itself, so
-    // this list, the progress bars and the fan-out all share one order (decision 6's note).
-    // Free space carries separators per `WRITING.md` rule 6 and is right-aligned, because the
-    // question these lines answer is *does tonight fit*, and comparing `1,509` against `4,001`
-    // down a ragged column is work the format should be doing.
-    // **No disk number.** It was here and it earned nothing: label, path and free space are
-    // what the operator decides on, and a Windows disk number is not an identity — it
-    // renumbers across a reboot with no device having moved (decision 6). On 2026-08-05 that
-    // renumbering was written up as a mystery before anyone checked the boot time, which is
-    // the cost of putting a meaningless identifier in front of a tired reader. It stays in
-    // `scripts\full-run-check.ps1`, where a diagnostic is the whole point.
-    for resolved in &rig.survey.found {
+    let dest_rows: Vec<(&str, String, String, &str)> = rig
+        .survey
+        .found
+        .iter()
+        .map(|resolved| {
+            (
+                resolved.label.as_str(),
+                resolved.root.display().to_string(),
+                offload::human::gib_whole(resolved.volume.free_bytes),
+                match &resolved.matched {
+                    destinations::Match::SerialAtNewVolume { .. } => {
+                        "   ! REFORMATTED — update the config's volume_guid"
+                    }
+                    destinations::Match::VolumeOnly => "   ! no serial reported; found by GUID",
+                    _ => "",
+                },
+            )
+        })
+        .collect();
+
+    let width = |values: &[&str]| values.iter().map(|v| v.chars().count()).max().unwrap_or(0);
+    let labels: Vec<&str> = card_rows
+        .iter()
+        .map(|(label, ..)| *label)
+        .chain(dest_rows.iter().map(|(label, ..)| *label))
+        .chain(rig.survey.missing.iter().map(|m| m.label.as_str()))
+        .collect();
+    let places: Vec<&str> = card_rows
+        .iter()
+        .map(|(_, place, _)| place.as_str())
+        .chain(dest_rows.iter().map(|(_, place, ..)| place.as_str()))
+        .collect();
+    let numbers: Vec<&str> = card_rows
+        .iter()
+        .map(|(.., n)| n.as_str())
+        .chain(dest_rows.iter().map(|(_, _, n, _)| n.as_str()))
+        .collect();
+
+    let label_column = width(&labels) + 2;
+    let place_column = width(&places) + 2;
+    let number_column = width(&numbers);
+
+    println!();
+    println!("    Camera Cards");
+    for (label, place, rate) in &card_rows {
+        println!("        {label:<label_column$}{place:<place_column$}{rate:>number_column$} MB/s");
+    }
+
+    println!();
+    println!("    Destinations");
+    for (label, place, free, note) in &dest_rows {
         println!(
-            "  {:<8} {:<28} {:>5} GiB free{}",
-            resolved.label,
-            resolved.root.display().to_string(),
-            offload::human::gib_whole(resolved.volume.free_bytes),
-            match &resolved.matched {
-                destinations::Match::SerialAtNewVolume { .. } =>
-                    "   ! REFORMATTED — update the config's volume_guid",
-                destinations::Match::VolumeOnly => "   ! no serial reported; found by GUID",
-                _ => "",
-            }
+            "        {label:<label_column$}{place:<place_column$}{free:>number_column$} GiB free{note}"
         );
     }
 
     for missing in &rig.survey.missing {
-        println!("  {:<8} EXCLUDED — {}", missing.label, missing.reason);
+        println!(
+            "        {:<label_column$}EXCLUDED — {}",
+            missing.label, missing.reason
+        );
     }
 
     println!();
+    println!("    Tracks");
     println!(
-        "  tracks   {} in {}",
+        "        {} in {}",
         count(rig.tracks.len()),
         plan_gpx_dir(rig)
     );
 
+    // Deliberately outside the groups and back at the left: it is a warning about the machine
+    // rather than an item in any of them, and a warning that indents itself into a list is a
+    // warning that reads as a list item.
     if !awake.engaged() {
+        println!();
         println!("  !  the machine would not agree to stay awake for this run");
     }
 }

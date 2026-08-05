@@ -193,7 +193,8 @@ pub fn run(
     // drive is still being written. **That overlap is the single most useful thing on the
     // display** — decision 14 names the slowest device as the report's most useful number for
     // the same reason, and this is that, live.
-    progress.section("Writing");
+    // Bound, not discarded: dropping a `Section` removes its heading from the screen.
+    let _writing = progress.section("Writing");
     let write_bars: Vec<Bar> = destinations
         .iter()
         .map(|destination| {
@@ -203,7 +204,7 @@ pub fn run(
         })
         .collect();
 
-    progress.section("Verifying");
+    let _verifying = progress.section("Verifying");
     let verify_bars: Vec<Bar> = destinations
         .iter()
         .map(|destination| {
