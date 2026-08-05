@@ -40,8 +40,12 @@ already busy and refills the page cache the reboot exists to clear.
    **If the answer is *fresh*, clear the trees now rather than after the boot.** That is
    several hundred gigabytes of deletion and the TRIM that follows it; done here, the drives
    work through it during the reboot instead of during the run.
-3. **Wire the rig per [`CONOPS.md`](CONOPS.md)** — both archive USB SSDs into the laptop's
-   own ports, the Thunderbolt enclosure and both card readers on the hub.
+3. **Wire the rig per [`CONOPS.md`](CONOPS.md)'s table**, which is the one place that
+   arrangement is written down. **Do not take it from here** — this step used to restate it,
+   and on 2026-08-05 the standard rig changed (the SanDisk moved to a hub TB5 port and the
+   OWC to a laptop port, roughly inverting the old rule) while this copy went on describing
+   the previous one. `scripts\full-run-check.ps1` asserts the two rows that matter, so a
+   mis-wire fails the gate rather than quietly producing a slow number.
 4. **Name the hub.** A run on the desk dock is not a measurement of the travel rig, and
    that has already caught this project out once.
 5. **Both cards in their readers, tracks in the GPX directory.**
@@ -143,7 +147,7 @@ Write it **before** the reboot. Delete it once the run is recorded.
   "prohibited": "reading file data from any card or destination — see docs/FULL-RUN.md",
   "established": {
     "hub": "CalDigit Element 5",
-    "topology": "SanDisk+WD on laptop ports, OWC and both readers on the hub",
+    "topology": "OWC on laptop left TB4 port; SanDisk + CFexpress on hub TB5; WD and SD reader on hub USB",
     "destination_state": "convergence on laptop/SanDisk/WD, OWC empty",
     "binary": "8dd23e5, cargo build --release was a no-op"
   }
