@@ -84,10 +84,23 @@ being years behind.**
 
 **It is not hypothetical here.** On 2026-08-05 the OWC enclosure came up bridged to USB
 instead of carrying its PCIe tunnel — every file readable, activity light on, `BusType` the
-only tell — which is precisely the class of bug router firmware addresses. It is cheap to
-detect (`scripts\full-run-check.ps1` asserts it) and a cable reseat clears it, which makes
-it a nuisance at home and a silent 3× throughput loss in a hotel room where nobody thinks
-to look.
+only tell. It is cheap to detect (`scripts\full-run-check.ps1` asserts it) and a cable reseat
+clears it, which makes it a nuisance at home and a silent 3× throughput loss in a hotel room
+where nobody thinks to look.
+
+> **And it is this section's own worked example of *ask the vendor* rather than assume.** That
+> fault was filed all afternoon as "precisely the class of bug router firmware addresses" —
+> sound reasoning, resting on a premise nobody had checked. **OWC support, asked directly, say
+> there is no firmware update for the Express 1M2 at all**, so there was never anything to be
+> behind on. The hypothesis was not wrong so much as inapplicable, and one question to a human
+> retired it faster than an afternoon of searching had.
+>
+> **The corollary is worth carrying: "is there an update" is a question for the vendor, and the
+> answer is sometimes that no such thing exists.** A device sitting at a version with no
+> successor is not out of date. Treating the firmware pass as a checklist item that must
+> *produce* an update is how a rig ends up flashed with something generic and unsupported —
+> a real temptation here, since a third-party ASMedia ASM2464 image is findable and would have
+> looked like the answer.
 
 Read what is installed, and write the numbers down before changing any of them — the
 before-state is only free to capture once:
