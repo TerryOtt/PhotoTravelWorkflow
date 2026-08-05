@@ -106,11 +106,15 @@ diverge from it — if a decision looks wrong, say so explicitly and cite what c
 
 **First, one file decides whether this session may touch the drives at all.** If
 **`RUN-STATE.json`** exists at the repository root, a measured end-to-end run is staged or
-in flight. Read [`docs/FULL-RUN.md`](docs/FULL-RUN.md) before any other tool call, and until
-that file is gone, **read no file data from any camera card or destination** — no hashes, no
-copies, no `--dry-run`, no `examples/` probe, and no walking the archive trees "just to
-look". The usual reason it exists is a reboot taken to get a cold page cache, and a
-walk-about spends exactly what the reboot bought.
+in flight. **Read [`docs/FULL-RUN.md`](docs/FULL-RUN.md) before any other tool call. Until
+that file is gone, this session MUST NOT read file data from any camera card or
+destination** — no hashes, no copies, no `--dry-run`, no `examples/` probe, and no walking
+the archive trees "just to look". The usual reason it exists is a reboot taken to get a cold
+page cache, and a walk-about spends exactly what the reboot bought.
+
+**And Claude MUST NOT reboot this machine** — see [`docs/FULL-RUN.md`](docs/FULL-RUN.md)
+and the global `CLAUDE.md`. Requesting that Terry reboot is correct and expected;
+performing one never is.
 
 `RUN-STATE.json` records which step the procedure reached and what has already been
 established, so a session that lost its context does not need to re-derive any of it by
@@ -171,15 +175,29 @@ bar. `DESIGN.md` — *Both metrics are thresholds* — has the full version.
 
 ## Binding constraints
 
-1. **Pure Rust.** No ExifTool, no C-library bindings. Microsoft's `windows` crate is not
-   an exception to this — it is generated bindings to DLLs the OS has already loaded.
-2. **The tool never writes to a camera card.** Not a byte, under any flag. Formatting is
-   an in-camera act by the operator.
-3. **Raw files are never modified.** All derived data goes to sidecars and manifests.
-4. **It runs unelevated**, and nothing in a run may come to need administrator rights.
-5. **Readable over clever**, per the same rule RawGeotag runs under: prefer the obvious
-   mechanism, and prefer a mistake that is a compile error over one that is a runtime
-   surprise.
+**The key words MUST, MUST NOT, SHALL NOT, SHOULD and MAY in this file are used as
+described in RFC 2119, and the capitals are load-bearing.** They mark the difference
+between a rule with no exception and a strong default that judgment may overrule.
+**Constraints 1–4 below are absolute; 5 is deliberately a SHOULD**, and that contrast is
+the reason the convention is worth having. If everything were MUST NOT, none of it would
+carry weight — the same argument decision 34 makes about spending exit 2 on a signal that
+repeats.
+
+1. **Pure Rust. The tool MUST NOT link a C library or shell out to another program** —
+   no ExifTool, no bindings to a native lib. Microsoft's `windows` crate is not an
+   exception: it is generated bindings to DLLs the OS has already loaded.
+2. **The tool MUST NOT write to a camera card.** Not a byte, under any flag, on any code
+   path, ever. Formatting is an in-camera act by the operator. **This is the constraint
+   the whole design answers to** — if only one survives a rewrite, this one.
+3. **The tool MUST NOT modify a raw file.** All derived data goes to sidecars and
+   manifests.
+4. **A run MUST NOT require administrator rights.** It runs unelevated and nothing in it
+   may come to need elevation — a capability that only works elevated does not exist for
+   this tool's purposes, and a design that reaches for one MUST be redesigned rather than
+   documented with a caveat.
+5. **Readable over clever** — a SHOULD, and meant as one. Prefer the obvious mechanism,
+   and prefer a mistake that is a compile error over one that is a runtime surprise. A
+   reviewer may overrule this with an argument; nobody may overrule 1–4 with one.
 
 ## A measured run is a clean build
 

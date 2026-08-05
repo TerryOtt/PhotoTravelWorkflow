@@ -29,9 +29,13 @@ the ideal is "launch the app."* Everything that mutates state or costs real I/O 
 this side of the line, because anything done after boot competes with a machine that is
 already busy and refills the page cache the reboot exists to clear.
 
-1. **Settle the drives.** At least 20 minutes idle after any bulk write. An SSD measured
-   straight after absorbing hundreds of gigabytes is reporting its garbage collection.
-2. **Decide the destination state, and write it down.** *Fresh* means every destination
+*RFC 2119 keywords. **MUST** here means the resulting number is not comparable without it —
+which is this document's entire subject, so nearly every step is one.*
+
+1. **The drives MUST have settled.** At least 20 minutes idle after any bulk write. An SSD
+   measured straight after absorbing hundreds of gigabytes is reporting its garbage
+   collection.
+2. **You MUST decide the destination state and write it down.** *Fresh* means every destination
    empty, so phase 3 does a real four-way write pass. *Convergence* means the day is
    already present, so writes are skipped by hash while the card is still read and hashed
    end to end. The two produce different wall clocks and neither is wrong — but a figure
@@ -40,16 +44,16 @@ already busy and refills the page cache the reboot exists to clear.
    **If the answer is *fresh*, clear the trees now rather than after the boot.** That is
    several hundred gigabytes of deletion and the TRIM that follows it; done here, the drives
    work through it during the reboot instead of during the run.
-3. **Wire the rig per [`CONOPS.md`](CONOPS.md)'s table**, which is the one place that
-   arrangement is written down. **Do not take it from here** — this step used to restate it,
+3. **You MUST wire the rig per [`CONOPS.md`](CONOPS.md)'s table**, which is the one place that
+   arrangement is written down. **You MUST NOT take it from here** — this step used to restate it,
    and on 2026-08-05 the standard rig changed (the SanDisk moved to a hub TB5 port and the
    OWC to a laptop port, roughly inverting the old rule) while this copy went on describing
    the previous one. `scripts\full-run-check.ps1` asserts the two rows that matter, so a
    mis-wire fails the gate rather than quietly producing a slow number.
-4. **Name the hub.** A run on the desk dock is not a measurement of the travel rig, and
-   that has already caught this project out once.
-5. **Both cards in their readers, tracks in the GPX directory.**
-6. **Rebuild the world, and mean it:**
+4. **You MUST name the hub.** A run on the desk dock is not a measurement of the travel rig,
+   and that has already caught this project out once.
+5. **Both cards MUST be in their readers, and tracks in the GPX directory.**
+6. **You MUST rebuild the world, and mean it:**
 
    ```
    cargo clean
@@ -229,22 +233,31 @@ What the script asserts, and why each one is there:
   USB. **The one procedure that reliably provokes it is the one in this document**, since a
   cold-cache run begins by rebooting. Reseat until it reports NVMe; it clears on its own
   once the machine settles.
-- **The CFexpress reader must enumerate the card as NVMe** with its true hardware serial. A
+- **The CFexpress reader MUST enumerate the card as NVMe** with its true hardware serial. A
   USB bridge invents one and caps the card at roughly a third of its rate.
-- **The SD reader must sit behind `Generic SuperSpeed USB Hub`**, not plain `Generic USB
+- **The SD reader MUST sit behind `Generic SuperSpeed USB Hub`**, not plain `Generic USB
   Hub`. A USB 2.0 port costs 5.8× and reports no error.
-- **Both cards mounted**, holding the same day.
-- **The binary is `HEAD`'s.** Run `cargo build --release` and confirm it had nothing to do.
-  A stale artifact will happily run and lie about which code produced the number.
-- **Nothing else is using the machine.**
+- **Both cards MUST be mounted**, holding the same day.
+- **The binary MUST be `HEAD`'s.** Run `cargo build --release` and confirm it had nothing to
+  do. A stale artifact will happily run and lie about which code produced the number.
+- **Nothing else MUST be using the machine.**
+
+**Every one of those is a MUST because failing it does not fail the run — it produces a
+number.** That is the whole hazard: a bridged enclosure, a USB 2.0 reader or a stale binary
+all complete, exit 0, and yield a figure that looks exactly like the others in
+`DESIGN.md`'s tables and describes something else. **A run launched with any of these unmet
+MUST NOT have its timing quoted.**
 
 ## Do not, between the reboot and the launch
 
-- **Read file data from any card or destination** — no hashing, no copying, no
+**These are MUST NOTs. Each one silently invalidates the number rather than failing the
+run.**
+
+- **You MUST NOT read file data from any card or destination** — no hashing, no copying, no
   `examples/` probe, and **no `--dry-run` first**. A dry run is a good thing that warms the
   wrong caches at the wrong moment.
-- **Run anything else on the bus.** A throughput number taken alongside other I/O describes
-  contention ([`REVIEWING.md`](REVIEWING.md) — *Measurements are evidence*).
+- **You MUST NOT run anything else on the bus.** A throughput number taken alongside other
+  I/O describes contention ([`REVIEWING.md`](REVIEWING.md) — *Measurements are evidence*).
 
 ## Launch, and what to record with the number
 

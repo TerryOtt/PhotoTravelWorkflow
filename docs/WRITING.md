@@ -58,7 +58,27 @@ sections marked **COMPLETE** before any design.
 6. **Numbers ≥ 1,000 carry thousands separators**, in prose as well as in program output.
    Exceptions: Rust literals, text quoted verbatim from another tool so it stays
    greppable, and years, model numbers, offsets and coordinates.
-7. **One name per concept, and these are the names.** A recurring thing gets one term and
+7. **A rule with no exception says MUST NOT, in capitals, per RFC 2119.** Requested by
+   Terry 2026-08-05: *"if we mean NO NEVER, let's be consistent on that wording."* The
+   capitals are the signal that judgment has no room here — `MUST`, `MUST NOT`, `SHALL NOT`
+   for absolutes; `SHOULD` for a strong default a good argument may overrule; `MAY` for a
+   genuine option. A document using them **states so once, at the top of the section that
+   uses them.**
+
+   **The discipline is in what you do *not* capitalize.** Prose "never" is usually
+   descriptive — *"the operator is never practiced"*, *"Lightroom never opens one of the
+   four"* — and those are facts about the world, not obligations; capitalizing them would be
+   wrong. And a preference dressed as an absolute devalues the real ones, which is decision
+   34's argument about exit 2 applied to prose: **spend the strong word on the things that
+   have no exception, or it stops meaning anything.** The test: *can I imagine a good
+   argument for doing this anyway?* If yes, it is a SHOULD.
+
+   Where they are used today: the reboot prohibition ([`FULL-RUN.md`](FULL-RUN.md), global
+   `CLAUDE.md`), binding constraints 1–4 ([`../CLAUDE.md`](../CLAUDE.md)), the `RUN-STATE.json`
+   gate, the firmware freeze ([`TRIP-HYGIENE.md`](TRIP-HYGIENE.md)), the measured-run
+   checklist ([`FULL-RUN.md`](FULL-RUN.md)) and daily hygiene ([`CONOPS.md`](CONOPS.md)).
+
+8. **One name per concept, and these are the names.** A recurring thing gets one term and
    keeps it — in docs, code comments, commit messages, memory and conversation alike. Coining
    a fresh synonym is not a stylistic choice; it splits one searchable idea into several and
    turns one habit into several partly-performed ones.

@@ -386,13 +386,28 @@ is the thirty seconds in which you confirm it is still true today.
 here is about the laptop, the drives or the tool; those were settled by trip hygiene and are
 re-checked by pre-flight at offload.
 
-1. **Sync the camera clock to true UTC.** Not "check it looks right" — set it against a
-   clock you trust. It drifts, and a body flash or a battery pull can reset it.
-2. **Both slots are recording every frame** — the same image to both cards, not an
-   overflow/relay arrangement where the second card only starts once the first fills.
-3. **Uncompressed RAW, and nothing else** — no compressed raw, no JPEG, no HEIF, no video.
-4. **Both cards formatted in the body**, per the contract, at the start of the session.
-5. **The GPS logger is actually running**, if you want tracks for this session.
+*RFC 2119 keywords, and they are load-bearing: **MUST** means the day is damaged if you skip
+it, **SHOULD** means you will wish you had. Two of these five are MUST because nothing
+downstream can catch them — the table below shows which.*
+
+1. **You MUST sync the camera clock to true UTC.** Not "check it looks right" — set it
+   against a clock you trust. It drifts, and a body flash or a battery pull can reset it.
+2. **You MUST confirm uncompressed RAW, and nothing else** — no compressed raw, no JPEG,
+   no HEIF, no video.
+3. **You SHOULD confirm both slots are recording every frame** — the same image to both
+   cards, not an overflow/relay arrangement where the second card only starts once the
+   first fills.
+4. **You SHOULD format both cards in the body**, per the contract, at the start of the
+   session.
+5. **You SHOULD confirm the GPS logger is actually running**, if you want tracks for this
+   session.
+
+**The two MUSTs are 1 and 2, and the split is not about which matters most** — a relay-mode
+slot loses frames, which is as bad as anything here. It is about **which failures have a
+safety net.** 3, 4 and 5 fail loudly downstream: decision 27's gate refuses at the desk,
+decision 24 names strays in the report, a missing track is declared. 1 and 2 fail **silently
+and permanently**, and the only place in the entire system where they can be caught is
+standing in front of the camera before the day starts.
 
 ### Which of these the tool backstops, and which it cannot see at all
 
@@ -553,6 +568,14 @@ not a mystery gap. Every bit is checked, every time; there is no sampled mode.
 
 ## What this tool will never do
 
-The full list is [`DESIGN.md`](DESIGN.md)'s non-goals; the two that shape daily use:
-it **never writes to a camera card** — formatting stays an in-camera act — and it
-**never modifies a raw file**, anywhere, under any flag.
+The full list is [`DESIGN.md`](DESIGN.md)'s non-goals; the two that shape daily use are
+binding constraints, stated in [`../CLAUDE.md`](../CLAUDE.md) as absolutes and restated here
+in the same words:
+
+- **The tool MUST NOT write to a camera card.** Not a byte, under any flag, on any code
+  path. Formatting stays an in-camera act by you.
+- **The tool MUST NOT modify a raw file.** All derived data goes to sidecars and manifests.
+
+**Those are the two you can rely on without reading anything else.** Whatever else a run
+does or fails to do, the originals on the cards and the raws in the archive are untouched —
+which is what makes a bad night recoverable rather than expensive.

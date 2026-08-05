@@ -20,9 +20,13 @@ more than a current one you have not run against real cards.
 Most of trip hygiene can happen at any point before departure. **One item cannot, and it is
 a bright line rather than a judgment call:**
 
+*RFC 2119 keywords below, and the firmware row is the only **MUST NOT** in this document.
+That is the point of using them: it is not one strong warning among many, it is the single
+absolute in the whole routine.*
+
 | When | What |
 |---|---|
-| **T-30 days and earlier — never after** | **Device firmware:** hub, enclosure, card readers, **and the camera body** |
+| **T-30 days and earlier. You MUST NOT flash firmware after T-30** | **Device firmware:** hub, enclosure, card readers, **and the camera body** |
 | Any time — **and the later the better** | **The camera clock: set to UTC, then *verified* by taking a frame.** Not frozen; see below |
 | Any time before you leave | Dependencies, toolchain, MSVC Build Tools, workflow action pins |
 | Any time before you leave | Lightroom XMP checks, if Classic had a major release |
