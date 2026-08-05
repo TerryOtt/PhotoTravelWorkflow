@@ -1296,6 +1296,7 @@ about already settled.
   SSD-C   SanDisk E61  2312A9…    1,247 written · 1,247 verified   OK
 
   Corroboration   1,246 matched · 1 mismatch
+  Body            Canon EOS R5 · 012345000123 — as configured
   Timezone        1,247 files +00:00 — camera on UTC as intended
   Geotag          1,198 tagged · 49 outside track
   Eject           SSD-A ✓ · SSD-B ✓ · SSD-C ✓
@@ -2786,6 +2787,103 @@ and a slow device is still a *correct* device.
 Recorded 2026-08-04, from the operator, on seeing that the run log already held everything a
 destination history needs.
 
+### 34. The body is named in the config, and an unexpected one is reported
+
+**`CONOPS.md`'s shooting-day contract opens with "the fleet is one body — a Canon EOS R5",
+and nothing observes it.** Every other clause of that contract has a check behind it: two
+cards present (decision 7), the pair holding one listing (decision 27), CR3 only (decision
+24), tracks present (decision 26). The body is the one the tool takes entirely on trust.
+
+So the config names it, and pre-flight compares:
+
+```json
+"body": { "model": "Canon EOS R5", "serial": "…" }
+```
+
+**It reports; it never refuses.** Frames from an unexpected body are perfectly good
+photographs that still need four verified copies, and refusing would leave the night with
+zero backups over a *process* violation — the inversion decisions 7 and 25 both reject.
+
+**And it is INFO, not a warning — settled by the operator 2026-08-05, correcting a first
+draft that made it exit 2.** The body goes in the report body as a plain line beside decision
+23's timezone line, which is the same kind of fact about the camera rather than about the
+data. **It does not touch the verdict and it does not touch the exit code.**
+
+**The reason is that a mismatch persists, and exit 2 is a signal that must not.** A different
+body is not a one-night event: replace the R5, or shoot a trip on a rental, and the mismatch
+is true on *every* run until the config is edited. Exit 2 on every night of a trip would
+train the operator to read past exit 2 — which also carries unfiled frames, confirmed
+mismatches, a refused eject and a run that never corroborated. **Spending a scarce signal on
+something that repeats is precisely how it stops meaning anything**, which is decision 12's
+argument about the manifest applied to the exit code, and decision 9's about a warning that
+fires regardless of the truth.
+
+> **This gives the report an explicit severity vocabulary it had been using implicitly**, and
+> naming it is worth more than the one case that prompted it:
+>
+> | Level | How it appears | May it change the verdict or exit code? |
+> |---|---|---|
+> | **INFO** | a plain line in the report body | **never** — timezone, geotag counts, per-destination rates, and now the body |
+> | **WARNING** | a `!`-prefixed block | exit 2, and the verdict may carry a scar — unfiled frames, a deleted mismatch, a refused eject |
+> | **VERDICT** | the last line, phrases appearing nowhere else | it *is* the answer (decision 14) |
+>
+> The test for which one a new finding takes: **would it still be true tomorrow night, and
+> the night after?** A repeating fact is INFO however much it matters, because a warning that
+> repeats is a warning that gets filtered. A thing that is true about *tonight* can be a
+> warning.
+
+**The serial matters more than the model, and the operator's own history is why.** He rented
+an R5 in 2021 and bought one in 2024 after a robbery took the previous body. A model check
+passes cleanly on a rented R5; only a serial tells *an* R5 from *his* R5, and the contract is
+a claim about a body rather than about a product line.
+
+**The payoff is bigger than the contract-nag it looks like, and it is decision 23.** That
+decision rests on *the only body is an R5, and the R5 records `OffsetTimeOriginal` on every
+frame*. A body that does not record an offset sends **every frame to `_unfiled`** (decision
+21) — and today that is discovered only after the whole day has streamed through phase 3. One
+frame at pre-flight turns a 35-minute discovery into a ten-second one, while the fix is still
+a decision about tonight rather than a fact about it.
+
+**What it does not buy, stated so the case is not oversold.** The naming scheme looked like a
+second victim — decision 5 drops the body prefix precisely because *the fleet is fixed at one
+R5*, so two bodies would collide on `HHMMZ_NNNN`. They do not: decision 5's hash check already
+resolves that to a `_001` suffix correctly. Two bodies make that branch less pathological, not
+wrong. The dual-slot half of the contract is likewise already caught, by decision 27's gate.
+**One genuine early warning, not a correctness hole being plugged.**
+
+**The cost is nothing, which is what makes it worth having.** Phase 3 and `--dry-run` already
+parse each frame's EXIF, and `--dry-run` does it for 3,883 files in about 0.3 s by seeking the
+container rather than reading it. Reading two more tags from the *first* frame on each card is
+microseconds and no new dependency.
+
+> **One dependency is genuinely open and must be measured before this is built.** Canon has
+> historically written the body serial into its **MakerNotes** rather than into standard EXIF,
+> and the two live in different boxes of a CR3: `CMT2` is ExifIFD, `CMT3` is MakerNotes.
+> `nom-exif` collects the standard `CameraSerialNumber` (0xa431) and *locates* CMT3, but
+> decoding Canon's MakerNote structure is vendor-specific work it may not do.
+>
+> **That Lightroom displays the serial proves it is in the file, not which box it is in** —
+> Lightroom reads MakerNotes heavily. And binding constraint 1 is what makes the distinction
+> expensive rather than academic: there is no ExifTool to fall back on, so a MakerNotes-only
+> serial means decoding Canon's structure by hand.
+>
+> **One real CR3 settles it in thirty seconds.** If the serial turns out to be unreachable,
+> **`model` alone still carries the decision 23 payoff** — the part that actually pays — and
+> the serial degrades to a nice-to-have rather than blocking the feature.
+
+**One body, not a list**, per this project's preference for the flat thing until a real second
+case appears. A rental during a repair is the case that would promote it; until one happens,
+a list would be machinery for a fleet that has been size one for its entire history.
+
+**And a replaced body warns on every run until the config is edited, which is correct rather
+than annoying.** `CONOPS.md` already calls a new body *a design event, not a config change* —
+its EXIF and dual-slot behavior get verified at home before any trip trusts it — so a
+deliberate edit is exactly the friction that decision wants. Same posture as decision 6's loud
+`REFORMATTED` warning about a disk whose serial matched at a new volume GUID.
+
+Recorded 2026-08-05, from the operator, who asked whether recording the body would catch a
+contract violation *by him*.
+
 ## Considered and rejected
 
 Recorded so a later reviewer does not spend effort re-proposing them. Reopening one needs
@@ -2797,6 +2895,9 @@ new evidence rather than fresh taste.
 | Blocking the run on a slow card | A slow card is still a correct card, and the guarantees are about bytes, not speed. Refusing a night's offload over a speed regression manufactures the emergency the tool exists to prevent. Decision 32 warns in the report |
 | Parquet, or any columnar format, for the throughput history | Raised by the operator and rejected on arithmetic before it was proposed. Columnar formats exist for data that will not fit in memory; this is six samples per run — two cards, four destinations — at ~30 travel days a year with two offloads a day. **360 samples a year, roughly 540 KB of JSON per decade**, and decision 33 bounds the list per device so the file stays under ~50 KB regardless. The query engine is a linear scan over a `Vec`. It would also spend the property decision 17 paid two minutes a run to keep: `history.json` opens in a text editor on any machine in 2031, where Parquet needs a specific library that may not still be around. Binary costs `git diff` and hand-repair too. Decision 33 |
 | JSON Lines for the throughput history | The global preference sends append-only logs to JSONL so a row can be added without rewriting the file — and it does not apply here, which is worth stating so the rule is not applied mechanically. Decision 33's history is *bounded* per device, so old samples are dropped and the file is rewritten atomically every run: a ring buffer, not an append log. The run log beside it *is* JSONL, because that one is genuinely append-only and has to survive a crash mid-write (decision 12) |
+| Refusing a run whose frames came from an unexpected body | The frames are good photographs that still need four copies; refusing over a *process* violation leaves the night with zero backups, which is the inversion decisions 7 and 25 both reject. Decision 34 reports instead |
+| Making an unexpected body exit 2 | Decision 34's own first draft, corrected by the operator the same day. A replaced or rented body is true on *every* run until the config is edited, so exit 2 would fire nightly for a whole trip and teach the operator to read past a code that also carries unfiled frames, deleted mismatches and refused ejects. **A repeating fact is INFO however much it matters** |
+| A list of accepted camera bodies | Machinery for a fleet that has been size one for its entire history, and `CONOPS.md` records the intent to replace rather than add. Decision 34 takes the flat single body; a rental during a repair is the real second case that would promote it |
 | Local-time date folders | UTC is a deliberate conviction, not an oversight. The early-morning-east-of-UTC consequence is understood and accepted |
 | A `date_folders` config setting | A knob whose only legal value is its default — UTC foldering is the conviction above, not a preference |
 | Ingesting non-CR3 files into `_unfiled` as a catch-all | Machinery for formats the operator never shoots. `_unfiled` exists for a defective CR3, not as a junk drawer; the report names strays instead. Decision 24 |
@@ -2900,6 +3001,10 @@ in 201 GB and name the file.
   holding what was actually observed. Decision 12 has the reasoning and the schema-compat
   trap it walked into. **Not yet run against hardware** — it compiles and the suite passes,
   which this project learned the hard way is not the same thing; the next offload prints it
+- **the body check** (decision 34) — name the camera in the config, compare one frame per
+  card at pre-flight, print it as INFO beside the timezone line. **Blocked on one measurement**:
+  whether the R5 writes `CameraSerialNumber` into standard ExifIFD or only into Canon's
+  MakerNotes, which one real CR3 settles. Model-only still delivers the decision 23 payoff
 - **the Defender exclusion check** (decision 9), and setting the exclusions themselves —
   by extension and process rather than path, for the reasons decision 9 now records
 - **naming whoever actually holds a vetoed volume.** Every claim that Defender or the
