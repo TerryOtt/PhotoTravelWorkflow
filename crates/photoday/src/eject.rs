@@ -103,6 +103,59 @@ impl Outcome {
     }
 }
 
+/// What happened to one camera card.
+///
+/// **Separate from [`Outcome`] because a card ends in a different place.** An archive SSD is
+/// unplugged whole, so success means the enclosure powered down. A card is pulled out of a
+/// reader that stays plugged in, so success means the volume is dismounted and nothing more:
+/// powering the reader down would be the wrong device, and it need not come back cleanly
+/// when the next card goes in. Sharing one enum would have made `Dismounted` mean *failure*
+/// for a destination and *success* for a card.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CardOutcome {
+    /// Flushed and detached. Safe to pull.
+    Dismounted,
+    /// Something holds the volume. Still safe to pull — nothing was written to it.
+    Held { reason: String },
+}
+
+/// Lock and dismount a camera card, so pulling it is tidy rather than a yank.
+///
+/// **This writes no photograph and touches no file.** It is here because the nightly ritual
+/// ends with five removable devices and only three of them were being settled, which is an
+/// asymmetry the operator has to remember at the end of a long day. See decision 22 for the
+/// one nuance it carries against the never-write-to-a-card non-goal.
+///
+/// **A failure here is cosmetic and must stay that way.** The tool never wrote to the card,
+/// so it was safe to pull before this ran and is safe to pull after it fails. The verdict and
+/// the exit code do not consider it.
+pub fn dismount_card(volume: &Volume) -> Result<CardOutcome> {
+    const GENERIC_READ_WRITE: u32 = 0x8000_0000 | 0x4000_0000;
+    const FILE_SHARE_READ_WRITE: u32 = 0x0000_0001 | 0x0000_0002;
+
+    let file = std::fs::OpenOptions::new()
+        .access_mode(GENERIC_READ_WRITE)
+        .share_mode(FILE_SHARE_READ_WRITE)
+        .open(volume.device_path())
+        .with_context(|| format!("opening {} to dismount", volume.guid_path))?;
+
+    let handle = HANDLE(file.as_raw_handle());
+
+    if let Err(error) = lock_with_backoff(handle) {
+        return Ok(CardOutcome::Held {
+            reason: format!("{error:#}"),
+        });
+    }
+
+    if let Err(error) = control(handle, FSCTL_DISMOUNT_VOLUME) {
+        return Ok(CardOutcome::Held {
+            reason: format!("locked, but dismount failed: {error:#}"),
+        });
+    }
+
+    Ok(CardOutcome::Dismounted)
+}
+
 /// How one device's eject ended, and what it cost to get there.
 ///
 /// **The cost is reported rather than discarded** because eject is the least predictable

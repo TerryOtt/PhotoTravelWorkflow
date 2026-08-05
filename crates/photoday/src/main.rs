@@ -245,6 +245,10 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     let ejecting = Instant::now();
     let released = eject_phase(&plan, &outcome, args, started + RUN_BUDGET);
     report_eject(released.as_deref(), args, ejecting.elapsed());
+
+    // After the archives, because phase 4 read the SDXC and phase 3 the CFexpress — and
+    // before the verdict, which does not consider the result (decision 22).
+    report_cards(&dismount_cards(&plan, args));
     verdict(&outcome, released.as_deref(), corroboration.as_ref(), args);
 
     Ok(exit_code(
@@ -518,6 +522,52 @@ fn report_eject(released: Option<&[Released]>, args: &Offload, elapsed: Duration
             eject::Outcome::Held { reason } => println!(
                 "           {:<8} still mounted — eject it from the tray{effort}\n           {reason}",
                 r.label
+            ),
+        }
+    }
+}
+
+/// Dismount both camera cards, so the ritual ends with all five removable devices settled.
+///
+/// **Nothing here may change the verdict or the exit code.** The tool never wrote to a card,
+/// so it was safe to pull before this ran and is safe to pull if it fails — this is tidiness,
+/// and letting it downgrade anything would claim it bought a guarantee it did not.
+fn dismount_cards(
+    plan: &preflight::Preflight,
+    args: &Offload,
+) -> Vec<(String, eject::CardOutcome)> {
+    if args.no_eject {
+        return Vec::new();
+    }
+
+    std::iter::once(&plan.cards.source)
+        .chain(plan.cards.other.as_ref().map(|(card, _)| card))
+        .map(|card| {
+            let outcome = eject::dismount_card(&card.volume).unwrap_or_else(|error| {
+                eject::CardOutcome::Held {
+                    reason: format!("{error:#}"),
+                }
+            });
+            (card.label().to_string(), outcome)
+        })
+        .collect()
+}
+
+fn report_cards(cards: &[(String, eject::CardOutcome)]) {
+    if cards.is_empty() {
+        return;
+    }
+
+    println!();
+    for (label, outcome) in cards {
+        match outcome {
+            eject::CardOutcome::Dismounted => {
+                println!("  Cards    {label:<8} dismounted — safe to pull");
+            }
+            // Deliberately not phrased as a failure: the card was always safe to pull, and an
+            // operator reading "held" here would worry about data that was never at risk.
+            eject::CardOutcome::Held { reason } => println!(
+                "  Cards    {label:<8} still mounted — safe to pull regardless, nothing was written to it\n           {reason}",
             ),
         }
     }

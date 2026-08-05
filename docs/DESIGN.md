@@ -1729,8 +1729,35 @@ archives — each destination resolved by disk serial is ejected: flush the volu
 be holding freshly written files), dismount, then `CM_Request_Device_Eject` so Windows
 powers the device down exactly as the tray icon would. The destination that is a path on
 this machine's own disk has nothing to eject and is never touched — that is the whole of
-the distinction, and it is physical rather than a role (decision 11). The card readers need nothing: the tool never writes to a
-card, so pulling one is safe at any time after the run.
+the distinction, and it is physical rather than a role (decision 11).
+
+**The two camera cards are dismounted as well**, added 2026-08-04 at the operator's request,
+so the ritual ends with all five removable devices settled rather than three. The reason is
+not safety — the tool never wrote to a card, so pulling one was always safe at any time after
+the run — it is that **an asymmetry the operator has to remember is a cost paid at the end of
+a long day**, and this design spends real effort elsewhere to remove exactly that kind of
+decision (decisions 6 and 8).
+
+**Cards are dismounted, never powered down, and the difference is not cosmetic.** An archive
+SSD is unplugged whole, so success means the enclosure powered down. A card is pulled out of
+a reader that stays plugged in — powering the reader down would be the wrong device, and it
+need not re-enumerate cleanly when the next card goes in. So a card gets lock and dismount
+and nothing more, which is precisely what *safe to pull* means. `eject::CardOutcome` is a
+separate type from `Outcome` for that reason: sharing one would make `Dismounted` mean
+failure for a destination and success for a card.
+
+**A card that will not dismount changes nothing**, and the report says so in those words
+rather than reporting a failure. It was safe to pull before the attempt and it is safe to
+pull after. **Neither the verdict nor the exit code considers the result** — letting it
+downgrade either would claim this bought a guarantee it did not.
+
+**One nuance against the never-write-to-a-card non-goal, recorded rather than glossed.** A
+dismount writes no photograph and touches no file, but it lets the filesystem driver complete
+a clean unmount, which can update volume metadata such as the dirty bit. Against a non-goal
+that says "not a byte, under any flag," that deserves stating outright. It is accepted
+because it improves on the status quo rather than eroding it: today the card is yanked while
+mounted and left dirty, formatting remains an in-camera act, and no photograph is touched.
+**The operator was told before it was written and accepted the trade.**
 
 A refused eject — something else holds the volume — is named per device and downgrades
 nothing, because the data guarantees were settled before eject was attempted. See
