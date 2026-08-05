@@ -809,6 +809,25 @@ a hub change and two replugs, with nothing reformatted and no configuration touc
 design that pinned letters would not fail on some unlucky future night; it would fail most
 nights.
 
+> **And the *disk number* is worse than the letter, which was not obvious until it was
+> watched.** On 2026-08-05, staging a run, `full-run-check.ps1` reported the OWC as disk 1
+> and the SanDisk as disk 4. Two hours later, same session, they had **swapped — OWC on 4,
+> SanDisk on 1** — while `J:`, `F:` and `I:` all stayed exactly where they were.
+>
+> **Nothing was unplugged.** `scripts\watch-rig.ps1` was armed across the entire window and
+> logged not one event, which is correct rather than a miss: it keys on serial and watches
+> attach, detach, drive letter and `BusType`, none of which changed. Re-running the rig check
+> confirmed every port class byte-identical — OWC `laptop-tb4` at 2 PCIe hops, SanDisk
+> `hub-tb5` on xHCI 3.20, WD `laptop-usb` on xHCI 3.10. **The physical topology never moved;
+> only Windows' numbering did.**
+>
+> This is the sharper version of the evidence above. The letter observation needed a hub
+> change and two replugs to produce movement; **this needed nothing at all**, which makes
+> disk number the least trustworthy identifier of the three and not merely an equal
+> alternative to the letter. The cause was not chased — under this decision it cannot matter,
+> and chasing it would have spent a staged cold-cache run to learn something the design
+> already routes around. **That it was a non-event is the finding.**
+
 | Identifier | Survives letter change | Survives reformat | Portable to another PC |
 |---|---|---|---|
 | Drive letter | ✗ | ✗ | ✗ |
