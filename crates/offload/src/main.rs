@@ -1081,9 +1081,22 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
 
     println!();
     println!("    Destinations");
+    // **The free-space number is an answer, not a fact.** It settles *does tonight fit*, and
+    // printed bare it made the reader do the subtraction. Terry: "tired 11pm Terry will
+    // appreciate the reminder why we printed that; it's not a flex that we can read Windows
+    // filesystem data." So the comparison and its verdict print beside it.
+    //
+    // **The tick cannot come out any other way, and that is said here rather than hidden.**
+    // `preflight` refuses the run outright when a destination holds less than the payload plus
+    // 5 %, so everything reaching this line has already passed. This is a *receipt* for a check
+    // that happened, not the check itself — the distinction `REVIEWING.md` draws when it warns
+    // about a diagnostic that cannot fail. The failing case is loud and lives in
+    // `preflight.rs`: `NOT ENOUGH ROOM ON <label>`, quoting both numbers in the same units.
+    let payload = offload::human::gib(cards.bytes);
     for (label, place, free, note) in &dest_rows {
         println!(
-            "        {label:<label_column$}{place:<place_column$}{free:>number_column$} GiB free{note}"
+            "        {label:<label_column$}{place:<place_column$}\
+             {free:>number_column$} GiB free, > {payload} GiB  \u{2713}{note}"
         );
     }
 
