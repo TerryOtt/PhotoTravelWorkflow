@@ -2680,6 +2680,16 @@ has been shown to catch a single flipped bit in 201 GB and name the file.
 - **`sync`** (decision 20), the recovery path `--without` implies
 - **log-driven resume** (decision 13). Convergence already works, via decision 5's
   skip-on-identical-hash, but it re-reads what the run log could have told it
+- **`source_card` records an assumption, not an observation** — found 2026-08-05. The code
+  is `if plan.cards.agreed { "cfexpress" } else { "single" }`, so the manifest field can
+  never carry `"sdxc"` even though decision 12 documents exactly that value for a
+  single-source night run off the SDXC. Two problems in one line: `"cfexpress"` is hardcoded
+  on the assumption that the faster card is always the CFexpress, which no code checks, and
+  `"single"` discards the very thing the field exists to record. **The tool genuinely cannot
+  name a card's type** — decision 7 identifies cards by measurement precisely because serial,
+  removability and bus type all fail — so the fix is to record what *was* observed (which
+  volume, which speed, which role) rather than a label that sounds authoritative. The report
+  should say `source` and `other` for the same reason
 - **the Defender exclusion check** (decision 9), and setting the exclusions themselves —
   by extension and process rather than path, for the reasons decision 9 now records
 - **naming whoever actually holds a vetoed volume.** Every claim that Defender or the
