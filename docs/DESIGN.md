@@ -2711,10 +2711,13 @@ stale, fix it before doing anything else.*
 | `manifest`, `marker`, `verify` | the durable artifact and `photoday verify <DEST>` (decisions 12, 20, 28) |
 | `phase4` | corroboration — **wired and proven on the rig**: 3,883 matched, 0 mismatched (decisions 3, 4) |
 | `phase5` | geotag, wired and running (decisions 16, 23, 26) |
-| `eject` | lock with backoff, dismount, power down — **proven on both bus types** (decision 22) |
+| `eject` | lock, dismount, power down, **retried with backoff** — proven on both bus types, and the retry **observed recovering a vetoed drive** (decision 22) |
+| `eject::dismount_card` | the two cards dismounted too, so all five removable devices settle — proven 2026-08-05 (decision 22) |
 
-A full run lands in ~18 minutes and every `(file, destination)` pair verifies. `verify`
-has been shown to catch a single flipped bit in 201 GB and name the file.
+**Four full runs on 2026-08-04/05**, same 3,883 frames to the same four destinations, every
+`(file, destination)` pair verified on each: **LANDED 13 m 28 s, 16 m 34 s, 14 m 04 s,
+13 m 49 s**, whole runs 33–38 minutes. `verify` has been shown to catch a single flipped bit
+in 201 GB and name the file.
 
 **Still to build:**
 
@@ -2722,24 +2725,21 @@ has been shown to catch a single flipped bit in 201 GB and name the file.
   pending entries, and a single-source run records *waived* rather than leaving the record
   ambiguous. The tombstone path is unit-tested and has never fired on real hardware, which is
   correct: forcing a mismatch would mean writing to a camera card
-- ~~eject~~ — **built and proven on the rig, 2026-08-04.** Both bus types power down
+- ~~eject~~ — **built and proven on the rig, 2026-08-04/05.** Both bus types power down
   completely, the disk leaving the disk list rather than merely unmounting: Thunderbolt in
-  **2.1 s**, USB in **2.9 s**, neither needing the lock retry. The card readers are untouched,
-  as decision 22 says they should be
+  **2.1 s**, USB in **2.9 s** on an idle drive. At the end of a real run it is less certain —
+  **3 of 12 device ejects were vetoed on their first attempt** across four runs — and the
+  whole-sequence retry has been observed recovering one in 15 s. The cards are now dismounted
+  too (decision 22); the *readers* stay untouched, as they should
 - **the report** of decision 14 — the verdict shape exists in outline, not in full
 - **`sync`** (decision 20), the recovery path `--without` implies
 - **log-driven resume** (decision 13). Convergence already works, via decision 5's
   skip-on-identical-hash, but it re-reads what the run log could have told it
-- **`source_card` records an assumption, not an observation** — found 2026-08-05. The code
-  is `if plan.cards.agreed { "cfexpress" } else { "single" }`, so the manifest field can
-  never carry `"sdxc"` even though decision 12 documents exactly that value for a
-  single-source night run off the SDXC. Two problems in one line: `"cfexpress"` is hardcoded
-  on the assumption that the faster card is always the CFexpress, which no code checks, and
-  `"single"` discards the very thing the field exists to record. **The tool genuinely cannot
-  name a card's type** — decision 7 identifies cards by measurement precisely because serial,
-  removability and bus type all fail — so the fix is to record what *was* observed (which
-  volume, which speed, which role) rather than a label that sounds authoritative. The report
-  should say `source` and `other` for the same reason
+- ~~`source_card` records an assumption~~ — **fixed 2026-08-05.** It now carries the role
+  (`primary`, or `sole` under `--allow-single-source`) beside a new `source_volume_serial`
+  holding what was actually observed. Decision 12 has the reasoning and the schema-compat
+  trap it walked into. **Not yet run against hardware** — it compiles and the suite passes,
+  which this project learned the hard way is not the same thing; the next offload prints it
 - **the Defender exclusion check** (decision 9), and setting the exclusions themselves —
   by extension and process rather than path, for the reasons decision 9 now records
 - **naming whoever actually holds a vetoed volume.** Every claim that Defender or the
