@@ -286,6 +286,19 @@ evidence of being current.** `TRIP-HYGIENE.md` names which crates here are expos
   *is* the gate, at the same bar (`REVIEWING.md`).
 - **A commit is not finished until it is pushed.** GitHub is the backup, and the laptop
   is usually on the road.
+- **Every run gets a commit and a push first.** Standing order, Terry, 2026-08-05:
+  *"Every time I do a run, you should commit and push — it gives us rollback spots."*
+
+  **The reason is the rollback, not the backup**, and that is what makes it a rule rather
+  than a nicety. A run is the only thing that tells you whether a change was good; a commit
+  immediately before it is a known point to return to when the answer is no. Six rounds of
+  display changes in one evening is exactly the shape that needs them — without commits, "put
+  back the version from two runs ago" is a request nobody can satisfy.
+
+  **It also makes every run reproducible for free.** The binary maps to a commit, so a screen
+  that looked wrong can be diffed rather than remembered. `FULL-RUN.md` already demands a
+  clean tree for *measured* runs (`binary is HEAD's`); **this extends it to every run**,
+  including the casual ones — which is where the fast iteration actually happens.
 - **The pre-commit hook** runs fmt, clippy and test. Wire it up once per clone:
   `git config core.hooksPath .githooks`.
 
