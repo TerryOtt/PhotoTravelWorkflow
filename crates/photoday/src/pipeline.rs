@@ -31,6 +31,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
 
+use crate::progress::Progress;
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use geotag::format::RawFormat;
@@ -154,6 +155,7 @@ pub fn run(
     source: Source<'_>,
     card_root: &Path,
     log: &RunLog,
+    progress: &Progress,
 ) -> Result<Outcome> {
     if destinations.is_empty() {
         return Err(anyhow!("phase 3 needs at least one destination"));
@@ -168,11 +170,20 @@ pub fn run(
         receivers.push(receiver);
     }
 
+    let total = sources.len();
+
     thread::scope(|scope| {
         let workers: Vec<_> = destinations
             .iter()
             .zip(receivers)
             .map(|(destination, receiver)| {
+                // One bar per destination, which is what makes the *heterogeneity* visible:
+                // the laptop finishing its verify while a USB drive is still writing is the
+                // single most useful thing this display shows — decision 14 names the slowest
+                // device as the most useful number in the report, for the same reason.
+                let bar = progress.bar(&destination.label, total);
+                bar.set_message("writing");
+
                 scope.spawn(move || {
                     let mut landed = Vec::new();
 
@@ -181,12 +192,17 @@ pub fn run(
                     for photo in receiver {
                         let outcome = place(destination, &photo)?;
                         landed.push(outcome);
+                        bar.inc();
                     }
 
                     // Verify pass. Every byte, off the media, with the page cache
                     // bypassed. Starts the moment this destination's writes finish, so
                     // the laptop's NVMe verifies while the slowest SSD is still writing.
-                    verify(destination, landed, run_id, source, log)
+                    bar.restart();
+                    bar.set_message("verifying");
+                    let done = verify(destination, landed, run_id, source, log, &bar);
+                    bar.finish();
+                    done
                 })
             })
             .collect();
@@ -369,6 +385,7 @@ fn verify(
     run_id: &str,
     source: Source<'_>,
     log: &RunLog,
+    bar: &crate::progress::Bar,
 ) -> Result<DestinationOutcome> {
     let mut outcome = DestinationOutcome {
         label: destination.label.clone(),
@@ -381,6 +398,7 @@ fn verify(
     let mut landed_by_folder: BTreeMap<PathBuf, Vec<manifest::Entry>> = BTreeMap::new();
 
     for placed in landed {
+        bar.inc();
         let target = destination.root.join(&placed.relative);
         let name = placed.relative.to_string_lossy().replace('\\', "/");
 

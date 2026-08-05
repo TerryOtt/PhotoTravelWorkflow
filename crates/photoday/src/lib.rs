@@ -22,6 +22,7 @@ pub mod phase5;
 pub mod pipeline;
 pub mod power;
 pub mod preflight;
+pub mod progress;
 pub mod runlog;
 pub mod storage;
 pub mod verify;

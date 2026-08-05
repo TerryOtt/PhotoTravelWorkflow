@@ -95,8 +95,16 @@ fn one_card_lands_four_identical_verified_trees() {
     let log_path = scratch.path().join("_runs").join(RUN_ID).join("run.jsonl");
     let log = RunLog::open(&log_path).expect("opening the run log");
 
-    let outcome = pipeline::run(&sources, &destinations, RUN_ID, SOURCE, &card_dir, &log)
-        .expect("phase 3 must complete");
+    let outcome = pipeline::run(
+        &sources,
+        &destinations,
+        RUN_ID,
+        SOURCE,
+        &card_dir,
+        &log,
+        &photoday::progress::Progress::silent(),
+    )
+    .expect("phase 3 must complete");
 
     assert!(outcome.landed(), "LANDED is the product: {outcome:?}");
     assert_eq!(outcome.files, 5);
@@ -169,7 +177,16 @@ fn the_run_log_records_every_file_on_every_destination() {
     let log_path = scratch.path().join("run.jsonl");
     let log = RunLog::open(&log_path).expect("opening the run log");
 
-    pipeline::run(&sources, &destinations, RUN_ID, SOURCE, &card_dir, &log).expect("phase 3");
+    pipeline::run(
+        &sources,
+        &destinations,
+        RUN_ID,
+        SOURCE,
+        &card_dir,
+        &log,
+        &photoday::progress::Progress::silent(),
+    )
+    .expect("phase 3");
 
     let records = runlog::read(&log_path).expect("reading the run log");
     assert_eq!(records.len(), 20, "5 frames x 4 destinations");
@@ -207,12 +224,28 @@ fn a_second_run_over_the_same_card_skips_rather_than_rewrites() {
     let destinations = destinations(scratch.path());
     let log = RunLog::open(&scratch.path().join("run.jsonl")).expect("opening the run log");
 
-    let first =
-        pipeline::run(&sources, &destinations, RUN_ID, SOURCE, &card_dir, &log).expect("run 1");
+    let first = pipeline::run(
+        &sources,
+        &destinations,
+        RUN_ID,
+        SOURCE,
+        &card_dir,
+        &log,
+        &photoday::progress::Progress::silent(),
+    )
+    .expect("run 1");
     let before = tree(&destinations[0].root);
 
-    let second =
-        pipeline::run(&sources, &destinations, RUN_ID, SOURCE, &card_dir, &log).expect("run 2");
+    let second = pipeline::run(
+        &sources,
+        &destinations,
+        RUN_ID,
+        SOURCE,
+        &card_dir,
+        &log,
+        &photoday::progress::Progress::silent(),
+    )
+    .expect("run 2");
 
     for destination in &first.destinations {
         assert_eq!(destination.written, 4);
@@ -249,8 +282,16 @@ fn a_file_with_no_readable_capture_time_is_kept_under_unfiled() {
     let destinations = destinations(scratch.path());
     let log = RunLog::open(&scratch.path().join("run.jsonl")).expect("opening the run log");
 
-    let outcome =
-        pipeline::run(&sources, &destinations, RUN_ID, SOURCE, &card_dir, &log).expect("phase 3");
+    let outcome = pipeline::run(
+        &sources,
+        &destinations,
+        RUN_ID,
+        SOURCE,
+        &card_dir,
+        &log,
+        &photoday::progress::Progress::silent(),
+    )
+    .expect("phase 3");
 
     assert_eq!(outcome.unfiled.len(), 2, "both frames are unnameable");
     assert!(outcome.landed(), "unnameable is not unsafe");

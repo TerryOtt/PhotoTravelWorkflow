@@ -24,6 +24,7 @@
 
 use std::path::PathBuf;
 
+use crate::progress::Progress;
 use anyhow::{Context, Result};
 use chrono::{DateTime, TimeDelta, Utc};
 use geotag::track::{GapLimits, Lookup, Track};
@@ -208,6 +209,7 @@ pub fn run(
     tracks: &[PathBuf],
     limits: GapLimits,
     force: bool,
+    progress: &Progress,
 ) -> Result<Report> {
     let track = Track::load(tracks).context("loading the GPX tracks")?;
     let mut report = Report::default();
@@ -215,7 +217,11 @@ pub fn run(
     let (first, last) = track.span();
     report.track_span = Some((first, last));
 
+    let bar = progress.bar("Geotag", landed.len());
+    bar.set_message("correlating and writing sidecars");
+
     for photo in landed {
+        bar.inc();
         match track.lookup(photo.captured, limits) {
             Lookup::Found(fix) => {
                 report.tagged += 1;
@@ -276,6 +282,7 @@ pub fn run(
         }
     }
 
+    bar.finish();
     Ok(report)
 }
 

@@ -196,6 +196,11 @@ fn offload(args: &Offload) -> Result<ExitCode> {
         targets.len()
     );
 
+    // Bars at a terminal, plain throttled lines when this run is captured to a file — which
+    // is how it runs whenever Claude is driving it (`CONOPS.md`). Shared by every phase so
+    // their bars stack rather than fighting for the cursor.
+    let progress = photoday::progress::Progress::detect();
+
     let started = Instant::now();
     let card_root = card_root(&plan.cards.source);
 
@@ -215,6 +220,7 @@ fn offload(args: &Offload) -> Result<ExitCode> {
         source,
         &card_root,
         &log,
+        &progress,
     )?;
     let elapsed = started.elapsed();
 
@@ -234,11 +240,12 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // Phases 4 and 5 both run after LANDED and may take as long as they like — decision 14
     // lets only phase 3 change the verdict, so neither a mismatch nor a geotag miss is a
     // downgrade at the top; both are counts in the body.
-    let corroboration = corroboration_phase(&plan, &targets, &outcome, &runs_root, args)?;
+    let corroboration =
+        corroboration_phase(&plan, &targets, &outcome, &runs_root, args, &progress)?;
     record_corroboration(&targets, &outcome, corroboration.as_ref())?;
     report_corroboration(corroboration.as_ref());
 
-    let geotag = geotag_phase(&plan, &targets, &outcome, args)?;
+    let geotag = geotag_phase(&plan, &targets, &outcome, args, &progress)?;
     report_geotag(geotag.as_ref());
 
     // Decision 22: last, because phases 4 and 5 still write to the archives. The volumes
@@ -664,6 +671,7 @@ fn corroboration_phase(
     outcome: &pipeline::Outcome,
     runs_root: &Path,
     args: &Offload,
+    progress: &photoday::progress::Progress,
 ) -> Result<Option<phase4::Report>> {
     let Some((other, _)) = plan.cards.other.as_ref() else {
         return Ok(None);
@@ -676,6 +684,7 @@ fn corroboration_phase(
         targets,
         &runs_root.join("quarantine"),
         args.fail_on_source_mismatch,
+        progress,
     )
     .map(Some)
 }
@@ -1102,6 +1111,7 @@ fn geotag_phase(
     targets: &[Destination],
     outcome: &pipeline::Outcome,
     args: &Offload,
+    progress: &photoday::progress::Progress,
 ) -> Result<Option<phase5::Report>> {
     if args.no_gpx || plan.rig.tracks.is_empty() {
         return Ok(None);
@@ -1118,6 +1128,7 @@ fn geotag_phase(
         &plan.rig.tracks,
         limits,
         args.force_xmp.is_some(),
+        progress,
     )
     .map(Some)
 }

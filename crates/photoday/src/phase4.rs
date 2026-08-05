@@ -35,6 +35,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::progress::Progress;
 use anyhow::{Context, Result, bail};
 
 use crate::hash::{Digest32, hex};
@@ -91,13 +92,20 @@ pub fn run(
     destinations: &[Destination],
     quarantine: &Path,
     fail_on_mismatch: bool,
+    progress: &Progress,
 ) -> Result<Report> {
     let mut report = Report {
         quarantine: quarantine.to_path_buf(),
         ..Default::default()
     };
 
+    // The longest silent stretch in the whole run before this: phase 4 reads the entire
+    // corroborating card, which is ~16 minutes on a 201 GB day even at a healthy 205 MB/s.
+    let bar = progress.bar("Corrob", ingested.len());
+    bar.set_message("reading the second card");
+
     for frame in ingested {
+        bar.inc();
         // Paired by card-relative path, never by basename and never by content
         // (decision 4). The camera writes the same tree to both slots, so the same path
         // is the same frame; matching by hash instead would read a genuine mismatch as
@@ -155,6 +163,7 @@ pub fn run(
         ));
     }
 
+    bar.finish();
     Ok(report)
 }
 
@@ -303,6 +312,7 @@ mod tests {
             &rig.destinations,
             &rig.quarantine,
             false,
+            &crate::progress::Progress::silent(),
         )
         .expect("corroboration");
 
@@ -335,6 +345,7 @@ mod tests {
             &rig.destinations,
             &rig.quarantine,
             false,
+            &crate::progress::Progress::silent(),
         )
         .expect("corroboration");
 
@@ -379,6 +390,7 @@ mod tests {
             &rig.destinations,
             &rig.quarantine,
             true,
+            &crate::progress::Progress::silent(),
         )
         .expect_err("it must refuse");
 
@@ -409,6 +421,7 @@ mod tests {
             &rig.destinations,
             &rig.quarantine,
             false,
+            &crate::progress::Progress::silent(),
         )
         .expect_err("it must be fatal");
 

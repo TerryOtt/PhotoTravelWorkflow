@@ -123,10 +123,22 @@ foreach ($card in $cards) {
 
 ''
 'Readers (these are supposed to remain present):'
-$readers = Get-PnpDevice -PresentOnly -Class DiskDrive -ErrorAction SilentlyContinue |
-    Where-Object { $_.FriendlyName -match 'SDDR|CFexpress|Card|Reader' }
-if ($readers) { $readers | ForEach-Object { "      present  $($_.FriendlyName)" } }
-else          { "      none found — if a reader is unplugged that is fine, otherwise something ejected the wrong device" }
+
+# **Not filtered by -Class DiskDrive, and that was a real bug.** A reader only presents a
+# DiskDrive while a card is *in* it, so once the cards are released the class query finds
+# nothing and reported "none found" on a rig where a reader was sitting right there, healthy.
+# A check that cannot distinguish "gone" from "has no card in it" is worse than no check.
+$readers = Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue |
+    Where-Object { $_.FriendlyName -match 'SDDR|CFexpress|ProGrade|Card Reader' }
+
+if ($readers) { $readers | ForEach-Object { "      present  [$($_.Class)]  $($_.FriendlyName)" } }
+else          { "      none present" }
+
+# Expected asymmetry, measured 2026-08-05 and printed so it does not read as a fault: a USB
+# reader's disk *is* the reader, so ejecting the card powers the reader down too. A CFexpress
+# behind a Thunderbolt reader sits below a PCIe port, so only the card goes and the router
+# stays. See DESIGN.md decision 22.
+'      (a USB SD reader is expected to be gone — it powers down with its card and needs a replug)'
 
 ''
 if ($script:Failures -eq 0) {
