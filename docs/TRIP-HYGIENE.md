@@ -26,7 +26,7 @@ a bright line rather than a judgment call:**
 | Any time — **and the later the better** | **The camera clock: set to UTC, then *verified* by taking a frame.** Not frozen; see below |
 | Any time before you leave | Dependencies, toolchain, MSVC Build Tools, workflow action pins |
 | Any time before you leave | Lightroom XMP checks, if Classic had a major release |
-| **Last, after everything above** | `photoday --dry-run` against the real rig |
+| **Last, after everything above** | `offload --dry-run` against the real rig |
 
 The dry run is last on purpose and for the same reason throughout: it is the rehearsal, so
 anything changed after it is untested. **Change, then rehearse — never the reverse.**
@@ -37,7 +37,7 @@ anything changed after it is untested. **Change, then rehearse — never the rev
 and:
 
 ```
-photoday --dry-run
+offload --dry-run
 ```
 
 This is the closest thing to a fixture check this tool has, and it costs seconds. It
@@ -172,7 +172,7 @@ looks like a fix, the menu now reads `+00:00`, and every frame on the trip is an
 in a way nothing downstream can detect.
 
 **The zero-tooling version of the important half**, if Claude is not to hand: put the card
-in and run `photoday --dry-run`. Output names are `HHMMZ_NNNN.CR3` derived from UTC, so the
+in and run `offload --dry-run`. Output names are `HHMMZ_NNNN.CR3` derived from UTC, so the
 printed filename *is* the camera's derived UTC — compare it against the instant you noted.
 That does not show the offset, so it does not distinguish the two rows above, but it
 catches the row that cannot be caught later.
@@ -348,7 +348,7 @@ edited by hand rather than asked for.
 cargo build --release
 cargo test
 cargo clippy --all-targets -- -D warnings
-photoday --dry-run          # against the real rig, per "Also before you leave"
+offload --dry-run          # against the real rig, per "Also before you leave"
 ```
 
 **If the toolchain or Build Tools moved, `cargo clean` before that build.** Cargo

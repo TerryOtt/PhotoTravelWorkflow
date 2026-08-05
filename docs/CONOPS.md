@@ -1,7 +1,7 @@
 # Concept of operations
 
 *How this **workflow** is intended to be run — the tool, the operator's routines, and
-Claude's part in them. [`DESIGN.md`](DESIGN.md) records how `photoday` works and why; this
+Claude's part in them. [`DESIGN.md`](DESIGN.md) records how `offload` works and why; this
 file records the operating rhythm it was built to serve, which is larger than the program.
 If the two ever disagree, that is a defect in one of them — fix it, per
 [`WRITING.md`](WRITING.md)'s one-canonical-place rule.*
@@ -12,7 +12,7 @@ matters traces back to that person.
 
 ## The project is bigger than the Rust app
 
-**Stated by the operator on 2026-08-05, as a top-level intention.** `photoday` is one
+**Stated by the operator on 2026-08-05, as a top-level intention.** `offload` is one
 component. The project is **the whole workflow**, and Claude is deliberately part of it:
 
 > *"I, like most humans, am horrifically bad at diligence tasks. Part of this project is to
@@ -26,7 +26,7 @@ rather than assumed.** Two trips a year, in bursts of roughly eight consecutive 
 months apart. **The operator is never practiced** — night one is performed by someone who
 last did it half a year ago, at the end of a day that started before sunrise. Add
 unfamiliar rooms, fatigue, and a mind on photographs rather than on card slots, and the
-diligence steps are exactly where this workflow is thinnest. `photoday` already removes
+diligence steps are exactly where this workflow is thinnest. `offload` already removes
 the ones a program can own: no drive letters, no wrong destination, no trusting the tray
 icon. **The remainder are the ones only a human can perform — and they are the ones a
 distracted human performs badly.**
@@ -121,7 +121,7 @@ Lightroom tree, clustering `YYYY-MM-DD` names into consecutive runs.*
 
 1. Load both camera cards into the readers on the Thunderbolt hub. Plug the three archive
    SSDs in — **and where each one goes matters** (see below).
-2. Run **`photoday`**.
+2. Run **`offload`**.
 3. Read the pre-flight summary — file count identical on both cards, gigabytes, four
    destinations confirmed distinct, estimated time. That one line is what earns walking
    away.
@@ -135,7 +135,7 @@ Lightroom tree, clustering `YYYY-MM-DD` names into consecutive runs.*
 | `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` | Raws are safe on all four copies; certainty work remains. Do what it says. |
 | `SAFE TO STORE — UNPLUG <X>` | Everything is done. That drive is flushed and detached; Windows just would not power it down. **Pull it out and store it — there is nothing to do in the tray.** |
 | `SAFE TO STORE — EJECT <X> BY HAND` | Everything is done; one volume is still mounted and would not release. Eject it from the tray and store. |
-| `NOT SAFE — …` | Something did not finish. Eject nothing; run `photoday` again and it continues where it stopped. |
+| `NOT SAFE — …` | Something did not finish. Eject nothing; run `offload` again and it continues where it stopped. |
 
 The physical state carries the meaning: **an SSD this tool has ejected is a claim that
 every file from both cards is accounted for, verified, on that disk.** A still-mounted
@@ -399,7 +399,7 @@ irrelevant to it.
 
 ## Offloading more than once a day
 
-Run the same bare `photoday` at lunch, again in the evening, as often as anxiety
+Run the same bare `offload` at lunch, again in the evening, as often as anxiety
 suggests — the natural rhythm is one offload per shooting session, each followed by the
 next session's in-camera format once the SSDs eject. Every run is a convergence pass:
 work already done is recognized and skipped, new files are ingested, and nothing is
@@ -408,18 +408,18 @@ filename, so re-offloading a card is always safe.
 
 ## When something goes wrong
 
-One rule covers nearly everything: **plug in whatever is missing and run `photoday`
+One rule covers nearly everything: **plug in whatever is missing and run `offload`
 again.** Runs converge — each one finishes whatever the last one could not, and the
 SSDs eject the moment nothing remains.
 
 | What happened | What to do |
 |---|---|
-| Run crashed mid-copy | `photoday` again. It resumes at the first unfinished file. |
-| Forgot to plug in a card | Pre-flight refuses in the first ten seconds, before anything is written. Plug it in, `photoday` again. |
-| CFexpress filled or failed mid-day — some frames exist only on the SDXC | Pre-flight refuses: the cards no longer hold the same files, and the refusal says which holds what. Remove the card that stopped and re-run `photoday --allow-single-source` — the complete card lands the whole day, never corroborated. |
+| Run crashed mid-copy | `offload` again. It resumes at the first unfinished file. |
+| Forgot to plug in a card | Pre-flight refuses in the first ten seconds, before anything is written. Plug it in, `offload` again. |
+| CFexpress filled or failed mid-day — some frames exist only on the SDXC | Pre-flight refuses: the cards no longer hold the same files, and the refusal says which holds what. Remove the card that stopped and re-run `offload --allow-single-source` — the complete card lands the whole day, never corroborated. |
 | Laptop slept / power died | Same as a crash. The archives cannot be left half-written — a partial file never carries a real name. |
-| An SSD is missing at offload — dead, lost, still in the safe | Pre-flight refuses. `photoday --without <label>` runs the night on the destinations that remain; `photoday sync <that disk>` brings it current when it returns, from the laptop copy — no cards needed. |
-| No GPX tracks on the laptop — forgot the copy, or the logger died | Pre-flight refuses. Copy the tracks in (or point `--gpx` at them). If none exist tonight, `photoday --no-gpx` lands the raws untagged; when tracks turn up, re-run before the next format, or `photoday sync` each copy after it. |
+| An SSD is missing at offload — dead, lost, still in the safe | Pre-flight refuses. `offload --without <label>` runs the night on the destinations that remain; `offload sync <that disk>` brings it current when it returns, from the laptop copy — no cards needed. |
+| No GPX tracks on the laptop — forgot the copy, or the logger died | Pre-flight refuses. Copy the tracks in (or point `--gpx` at them). If none exist tonight, `offload --no-gpx` lands the raws untagged; when tracks turn up, re-run before the next format, or `offload sync` each copy after it. |
 | Cards already reformatted before corroboration finished | Nothing to recover — the run closes out on its own at the next offload and the report says which files stayed uncorroborated. They were still verified on all four copies. |
 
 Fatal errors are deliberate ([`DESIGN.md`](DESIGN.md) decision 18): the tool stops and
@@ -431,7 +431,7 @@ Lost, dead, left in a hotel five towns back — the run can still happen, but on
 saying so:
 
 ```
-photoday --allow-single-source
+offload --allow-single-source
 ```
 
 The surviving card becomes the sole source of truth, and which card survived makes no
@@ -444,7 +444,7 @@ copies ([`DESIGN.md`](DESIGN.md) decision 7).
 Two boundaries keep the flag honest:
 
 - **It is for a card that is *gone*, not one that is elsewhere.** If the second card
-  exists, plug it in instead — and if a "gone" card turns up later, run `photoday`
+  exists, plug it in instead — and if a "gone" card turns up later, run `offload`
   again with both cards in; corroboration completes after the fact.
 - **A resume of a night that had two sources is not a single-source run** and needs no
   flag — whichever card is inserted, the tool continues what that card can answer for
@@ -468,7 +468,7 @@ shape of it:
   ten seconds, so do it late and do it again at trip start.
 - Update dependencies and toolchain **before leaving, never on the road** — travel with
   a verified binary rather than a current one.
-- **`photoday --dry-run` against the real rig** — both readers, all three SSDs. This is
+- **`offload --dry-run` against the real rig** — both readers, all three SSDs. This is
   the rehearsal that catches a reformatted drive, a changed reader, or a stale config
   entry while the fix is a walk to a drawer rather than a ruined evening.
 - If Lightroom Classic had a major release since the last trip, run the XMP checks noted
@@ -478,7 +478,7 @@ shape of it:
 
 **Copy one of the four to the NAS, then edit on the desktop from there.** Which copy is
 whichever is easiest to reach — an SSD out of the safe, or the laptop's. They are
-interchangeable by construction, and `photoday verify <path>` will say so about any of
+interchangeable by construction, and `offload verify <path>` will say so about any of
 them before you trust one.
 
 **Import into Lightroom with *Add*, never *Copy*.** This is the step the whole directory
@@ -490,7 +490,7 @@ easy to do by habit and never notice:
 | **Add** — *leave files where they are* | catalogs them in place | **the fast path — use this** |
 | Copy | moves them into `YYYY\YYYY-MM-DD` itself, on the NAS | **10× slower, at least** |
 
-The files are already in `YYYY\YYYY-MM-DD` when they reach the NAS, because `photoday`
+The files are already in `YYYY\YYYY-MM-DD` when they reach the NAS, because `offload`
 wrote them that way — that is the entire reason for the layout
 ([`DESIGN.md`](DESIGN.md) decision 31). Asking Lightroom to *Copy* makes it redo an
 arrangement that is already correct, at ten times the price.
@@ -502,7 +502,7 @@ all four rather than on three. Lightroom only ever sees the NAS copy.
 ## Years later
 
 Any archive SSD can prove itself on any machine, with no config and no memory of this
-setup: **`photoday verify <path>`** re-hashes every raw against the manifests the disk
+setup: **`offload verify <path>`** re-hashes every raw against the manifests the disk
 carries. Deliberately deleted files are tombstoned, so a clean disk reports *clean* —
 not a mystery gap. Every bit is checked, every time; there is no sampled mode.
 

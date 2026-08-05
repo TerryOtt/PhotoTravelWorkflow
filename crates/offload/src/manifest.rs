@@ -165,7 +165,7 @@ pub enum Corroborated {
 pub enum ManifestError {
     #[error(
         "this manifest is schema {found}, and this build understands up to {understood}. \
-         Use a newer photoday — your photographs are fine."
+         Use a newer offload — your photographs are fine."
     )]
     SchemaTooNew { found: u32, understood: u32 },
 

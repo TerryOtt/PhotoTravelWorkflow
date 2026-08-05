@@ -25,8 +25,8 @@
 
 use std::process::ExitCode;
 
-use photoday::storage::Volume;
-use photoday::{cards, config, destinations, eject, storage};
+use offload::storage::Volume;
+use offload::{cards, config, destinations, eject, storage};
 
 fn main() -> ExitCode {
     let Ok(config) = config::load().map_err(|e| eprintln!("{e:#}")) else {

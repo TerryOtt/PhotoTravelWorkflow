@@ -25,7 +25,7 @@ pub fn sha256(bytes: &[u8]) -> Digest32 {
 /// A streaming hasher, so the verify pass can hash a chunk at a time.
 ///
 /// **Normally this is SHA-256 and nothing else.** Under the `hash-experiments` feature
-/// it dispatches on `PHOTODAY_HASH`, which exists to measure what decision 17's choice
+/// it dispatches on `OFFLOAD_HASH`, which exists to measure what decision 17's choice
 /// costs — see `examples/verify-rate.rs`. The default build has no such branch and no
 /// such dependencies.
 pub enum Hasher {
@@ -44,7 +44,7 @@ impl Hasher {
 
     #[cfg(feature = "hash-experiments")]
     pub fn new() -> Self {
-        match std::env::var("PHOTODAY_HASH").unwrap_or_default().as_str() {
+        match std::env::var("OFFLOAD_HASH").unwrap_or_default().as_str() {
             "blake3" => Self::Blake3(Box::new(blake3::Hasher::new())),
             "xxh3" => Self::Xxh3(Box::new(xxhash_rust::xxh3::Xxh3::new())),
             _ => Self::Sha256(Sha256::new()),
@@ -59,7 +59,7 @@ impl Hasher {
 
     #[cfg(feature = "hash-experiments")]
     pub fn name() -> &'static str {
-        match std::env::var("PHOTODAY_HASH").unwrap_or_default().as_str() {
+        match std::env::var("OFFLOAD_HASH").unwrap_or_default().as_str() {
             "blake3" => "blake3",
             "xxh3" => "xxh3",
             _ => "sha256",

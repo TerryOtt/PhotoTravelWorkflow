@@ -8,16 +8,16 @@
 //! **What that costs, stated plainly rather than glossed:** with no real EXIF in these
 //! files every photo takes the `_unfiled` path (decision 21), so this exercises read →
 //! hash → write-through → unbuffered verify → run log, and *not* the date-folder naming
-//! that [`photoday::naming`]'s own tests cover exhaustively. The two together cover the
+//! that [`offload::naming`]'s own tests cover exhaustively. The two together cover the
 //! path a real frame takes; neither does alone, and that seam is where a bug would hide
 //! if this file ever became the only check.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use photoday::hash::{hex, sha256};
-use photoday::pipeline::{self, Destination, Source};
-use photoday::runlog::{self, RunLog};
+use offload::hash::{hex, sha256};
+use offload::pipeline::{self, Destination, Source};
+use offload::runlog::{self, RunLog};
 use tempfile::TempDir;
 
 const RUN_ID: &str = "2026-08-03T18-22-04";
@@ -102,7 +102,7 @@ fn one_card_lands_four_identical_verified_trees() {
         SOURCE,
         &card_dir,
         &log,
-        &photoday::progress::Progress::silent(),
+        &offload::progress::Progress::silent(),
     )
     .expect("phase 3 must complete");
 
@@ -144,7 +144,7 @@ fn one_card_lands_four_identical_verified_trees() {
     // Without this a disk pulled from the safe has photographs and no way to prove them.
     for destination in &destinations {
         let folder = destination.root.join("_unfiled").join(RUN_ID);
-        let manifest = photoday::manifest::Manifest::read(&photoday::manifest::path_in(&folder))
+        let manifest = offload::manifest::Manifest::read(&offload::manifest::path_in(&folder))
             .unwrap_or_else(|e| panic!("{} has no readable manifest: {e}", destination.label));
 
         assert_eq!(manifest.schema, 1);
@@ -184,7 +184,7 @@ fn the_run_log_records_every_file_on_every_destination() {
         SOURCE,
         &card_dir,
         &log,
-        &photoday::progress::Progress::silent(),
+        &offload::progress::Progress::silent(),
     )
     .expect("phase 3");
 
@@ -231,7 +231,7 @@ fn a_second_run_over_the_same_card_skips_rather_than_rewrites() {
         SOURCE,
         &card_dir,
         &log,
-        &photoday::progress::Progress::silent(),
+        &offload::progress::Progress::silent(),
     )
     .expect("run 1");
     let before = tree(&destinations[0].root);
@@ -243,7 +243,7 @@ fn a_second_run_over_the_same_card_skips_rather_than_rewrites() {
         SOURCE,
         &card_dir,
         &log,
-        &photoday::progress::Progress::silent(),
+        &offload::progress::Progress::silent(),
     )
     .expect("run 2");
 
@@ -289,7 +289,7 @@ fn a_file_with_no_readable_capture_time_is_kept_under_unfiled() {
         SOURCE,
         &card_dir,
         &log,
-        &photoday::progress::Progress::silent(),
+        &offload::progress::Progress::silent(),
     )
     .expect("phase 3");
 

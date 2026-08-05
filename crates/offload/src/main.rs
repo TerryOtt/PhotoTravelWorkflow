@@ -1,4 +1,4 @@
-//! `photoday` — the end-of-day offload.
+//! `offload` — the end-of-day offload.
 //!
 //! The command surface is settled in `docs/DESIGN.md` decision 8 and transcribed here. All
 //! five phases are built, and the run ends by ejecting the archive SSDs (decision 22) — so
@@ -17,21 +17,17 @@ use clap::{Args, Parser, Subcommand};
 use geotag::format::RawFormat;
 use geotag::raw::{Capture, MediaParser, capture_time};
 use geotag::track::GapLimits;
-use photoday::pipeline::Destination;
-use photoday::runlog::RunLog;
-use photoday::{
+use offload::pipeline::Destination;
+use offload::runlog::RunLog;
+use offload::{
     cards, config, destinations, eject, manifest, marker, naming, phase4, phase5, pipeline, power,
     preflight, storage, verify,
 };
 
 #[derive(Debug, Parser)]
-#[command(
-    name = "photoday",
-    version,
-    about = "One command, four verified copies"
-)]
+#[command(name = "offload", version, about = "One command, four verified copies")]
 struct Cli {
-    /// No subcommand is the nightly offload — the bare `photoday` of the ritual.
+    /// No subcommand is the nightly offload — the bare `offload` of the ritual.
     #[command(subcommand)]
     command: Option<Command>,
 
@@ -136,7 +132,7 @@ fn dispatch(cli: &Cli) -> Result<ExitCode> {
         Some(Command::Verify { dest }) => return verify_destination(dest),
         Some(Command::Sync { dest }) => {
             eprintln!(
-                "photoday: sync is not implemented yet ({}) — see docs/DESIGN.md \
+                "offload: sync is not implemented yet ({}) — see docs/DESIGN.md \
                  decision 20.",
                 dest.display()
             );
@@ -199,7 +195,7 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // Bars at a terminal, plain throttled lines when this run is captured to a file — which
     // is how it runs whenever Claude is driving it (`CONOPS.md`). Shared by every phase so
     // their bars stack rather than fighting for the cursor.
-    let progress = photoday::progress::Progress::detect();
+    let progress = offload::progress::Progress::detect();
 
     let started = Instant::now();
     let card_root = card_root(&plan.cards.source);
@@ -671,7 +667,7 @@ fn corroboration_phase(
     outcome: &pipeline::Outcome,
     runs_root: &Path,
     args: &Offload,
-    progress: &photoday::progress::Progress,
+    progress: &offload::progress::Progress,
 ) -> Result<Option<phase4::Report>> {
     let Some((other, _)) = plan.cards.other.as_ref() else {
         return Ok(None);
@@ -1002,7 +998,7 @@ fn count(n: usize) -> String {
     out
 }
 
-/// `photoday verify <DEST>` — decision 20.
+/// `offload verify <DEST>` — decision 20.
 ///
 /// Reads nothing but the disk itself, so it works on a machine that has never seen this
 /// tool's configuration. That is the promise, and it is why this takes a path rather
@@ -1111,7 +1107,7 @@ fn geotag_phase(
     targets: &[Destination],
     outcome: &pipeline::Outcome,
     args: &Offload,
-    progress: &photoday::progress::Progress,
+    progress: &offload::progress::Progress,
 ) -> Result<Option<phase5::Report>> {
     if args.no_gpx || plan.rig.tracks.is_empty() {
         return Ok(None);

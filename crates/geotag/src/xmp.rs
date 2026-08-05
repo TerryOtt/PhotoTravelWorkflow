@@ -296,9 +296,9 @@ mod tests {
             ele: None,
         };
 
-        let packet = render(&fix, captured(), "photoday 9.9.9");
+        let packet = render(&fix, captured(), "offload 9.9.9");
 
-        assert!(packet.contains(r#"x:xmptk="photoday 9.9.9""#), "{packet}");
+        assert!(packet.contains(r#"x:xmptk="offload 9.9.9""#), "{packet}");
         assert!(!packet.contains("rawgeotag"), "{packet}");
     }
 

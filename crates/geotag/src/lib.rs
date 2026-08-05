@@ -18,7 +18,7 @@
 //!
 //! # What changed in the lift
 //!
-//! - [`raw::capture_time_in_memory`] is new. `photoday` holds every file in RAM to hash
+//! - [`raw::capture_time_in_memory`] is new. `offload` holds every file in RAM to hash
 //!   it (`DESIGN.md` decision 10), so re-reading it from disk to find its capture time
 //!   would be pure waste. It shares all of its logic with the path-based
 //!   [`raw::capture_time`]; only how the bytes reach the parser differs.

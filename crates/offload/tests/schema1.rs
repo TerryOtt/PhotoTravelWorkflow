@@ -16,7 +16,7 @@
 //! decision 28 says must be *additive* and must leave this file readable anyway. There
 //! is no third case where updating the fixture is the right answer.
 
-use photoday::manifest::{Corroborated, Manifest, Status};
+use offload::manifest::{Corroborated, Manifest, Status};
 
 const FIXTURE: &str = include_str!("fixtures/manifest-schema-1.json");
 

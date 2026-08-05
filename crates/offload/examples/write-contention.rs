@@ -49,8 +49,8 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use photoday::cards;
-use photoday::winio::write_through;
+use offload::cards;
+use offload::winio::write_through;
 
 /// A realistic frame: the day's average is 48.5 MB.
 const FRAME_BYTES: usize = 48 * 1024 * 1024;

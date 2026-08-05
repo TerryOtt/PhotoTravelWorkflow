@@ -1,6 +1,6 @@
 # PhotoTravelWorkflow — working notes for Claude
 
-`photoday`: one command, run from a hotel room at the end of a shooting day, that lands
+`offload`: one command, run from a hotel room at the end of a shooting day, that lands
 four verified copies of the day's photographs. A Rust workspace on Windows, for one
 photographer and one rig.
 
@@ -96,7 +96,7 @@ facts about the hardware; each was caught because he pushed back on one that loo
 
 | Before you… | Read | Its standing order |
 |---|---|---|
-| propose or write anything | [`docs/DESIGN.md`](docs/DESIGN.md) | 32 numbered decisions, each with its reasoning, plus what was considered and rejected |
+| propose or write anything | [`docs/DESIGN.md`](docs/DESIGN.md) | every decision numbered and argued, plus what was considered and rejected — `grep -c '^### [0-9]' docs/DESIGN.md` for the count |
 | change what the operator does | [`docs/CONOPS.md`](docs/CONOPS.md) | the nightly ritual, **daily hygiene** (the per-session camera-config check), and the shooting-day contract the guarantees rest on |
 | put anything on `main` | [`docs/REVIEWING.md`](docs/REVIEWING.md) | a branch can be as ugly as it needs to be; `main` has no broken windows |
 | write a document or a comment | [`docs/WRITING.md`](docs/WRITING.md) | every document leads with what *its* reader came for |
@@ -236,7 +236,7 @@ Lightroom's own output, and a tidy-up that cannot re-run those checks is a net l
 **[`../RawGeotag`](../RawGeotag) still holds its own copy of these four modules**, and
 was deliberately not modified by the lift — it builds and runs exactly as before. **So a
 real fix made here has to be applied there by hand, or the tool Terry actually travels
-with keeps the bug.** That ends when decision 30 retires RawGeotag into `photoday geotag`,
+with keeps the bug.** That ends when decision 30 retires RawGeotag into `offload geotag`,
 which cannot happen until phase 5 works; until then, treat the duplication as live.
 
 Its `CLAUDE.md` and `docs/` carry findings this project inherited rather than re-derived,

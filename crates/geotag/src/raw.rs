@@ -121,7 +121,7 @@ pub fn capture_time(
 
 /// Read the capture instant from bytes the caller already holds.
 ///
-/// Added for `photoday`, whose phase 3 has every file in RAM to hash it and would
+/// Added for `offload`, whose phase 3 has every file in RAM to hash it and would
 /// otherwise re-read all of it from the card to answer the same question
 /// (`DESIGN.md` decision 10). Identical to [`capture_time`] in every respect except
 /// where the bytes come from — the timezone policy below is shared, not duplicated.

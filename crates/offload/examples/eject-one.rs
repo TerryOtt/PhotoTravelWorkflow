@@ -23,7 +23,7 @@
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
-use photoday::{config, destinations, eject};
+use offload::{config, destinations, eject};
 
 fn main() -> ExitCode {
     let Some(wanted) = std::env::args().nth(1) else {

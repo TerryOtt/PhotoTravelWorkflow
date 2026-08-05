@@ -1,4 +1,4 @@
-//! `photoday` — the end-of-day offload, as a library.
+//! `offload` — the end-of-day offload, as a library.
 //!
 //! The binary beside this file is the CLI of decision 8 and little else; the phases
 //! live here so they can be driven by tests over ordinary directories rather than only

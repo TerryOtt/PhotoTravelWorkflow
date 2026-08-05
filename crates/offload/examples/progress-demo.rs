@@ -20,7 +20,7 @@
 use std::thread::sleep;
 use std::time::Duration;
 
-use photoday::progress::Progress;
+use offload::progress::Progress;
 
 fn main() {
     // The real thing: bars when stderr is a terminal, throttled lines when it is not.

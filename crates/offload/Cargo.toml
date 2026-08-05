@@ -1,5 +1,5 @@
 [package]
-name = "photoday"
+name = "offload"
 description = "End-of-day offload: four verified copies of a day's photographs"
 version.workspace = true
 edition.workspace = true
@@ -24,7 +24,7 @@ windows.workspace = true
 
 [features]
 default = []
-# Lets PHOTODAY_HASH swap the hash at runtime, for measuring what decision 17's choice
+# Lets OFFLOAD_HASH swap the hash at runtime, for measuring what decision 17's choice
 # costs. Off by default so the shipped binary carries SHA-256 and nothing else.
 hash-experiments = ["dep:blake3", "dep:xxhash-rust"]
 

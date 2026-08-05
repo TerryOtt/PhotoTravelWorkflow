@@ -13,11 +13,11 @@
 //! that each archive SSD reports a serial, that all of them report *different* disk
 //! numbers, and that the two card readers show up as removable with a `DCIM` on them.
 //! Those are exactly the assertions decisions 6 and 7 will make; this shows the inputs
-//! they will make them from. `photoday --dry-run` subsumes this once pre-flight exists.
+//! they will make them from. `offload --dry-run` subsumes this once pre-flight exists.
 
 use std::path::Path;
 
-use photoday::storage::{self, Volume, device_of};
+use offload::storage::{self, Volume, device_of};
 
 fn main() {
     let volumes = match storage::volumes() {

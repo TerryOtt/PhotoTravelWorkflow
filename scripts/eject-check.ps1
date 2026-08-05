@@ -27,7 +27,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string] $ConfigPath = "$env:APPDATA\photoday\config.json"
+    [string] $ConfigPath = "$env:APPDATA\offload\config.json"
 )
 
 $ErrorActionPreference = 'Stop'

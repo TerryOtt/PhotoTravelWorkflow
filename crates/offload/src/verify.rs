@@ -1,4 +1,4 @@
-//! `photoday verify <DEST>` — prove a disk, years later, on any machine.
+//! `offload verify <DEST>` — prove a disk, years later, on any machine.
 //!
 //! Decision 20: **this reads nothing but the destination itself** — its marker and its
 //! manifests. No config, no run log, no network, no memory of the rig that wrote it.

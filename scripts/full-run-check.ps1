@@ -17,7 +17,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string] $ConfigPath = "$env:APPDATA\photoday\config.json",
+    [string] $ConfigPath = "$env:APPDATA\offload\config.json",
     [string] $RepoPath   = (Split-Path $PSScriptRoot -Parent),
 
     # Skip the cargo freshness check, which is the only slow one.
@@ -194,9 +194,9 @@ finally { Pop-Location }
 
 # ---- the machine is idle ---------------------------------------------------
 
-$running = Get-Process photoday -ErrorAction SilentlyContinue
+$running = Get-Process offload -ErrorAction SilentlyContinue
 Report 'no run in flight' ($null -eq $running) `
-    $(if ($running) { "photoday pid $($running.Id) is already running" } else { 'none' })
+    $(if ($running) { "offload pid $($running.Id) is already running" } else { 'none' })
 
 # ---- verdict ---------------------------------------------------------------
 

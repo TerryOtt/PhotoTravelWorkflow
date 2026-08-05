@@ -69,7 +69,7 @@ attacks. The Go predecessor this tool replaces took, by the operator's recollect
 minutes** for this same 3,883-frame day — a figure he offers as memory rather than
 measurement, so treat it as an order of magnitude.
 
-`photoday` reaches **LANDED at 16 m 35 s** and runs about **33 minutes** in total. Two honest
+`offload` reaches **LANDED at 16 m 35 s** and runs about **33 minutes** in total. Two honest
 comparisons follow, and they are different claims:
 
 - **Against the predecessor**, the exposure window closes several minutes earlier — and the
@@ -912,11 +912,11 @@ pointed at the wrong disk. So the rig is described once in config, and the night
 command is bare:
 
 ```
-photoday
+offload
 ```
 
 ```
-photoday                            the nightly command
+offload                            the nightly command
 
   --dry-run                  plan the entire run and write nothing — names every
                              output file exactly, in seconds
@@ -937,8 +937,8 @@ photoday                            the nightly command
                              just the one named
   --no-eject                 leave the archive SSDs mounted when the run ends
 
-photoday verify <DEST>       standalone re-verify; works years later, without config
-photoday sync <DEST>         backfill a disk that missed an offload
+offload verify <DEST>       standalone re-verify; works years later, without config
+offload sync <DEST>         backfill a disk that missed an offload
 ```
 
 Config is JSON:
@@ -965,10 +965,10 @@ the hub. Everything that used to consult the role now follows from that one fact
 notably eject, which applies to exactly the destinations resolved by serial (decision
 22). A separate field restating it would be a second place to get it wrong.
 
-**It lives at `%APPDATA%\photoday\config.json`** — settled 2026-08-03, having been shown
+**It lives at `%APPDATA%\offload\config.json`** — settled 2026-08-03, having been shown
 here without ever being located. The Windows convention, and the one a Windows developer
 looks in first; it survives rebuilding the binary, which a config sitting beside
-`target\release\photoday.exe` does not, and that matters because `TRIP-HYGIENE.md`'s trip
+`target\release\offload.exe` does not, and that matters because `TRIP-HYGIENE.md`'s trip
 hygiene ends in *rebuild, then dry-run against the real rig*. Reading one environment variable
 is the whole implementation, which is why decision 29 declined the `directories` crate.
 
@@ -1031,7 +1031,7 @@ Recorded 2026-08-04 as future work; the operator's decision on the trade is belo
 | Exclusion | Why it suits this rig |
 |---|---|
 | **Extension** — `CR3`, `xmp` | Covers essentially every byte the archive holds, on any drive, at any letter, forever. Nothing to maintain |
-| **Process** — `photoday.exe` | Letter-independent, and scoped to the one binary that writes these files |
+| **Process** — `offload.exe` | Letter-independent, and scoped to the one binary that writes these files |
 | ~~Path~~ | The archive roots move: decision 6 exists precisely because Windows reassigns letters to these drives, and it observed `G/I/J` become `F/I/J` in one evening |
 
 **Pinning drive letters to make path exclusions viable is rejected.** It would reintroduce
@@ -1678,7 +1678,7 @@ and should not pretend to: it needs a copy source — any surviving copy — and
 for regeneration, and it takes both from the config — fine, because backfilling a disk
 that missed an offload happens on the machine that ran the offload.
 
-**`photoday verify <DEST>`** reads the destination marker to name what it is checking —
+**`offload verify <DEST>`** reads the destination marker to name what it is checking —
 at whatever schema that disk was written with, which every later build still understands
 (decision 28) —
 then walks every date folder, `_unfiled` included (decision 21): manifest checksum first,
@@ -1693,7 +1693,7 @@ a sidecar that differs between them means either a phase 5 re-run that did not r
 copy — backfillable, and worth knowing about — or corruption. Neither is something to
 pass over silently.
 
-**`photoday sync <DEST>`** backfills a destination that missed an offload — the SSD that
+**`offload sync <DEST>`** backfills a destination that missed an offload — the SSD that
 sat in a drawer while a `--without` run went on without it (decision 25). It copies from
 another destination, since the cards are long since reformatted, and verifies what it
 writes exactly as phase 3 does. **It never deletes**, so it cannot be used to make a
@@ -1921,7 +1921,7 @@ actually differs is the *instruction* to the operator, which belongs in the repo
 > 4 forbids it.** *Nothing in a run may come to need administrator rights*, and this would.
 > Whether media-eject would work there is now moot, which is a better resolution than an
 > answer: the tool may not take that path regardless. **`CM_Request_Device_Eject` is the only
-> mechanism an unelevated `photoday` has that actually releases a card.**
+> mechanism an unelevated `offload` has that actually releases a card.**
 >
 > **The reader asymmetry is the reverse of what this decision feared.** The worry was that
 > device-ejecting a card would take its reader down. That is exactly true of the **SD** — the
@@ -2359,7 +2359,7 @@ promise with the same lifetime as the photographs.
 
 **The other direction fails loudly instead of guessing.** An older binary meeting a
 newer manifest says exactly that — this manifest is schema N, this build understands up
-to M, use a newer `photoday` — and never reports the photos as damaged. Same reasoning
+to M, use a newer `offload` — and never reports the photos as damaged. Same reasoning
 as decision 12's self-checksum: for a verification tool, a false alarm on irreplaceable
 data is its own kind of failure, and *I cannot read this* must never wear the costume of
 *your archive is rotting*.
@@ -2383,6 +2383,35 @@ until exactly that day).
 **The destination marker carries a schema too**, under the same rules. `verify` reads it
 before anything else on the disk (decision 20), so it is the first thing that must
 survive a decade in a safe.
+
+### The archives still say `photoday`, and that is this decision enforcing itself
+
+**The command was renamed to `offload` on 2026-08-05** — it runs once per shooting *session*
+and several sessions happen in a day, so a name asserting a daily cadence contradicted this
+design's own *Inputs*. **Three names deliberately did not move:**
+
+| Name | Where it lives | Why it stayed |
+|---|---|---|
+| `.photoday-manifest.json` | every date folder, on every disk | `verify` finds manifests by walking for this exact filename. Renaming it would make every archive already in the safe unverifiable — not damaged, *invisible*, which is worse |
+| `.photoday-destination.json` | each destination root | the first thing `verify` reads (decision 20) |
+| `.photoday-tmp-` | in-flight writes | pre-flight's orphan sweep keys on it, so a rename would strand debris from any run written before it |
+
+**This is the promise at the top of this decision, arriving sooner than expected.** *Every
+manifest this tool has ever written stays readable, permanently* — and a filename is a
+stronger commitment than a schema version, because a reader that cannot parse a manifest at
+least reports something, while a reader looking for the wrong *name* reports a clean disk
+with no photographs on it. **The silent failure is the unacceptable one.**
+
+**So the rename was scoped by what is on removable media rather than by what is tidy.** What
+the operator types, the crate, the config directory and the docs all moved; what is written
+into an archive did not. A file format outliving the name of the tool that writes it is
+ordinary — `.git` and `.DS_Store` both do it — and the alternative here was a compatibility
+shim that would have had to live forever, or an archive nobody could verify.
+
+**What *did* move safely: `%APPDATA%\photoday\` → `%APPDATA%\offload\`.** One file, on one
+machine, and a config that is not found is a loud pre-flight fatal naming the path it looked
+in (decision 8) rather than a silent miss — which is exactly the property the archive names
+lack, and exactly why they were treated differently.
 
 **This adds a fourth test to decision 18's three**, and it qualifies on that decision's
 own criterion rather than as an exception to it: those tests exist where a defect is
@@ -2473,7 +2502,7 @@ individually. Two more need no crate because the standard library already answer
 ```
 Cargo.toml            [workspace] — the whole dependency set, declared once
 crates/geotag/        the CR3, GPX and XMP engine, lifted from RawGeotag (decision 17)
-crates/photoday/      the binary: CLI, five phases and eject, the Windows storage layer
+crates/offload/      the binary: CLI, five phases and eject, the Windows storage layer
 ```
 
 A member's own manifest lists only what its code imports today, so a manifest never
@@ -2483,7 +2512,7 @@ claims a dependency nothing uses.
 these three sub-problems as solved on the strength of their validation, so a lift that
 took the opportunity to tidy them would have spent exactly what it was trying to save;
 the 67 unit tests came across with the code and the two changes made were the minimum
-`photoday` could not do without. `raw::capture_time_in_memory` is one — decision 10 has
+`offload` could not do without. `raw::capture_time_in_memory` is one — decision 10 has
 every file in RAM already, and re-reading it from the card to find its capture time
 would be the waste that decision exists to avoid. `xmp::render` taking the writing
 tool's identity is the other: two tools emit these packets now, and a sidecar whose
@@ -2522,7 +2551,7 @@ the worst moment, which is trip hygiene.
 > **And the document cannot move ahead of the binary.** `LIGHTROOM-XMP.md` was copied
 > here and then removed, because its procedure is not prose about the engine — it
 > *drives* `rawgeotag.exe`, staging real frames through it and diffing the sidecars
-> against Lightroom's. `photoday` cannot write a sidecar yet, so the document's first
+> against Lightroom's. `offload` cannot write a sidecar yet, so the document's first
 > instruction would be unrunnable in the repository holding it, which is precisely the
 > failure [`WRITING.md`](WRITING.md) opens with. The pointer in `TRIP-HYGIENE.md` stays
 > aimed at RawGeotag, and the move happens when phase 5 can execute the procedure.
@@ -2536,7 +2565,7 @@ the worst moment, which is trip hygiene.
 > decision 30 retires RawGeotag rather than making it a consumer, and cannot start
 > until phase 5 works.**
 
-### 30. RawGeotag retires into `photoday`
+### 30. RawGeotag retires into `offload`
 
 The lift of decision 29 left the engine in two repositories: `crates/geotag` here, and
 the original four modules in RawGeotag, which was deliberately not modified and still
@@ -2544,9 +2573,9 @@ builds and runs. A fix applied to one does not reach the other, and that window 
 open for as long as both exist.
 
 **The resolution is retirement, not a path dependency.** RawGeotag's CLI is a strict
-subset of what `photoday` will do once phase 5 lands — correlate capture times against a
+subset of what `offload` will do once phase 5 lands — correlate capture times against a
 GPX index and write XMP sidecars is *the whole of* phase 5 — so the tool becomes a
-subcommand, `photoday geotag`, and its repository is archived. A path dependency was the
+subcommand, `offload geotag`, and its repository is archived. A path dependency was the
 alternative and is the weaker end state: it would keep one canonical engine but leave a
 second binary, a second CLI, a second set of docs and a second CI to maintain, all for a
 capability the primary tool will have anyway.
@@ -2558,7 +2587,7 @@ corpus. Retiring it before then would trade a working tool for a promise.
 What comes across at that point, beyond the CLI surface itself:
 
 - `docs/LIGHTROOM-XMP.md`, which decision 29 could not move because its procedure drives
-  `rawgeotag.exe` — once `photoday geotag` is that binary, the procedure moves with it
+  `rawgeotag.exe` — once `offload geotag` is that binary, the procedure moves with it
 - `docs/FIXTURES.md` and `scripts/verify-fixtures.ps1`, the harness that hashes the real
   corpus, which is what actually validates the engine
 - `docs/TESTING.md`'s one load-bearing principle, already folded into
@@ -2746,7 +2775,7 @@ the only ones genuinely lost, because pre-flight prints them and discards them.
 }
 ```
 
-**It lives at `%APPDATA%\photoday\history.json`, beside the config — never on an archive.**
+**It lives at `%APPDATA%\offload\history.json`, beside the config — never on an archive.**
 Decision 20 is what decides it: `verify` reads nothing but a destination's marker and its
 manifests, so anything else on that disk is by construction not part of what makes it
 self-describing. History is machine state about hardware, not archive data, and putting it
@@ -2986,7 +3015,7 @@ new evidence rather than fresh taste.
 | `comfy-table` or `tabled` for the report's tables | The layout is bespoke and its column widths are load-bearing; `format!` width specifiers already do this without a layout engine's opinion |
 | `aligned-vec` for the unbuffered read buffers | `FILE_FLAG_NO_BUFFERING` needs a sector-aligned buffer, which is `std::alloc` with a `Layout`, a `Drop` and a `Deref`. The one allocation in the program whose invariant should be visible where it is written |
 | `directories` for the config path | Cross-platform standard-location machinery for a tool that only ships on Windows. One read of `%APPDATA%` |
-| `assert_cmd` and `predicates` for the process-level test | RawGeotag's precedent: `env!("CARGO_BIN_EXE_photoday")` and `std::process::Command` are enough, and decision 18 asks for four tests in total |
+| `assert_cmd` and `predicates` for the process-level test | RawGeotag's precedent: `env!("CARGO_BIN_EXE_offload")` and `std::process::Command` are enough, and decision 18 asks for four tests in total |
 | `criterion` for decision 17's hash measurement | It is a single sustained throughput figure over 2 GiB, not a microbenchmark needing statistical machinery to see. `examples/hash-rate.rs` reproduces the table in thirty lines and needs no harness |
 
 ## Non-goals
@@ -3013,7 +3042,7 @@ stale, fix it before doing anything else.*
 | `config`, `destinations`, `cards` | the rig, resolved by serial; cards found by `DCIM` and timed (decisions 6, 7, 8) |
 | `preflight` | phases 1 and 2, including decision 27's card-equivalency gate |
 | `pipeline` | phase 3 — read once, fan out, write through, verify unbuffered (decisions 2, 5, 10) |
-| `manifest`, `marker`, `verify` | the durable artifact and `photoday verify <DEST>` (decisions 12, 20, 28) |
+| `manifest`, `marker`, `verify` | the durable artifact and `offload verify <DEST>` (decisions 12, 20, 28) |
 | `phase4` | corroboration — **wired and proven on the rig**: 3,883 matched, 0 mismatched (decisions 3, 4) |
 | `phase5` | geotag, wired and running (decisions 16, 23, 26) |
 | `eject` | lock, dismount, power down, **retried with backoff** — proven on both bus types, and the retry **observed recovering a vetoed drive** (decision 22) |
@@ -3087,7 +3116,7 @@ in 201 GB and name the file.
   measurement per card, warn when a card falls off its own history. Record first; the
   threshold is set from accumulated evidence, not chosen up front
 - **the throughput history itself** (decision 33), which 32 depends on — one JSON file at
-  `%APPDATA%\photoday\history.json` covering cards *and* destinations, each sample carrying
+  `%APPDATA%\offload\history.json` covering cards *and* destinations, each sample carrying
   uptime and link generation. **Backfillable on day one**: every run log on the laptop
   already holds the per-destination rates, so this starts with history rather than empty
 - **overlapping the verify read with its hash** — **now measured as the binding constraint on
@@ -3095,7 +3124,7 @@ in 201 GB and name the file.
   they are no longer tunnel-limited: on 2026-08-04 every destination verified within ~12% of
   `1/(1/read + 1/hash)`, so drives that read at 934–980 MB/s verified at 590–597. Worth far
   more than the hash choice ever was; see decision 17 and the cold-cache run below
-- **retiring RawGeotag** into `photoday geotag` (decision 30), now unblocked by phase 5
+- **retiring RawGeotag** into `offload geotag` (decision 30), now unblocked by phase 5
 - ~~proving decision 22's eject retry~~ — **done 2026-08-04.** The OWC was vetoed on its
   first attempt and powered down on its second, 15 s later, at the end of a full run; the
   other two succeeded first time. Decision 22 has the output. What is still worth
@@ -3236,4 +3265,4 @@ the two file flags are still set*: removing `FILE_FLAG_NO_BUFFERING` changes whe
 come from, not what they are, so every assertion still passes — the constants are
 load-bearing on inspection only, and the comment in `winio.rs` says so where someone
 might delete one. And *a file that rots after a clean run* is not phase 3's to notice; it
-is what `photoday verify` exists for (decision 20).
+is what `offload verify` exists for (decision 20).

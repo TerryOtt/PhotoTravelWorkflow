@@ -33,7 +33,7 @@ use geotag::xmp;
 use crate::pipeline::Destination;
 
 /// How this tool identifies itself in a sidecar's `x:xmptk`.
-const WRITER: &str = concat!("photoday ", env!("CARGO_PKG_VERSION"));
+const WRITER: &str = concat!("offload ", env!("CARGO_PKG_VERSION"));
 
 /// One frame phase 3 landed, with the capture time it stashed.
 #[derive(Debug, Clone)]

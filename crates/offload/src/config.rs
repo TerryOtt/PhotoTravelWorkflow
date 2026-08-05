@@ -2,10 +2,10 @@
 //!
 //! Decision 8: "one intuitive CLI command" and "six paths that shuffle between sessions"
 //! are in tension, and typing destination paths at 11pm after a day of shooting is how a
-//! destination ends up pointed at the wrong disk. So the rig lives here and `photoday`
+//! destination ends up pointed at the wrong disk. So the rig lives here and `offload`
 //! takes almost no arguments.
 //!
-//! **Read from `%APPDATA%\photoday\config.json`** and never generated: a tool that
+//! **Read from `%APPDATA%\offload\config.json`** and never generated: a tool that
 //! invented a config would be inventing a rig. A missing one is a pre-flight fatal that
 //! names the path it looked in.
 
@@ -135,12 +135,12 @@ impl Config {
     }
 }
 
-/// `%APPDATA%\photoday\config.json` (decision 8).
+/// `%APPDATA%\offload\config.json` (decision 8).
 pub fn default_path() -> Result<PathBuf> {
     let appdata = std::env::var_os("APPDATA")
         .ok_or_else(|| anyhow!("APPDATA is not set, so the config location is unknown"))?;
 
-    Ok(PathBuf::from(appdata).join("photoday").join("config.json"))
+    Ok(PathBuf::from(appdata).join("offload").join("config.json"))
 }
 
 /// Load and validate the config from its standard location.
