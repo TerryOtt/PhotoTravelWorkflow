@@ -260,7 +260,15 @@ Phase 3 moves **9N**: 1N read from CFexpress, 4N written, 4N read back to verify
 pairs verified. **A later run with the CFexpress moved to a Thunderbolt reader took
 18 min 06 s**, and the shape of that gain matters more than its size — see below.
 
-### The current number: 16 m 55 s, on the rig that actually travels
+### 16 m 55 s, with both archive SSDs on the dock — superseded the same day
+
+> **Superseded by the split-ports topology, later on 2026-08-04.** This section's 8 m 13 s
+> verify pass is what two USB drives sharing one 10 Gbps tunnel costs. Moving each to a
+> laptop USB-C port of its own — `CONOPS.md`'s wiring — cut it to **5 m 35–47 s across three
+> runs**, and LANDED to **13 m 28 s** on a cold, settled machine. **Kept because the
+> per-destination breakdown below is what diagnosed the tunnel**, and because it is the
+> before half of the only controlled comparison this project has on that question. For
+> current figures see *The first cold-cache run* and decision 33's three-run table.
 
 **Measured 2026-08-04 on the CalDigit Element 5**, which is the hub Terry takes with him —
 every figure above was taken on the desk dock, and so described a rig that never leaves the
@@ -1844,6 +1852,19 @@ a run is the only place they occur.
 > generous window cost nothing to have. One observation is not a distribution: keep
 > recording `attempts` and `waited` per device (the report prints them) and let the real
 > spread accumulate before tuning anything.
+>
+> **The rate so far, across three runs of the same evening — nine device ejects, three
+> vetoed:**
+>
+> | Run | Vetoed on first attempt |
+> |---|---|
+> | 1 (single-attempt code) | OWC, WD — both left dismounted, not powered down |
+> | 2 | none |
+> | 3 | OWC — powered down on its second attempt |
+>
+> **About a third, and it moves.** Two of three on one run and none on the next is why a
+> single-attempt implementation looked fine for as long as it did, and why no conclusion
+> about eject should ever rest on one run.
 >
 > **The mechanism, since "race condition" is too vague to act on.** `FSCTL_LOCK_VOLUME`'s
 > exclusivity belongs to *the handle*. The handle must be closed before
