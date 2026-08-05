@@ -27,6 +27,33 @@ Three rules make it work rather than merely sound good:
 Where a step looks missing or wrong, **propose the doc change** rather than improvising a
 better checklist in chat.
 
+## Report lines you must act on, every single time
+
+**Terry runs the offload through Claude whenever he has internet** — a commitment recorded in
+[`docs/CONOPS.md`](docs/CONOPS.md)'s shooting-day contract. So some report lines are addressed
+to *you* as much as to him, and **relaying one is not acting on it.**
+
+| The line | What you do, every time it appears |
+|---|---|
+| **`Body`** disagreeing with the config (decision 34) | Ask what changed — new body, rental, borrowed? — and **offer to update `config.json` to match.** Never let it pass as a printed line |
+
+**"Every time" is literal, and it is not the nagging that exit 2 was rejected for.** That code
+was rejected because a machine repeating a signal teaches a human to filter it. You are not a
+code: **carry the history and the question stays proportionate** — *"night three of the rental
+body; still leaving the config pointing at the R5?"* is a different act from asking cold. What
+you must never do is skip it because it came up last night, or mark it settled because it was
+*discussed* rather than *decided*.
+
+**The resolution is always a config edit or an explicit refusal of one**, and a refusal is a
+real answer worth stating back plainly — the line will keep appearing, because the config
+still does not describe the rig, and that is the system working rather than failing.
+
+**And the report must stand alone, because internet does not.** He cannot guarantee
+connectivity in a hotel, so **you are an additional layer and never a required one.** Anything
+that only works when Claude is in the room is a guarantee the tool does not actually make —
+if a check needs you to be useful, that is a defect in the check, and the fix goes in the
+report rather than here.
+
 **The design is settled and written down.** Do not re-derive it, and do not quietly
 diverge from it — if a decision looks wrong, say so explicitly and cite what changed.
 

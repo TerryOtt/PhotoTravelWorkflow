@@ -298,6 +298,22 @@ the deal:
   first is exactly the authoritative-looking wrong answer this project exists to avoid.
   Recording one window twice — two apps, or a re-export — means pruning one before the
   run.
+- **When there is internet, the offload is run through Claude.** An operator commitment, and
+  the field half of *The project is bigger than the Rust app* above: the reason to have a
+  diligence assistant is the night you are least able to be diligent, which is every night of
+  a trip. Hotel connectivity cannot be promised, so this is *whenever possible* rather than
+  always.
+
+  **Which sets a hard constraint on the tool in the other direction: nothing may depend on
+  Claude being there.** The report has to be complete and actionable for a tired human alone,
+  because some nights it will be read by one. Claude adds a layer — noticing, asking, offering
+  to fix — and never supplies a guarantee. **A check that is only useful when Claude is in the
+  room is a defect in the check**, and the fix belongs in the report rather than in
+  [`CLAUDE.md`](../CLAUDE.md).
+
+  What Claude is expected to act on rather than merely relay is listed in `CLAUDE.md` under
+  *Report lines you must act on* — today that is decision 34's `Body` line, where the standing
+  action is to ask what changed and offer to update the config.
 - **The camera runs on UTC, and its clock is right** — checked at trip start and after
   every zone crossing. The two halves fail differently ([`DESIGN.md`](DESIGN.md)
   decision 23): a wrong *timezone* self-corrects — the recorded offset puts every frame

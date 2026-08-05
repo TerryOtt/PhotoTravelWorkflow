@@ -2831,6 +2831,24 @@ fires regardless of the truth.
 > the night after?** A repeating fact is INFO however much it matters, because a warning that
 > repeats is a warning that gets filtered. A thing that is true about *tonight* can be a
 > warning.
+>
+> **INFO does not mean nobody acts on it — it means the *program* does not.** This line has two
+> readers, and that is the point of putting it at INFO rather than dropping it: a tired human
+> sees a fact about their camera beside a fact about its clock, while **Claude has a standing
+> instruction to act on it every single time it disagrees with the config** — ask what changed,
+> offer the config edit ([`../CLAUDE.md`](../CLAUDE.md), *Report lines you must act on*). The
+> operator runs the offload through Claude whenever he has internet, which `CONOPS.md`'s
+> shooting-day contract now records as a commitment.
+>
+> **The severity level and the follow-up are therefore orthogonal, which is worth stating
+> because collapsing them is how the first draft went wrong.** *How loud should the program be*
+> and *who has to do something* are different questions. Exit 2 was the wrong answer to the
+> first; it was never an answer to the second at all.
+>
+> **And it must stay useful with nobody watching.** Hotel internet is not guaranteed, so this
+> line has to be complete and actionable read cold by a tired human — Claude is an additional
+> layer, never a required one. A check that only works when Claude is present is a guarantee
+> the tool does not actually make.
 
 **The serial matters more than the model, and the operator's own history is why.** He rented
 an R5 in 2021 and bought one in 2024 after a robbery took the previous body. A model check
