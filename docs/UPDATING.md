@@ -31,6 +31,49 @@ checks in RawGeotag's `docs/LIGHTROOM-XMP.md` — the XMP engine lives there and
 where its verification stays. Same reasoning as this file, different trigger: find out that
 Lightroom moved while you are at home. Dot releases do not warrant it.
 
+### Device firmware — strongly encouraged, and only ever at home
+
+The rig is a Thunderbolt chain, and a chain is firmware at both ends: the hub, the
+enclosure, the card readers, and the laptop's own host router. **`cargo outdated` cannot
+see any of it, rustup cannot either, and nothing else in this process would notice a device
+being years behind.**
+
+**It is not hypothetical here.** On 2026-08-05 the OWC enclosure came up bridged to USB
+instead of carrying its PCIe tunnel — every file readable, activity light on, `BusType` the
+only tell — which is precisely the class of bug router firmware addresses. It is cheap to
+detect (`scripts\full-run-check.ps1` asserts it) and a cable reseat clears it, which makes
+it a nuisance at home and a silent 3× throughput loss in a hotel room where nobody thinks
+to look.
+
+Read what is installed, and write the numbers down before changing any of them — the
+before-state is only free to capture once:
+
+```powershell
+Get-PnpDevice -PresentOnly |
+    Where-Object { $_.FriendlyName -match 'USB4 Router|Thunderbolt 3.*Router' } |
+    ForEach-Object {
+        '{0,-8} {1}' -f (Get-PnpDeviceProperty -InstanceId $_.InstanceId `
+            -KeyName 'DEVPKEY_Device_FirmwareVersion').Data, $_.FriendlyName
+    }
+```
+
+**One trap that will send you hunting the wrong thing: an enclosure that has fallen back to
+USB does not enumerate as a router at all.** It has no firmware property to read and simply
+appears absent from that list — so confirm `BusType` reads **NVMe** before concluding
+anything about its firmware.
+
+**Flash early in the pre-trip window, then dry-run — not the other way around.** This
+file's opening rule applies with more force to firmware than to crates: *travel with what
+you have verified, not with what is current.* A dry run performed before the flash
+validated firmware you are no longer carrying. And if departure is close enough that there
+is no room left to re-verify, **skip the flash and go** — a device one revision behind that
+you have run the whole rig against beats a freshly flashed one you have not.
+
+**The asymmetry that earns firmware its own rule:** a bad crate bump fails loudly at
+compile time and reverts with `git checkout Cargo.lock`. A bad flash can brick an enclosure
+holding one of the four archive copies. So do one device at a time, read the vendor's notes
+rather than clicking through, and never with a restore or an offload in flight.
+
 ## The short version
 
 ```

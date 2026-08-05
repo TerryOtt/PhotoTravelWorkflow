@@ -311,6 +311,11 @@ The full checklist lives in [`UPDATING.md`](UPDATING.md); the shape of it:
 
 - Update dependencies and toolchain **before leaving, never on the road** — travel with
   a verified binary rather than a current one.
+- **Update device firmware — hub, enclosure, card readers — and do it early in the
+  window.** Same rule as the binary and with sharper teeth: a bad crate bump reverts, a
+  bad flash can brick an enclosure holding an archive copy. Flash *before* the dry run so
+  the rehearsal exercises the firmware you will actually travel with, and if departure is
+  too close to re-verify, skip it and go.
 - **`photoday --dry-run` against the real rig** — both readers, all three SSDs. This is
   the rehearsal that catches a reformatted drive, a changed reader, or a stale config
   entry while the fix is a walk to a drawer rather than a ruined evening.
