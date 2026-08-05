@@ -3273,6 +3273,42 @@ a new laptop would have bought ~3.5 minutes; **two cables bought more than eithe
 The cost is operational rather than financial, and it is the operator's call: it trades the
 hub's single-connector hotel ritual for three cables to the laptop each night.
 
+> ### ✗ Corrected 2026-08-05: Gen 2x2 *is* available — on the hub's TB5 ports, not the laptop's
+>
+> **Measured with `examples/sustained.rs`, 60 s each, quiet bus, same drive and same probe.**
+> The operator plugged the SanDisk into an Element 5 **TB5 port** rather than a USB-A one — a
+> configuration nobody had tried, since every earlier hub measurement used USB-A:
+>
+> | Path | Sustained |
+> |---|---|
+> | **Element 5 TB5 port (USB-C)** | **1,435 → 1,398 MB/s** — flat, ~11.2 Gbps |
+> | Element 5 USB-A port | 967 → 957 |
+> | Laptop's own USB-C port | ~980 |
+> | Both SSDs on hub USB-A | 360 each |
+>
+> **Everything is pinned at the practical 10 Gbps ceiling except the TB5 port**, which beats a
+> laptop port by **43 %** on the one drive bought for Gen 2x2 in the first place.
+>
+> **The USB-A control used a USB-C-to-USB-A adapter, and that confound does not matter** — a
+> USB-A connector has a single lane pair and *cannot* carry Gen 2x2 whatever the adapter does,
+> so the port was capped by its connector before the adapter entered the picture. The adapter
+> and the port share one ceiling, and 964 MB/s is it.
+>
+> **What is measured and what is not.** The numbers are solid: flat across 60 s, ~84 GB read,
+> no cache can fake that. **The mechanism is not** — the paragraph below argues Gen 2x2 should
+> be impossible on a USB4 port because "USB4 claims those same lanes", and the parent chain
+> shows the drive *tunnelled* through the laptop's xHCI rather than natively attached. So
+> either USB4 v2 tunnels Gen 2x2, or the port does something else. **Recorded as an
+> unexplained measurement rather than dressed in a mechanism**, which is the error this
+> document made about a 4K display earlier the same day.
+>
+> **The consequence is real and not yet acted on.** `CONOPS.md` says the two USB SSDs go in the
+> laptop's own ports and *not* the hub — a rule measured against the hub's **USB-A** ports and
+> silent about TB5. **For the SanDisk that advice is now backwards.** What is still unknown:
+> whether the WD is Gen 2x2 at all (My Passport SSDs are typically Gen 2x1, so probably not),
+> and whether two devices on TB5 ports would contend. Both are one measurement each, and the
+> wiring should not change until they are taken.
+
 **Gen 2x2 was tested separately and is not available on this machine.** The SanDisk supports
 it; on a native USB 3.2 controller port it still measured 1,051 MB/s best-of-threads against
 1,034 through the tunnel — ≈8.4 Gbps, the practical 10 Gbps ceiling. The link negotiates
