@@ -86,6 +86,23 @@ bar. `DESIGN.md` — *Both metrics are thresholds* — has the full version.
    mechanism, and prefer a mistake that is a compile error over one that is a runtime
    surprise.
 
+## A measured run is a clean build
+
+**`cargo clean`, then `cargo build --release`, before any run whose result will be quoted.**
+Standing order, and [`docs/FULL-RUN.md`](docs/FULL-RUN.md) places it *before* the reboot —
+a full rebuild is 31 seconds here, and doing it after boot loads a machine that is already
+busy and refills the page cache the reboot exists to clear.
+
+**There is no informal run.** If a number, a timing or a behavior reaches a document, a
+commit message or Terry, it was measured and this applied.
+
+The specific trap: **`cargo fmt`, `cargo clippy` and `cargo test` all build the *debug*
+profile.** None of them touches `target\release\`, which is what the nightly command and
+every `--release` example actually run. A green suite says nothing about the artifact you
+are about to launch — on 2026-08-04 a 37-minute end-to-end run exercised a binary 15 minutes
+older than the code it was written to test, completed, and exited 0.
+`scripts\full-run-check.ps1` asserts it; run it.
+
 ## This machine is the rig
 
 The laptop these sessions run on is the i7-13700H the tool targets. So **measure rather
