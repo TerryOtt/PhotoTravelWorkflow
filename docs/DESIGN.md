@@ -1797,6 +1797,27 @@ whether the complaint is about behavior or about description.
 only when it took more than one attempt. Decision 22 can only be tuned from real numbers, and
 a run is the only place they occur.
 
+> **Proven on the rig, 2026-08-04 — the retry fired and worked.** Third full run of the
+> evening, all four destinations freshly written:
+>
+> ```
+>   Eject    (15s)
+>            OWC      powered down after 2 attempts over 15s
+>            SanDisk  powered down
+>            WD       powered down
+> ```
+>
+> **The OWC's first attempt was vetoed and its second succeeded**, fifteen seconds later.
+> Under the previous single-attempt code that drive would have ended `dismounted, not
+> powered down` and sent the operator to the tray icon. Two of three still powered down on
+> the first ask, so the veto is intermittent rather than the norm — which is precisely why a
+> single attempt was enough to look correct for as long as it did.
+>
+> **Fifteen seconds, against a budget of an hour.** The obstruction here was brief, and the
+> generous window cost nothing to have. One observation is not a distribution: keep
+> recording `attempts` and `waited` per device (the report prints them) and let the real
+> spread accumulate before tuning anything.
+>
 > **The mechanism, since "race condition" is too vague to act on.** `FSCTL_LOCK_VOLUME`'s
 > exclusivity belongs to *the handle*. The handle must be closed before
 > `CM_Request_Device_Eject`, or PnP walks the device tree, finds this process's own
@@ -2461,19 +2482,25 @@ exist to detect. **Compare like with like or the history is noise.** Each sample
 the link generation, for decision 32's reason: a card at 38 MB/s on a USB 2.0 port and a
 dying card at 38 MB/s are the same number and opposite actions.
 
-**A destination's health signal is its verify rate, not its write rate.** Measured across two
-full runs two hours apart on 2026-08-04, same 201.3 GB to the same four destinations:
+**A destination's health signal is its verify rate, not its write rate.** Measured across
+three full runs in one evening on 2026-08-04, same 201.3 GB to the same four destinations:
 
-| Pass | First run | Second run | |
+| Pass | Run 1 | Run 2 | Run 3 |
 |---|---|---|---|
-| Write | 7 m 47 s — 431 MB/s | 10 m 47 s — **311 MB/s** | **−28 %** |
-| Verify | 5 m 41 s | 5 m 47 s | −2 % |
+| Write | 7 m 47 s — **431 MB/s** | 10 m 47 s — **311** | 8 m 29 s — **395** |
+| Verify | 5 m 41 s | 5 m 47 s | 5 m 35 s |
 
-Per destination the verify windows reproduce within seconds — 3 m 16 s against 3 m 18 s,
-5 m 37 s against 5 m 39 s. **Writes are not reproducible and reads are.** The drives had
-absorbed 201 GB two hours earlier and were taking another 201 GB, so their SLC caches were
-full and garbage collection was behind; reads have no equivalent state to be in. This is the
-same effect that made `examples/write-contention.rs` untrustworthy.
+**Verify reproduces within 2 %. Write swings 28 %.** Per destination the verify windows
+agree to a few seconds across all three runs. **Writes are not reproducible and reads are**,
+which is the whole point: store `write_mb_s` for the record, warn on `verify_mb_s`.
+
+**The cause of the write spread is not established, and a plausible one has already been
+tried and failed.** After two runs this section blamed SLC cache exhaustion and garbage
+collection falling behind. Run 3 refutes that as stated: it followed run 2 by 12 minutes —
+*less* recovery than run 2 had after run 1 — and came back faster, not slower. Whatever
+drives the spread, "how long the drives rested" does not predict it. **Do not quote a
+mechanism here; quote the spread.** `examples/write-contention.rs` remains unfit to
+investigate it (see its own note), which is why this is still open.
 
 **So a write-rate history would record phantom degradation** — a healthy drive looks 28 %
 slower simply because it was written to recently, which is larger than the decline the check
@@ -2627,9 +2654,11 @@ has been shown to catch a single flipped bit in 201 GB and name the file.
   `1/(1/read + 1/hash)`, so drives that read at 934–980 MB/s verified at 590–597. Worth far
   more than the hash choice ever was; see decision 17 and the cold-cache run below
 - **retiring RawGeotag** into `photoday geotag` (decision 30), now unblocked by phase 5
-- **proving decision 22's eject retry.** It is built and the code path is verified, but the
-  retry itself has never fired — both test ejects succeeded on their first attempt. It can
-  only be reproduced at the end of a full run, immediately after 201 GB of fresh writes
+- ~~proving decision 22's eject retry~~ — **done 2026-08-04.** The OWC was vetoed on its
+  first attempt and powered down on its second, 15 s later, at the end of a full run; the
+  other two succeeded first time. Decision 22 has the output. What is still worth
+  accumulating is the *distribution* of attempts and wait times across many runs, which the
+  report now prints per device
 
 ### The first cold-cache run, 2026-08-04 — LANDED 13 m 28 s
 
