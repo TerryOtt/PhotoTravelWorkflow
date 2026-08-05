@@ -136,6 +136,16 @@ pass reads memory rather than media for some unknowable fraction of the day.
 >
 > *(Separately: a Lightroom Classic release is a [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) item —
 > the XMP checks are gated on Classic having had one. Note it; do not install it mid-run.)*
+>
+> **The twenty minutes is settled. Do not re-litigate it.** Terry, the same evening: *"it's
+> real world rationale for why 20 mins isn't excessive and shouldn't be re-litigated."* The
+> number will look padded to anyone standing at minute three of it, and the argument for
+> trimming it will always sound reasonable, because **the cost is visible and the benefit is
+> not** — you can see twenty minutes of waiting, and you cannot see the contended run you
+> did not have. It is bought with idle time against a 35-minute run whose whole purpose is to
+> produce a number somebody will quote. **This document is not a tuning procedure** (see the
+> top), and the settle window is the clearest case of that: shortening it does not make the
+> run faster, it makes the result less trustworthy.
 
 ## Resuming the session after the reboot
 
