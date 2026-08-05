@@ -1140,6 +1140,29 @@ carry their own manifest of the same day, so they also cross-check against each 
 which is why decision 28 pins the fields that cross-check rests on, and why `schema`
 sits at the top of the record rather than being implied by what a reader happens to find.
 
+**`source_card` is the durable name for what the report calls `primary`.** Settled
+2026-08-05: operator-facing output says **primary** and **secondary**, because that is what a
+tired human at a desk reads and because the tool cannot honestly say *CFexpress* — decision 7
+identifies cards by measurement, and a CFexpress in a bridge reader enumerates as USB. The
+manifest keeps `source_card`, because a field on disk is read by `verify` years later and
+renaming it would be a schema change under decision 28 for a synonym. Two audiences, one
+concept, and the mapping is stated here so it is stated once.
+
+**And `source_card` records the role while a new `source_volume_serial` records the
+evidence.** Settled with the operator 2026-08-05, replacing
+`if plan.cards.agreed { "cfexpress" } else { "single" }` — a line that could never emit the
+`"sdxc"` this decision's own example shows, and whose `"cfexpress"` was an assumption nothing
+checked. **The volume serial is the closest honest answer to "which card fed this run":** it
+is an observation rather than a label, and decision 13 already captures both cards' serials
+in the run log, so nothing new is measured. An in-camera format assigns a new one, so years
+later it identifies the card *generation* rather than the physical card — which is exactly
+what a run is a property of.
+
+**Two fields rather than one packed string**, deliberately. `"primary:A4E2-91CC"` would have
+to be split on a colon by every reader, which is the stringly-typed shape this project's
+JSON-by-default rule exists to avoid. Adding a field an old `verify` ignores is explicitly
+not a schema bump (decision 28); redefining `source_card`'s type would have been one.
+
 `corroborated` carries phase 4's verdict per file — `matched`, `waived`, `forfeited`,
 or `null` while still pending. `waived` is the single-source run's mark (decision 7):
 no second card existed to consult — and `source_card` records which card fed the run,
@@ -1853,18 +1876,21 @@ a run is the only place they occur.
 > recording `attempts` and `waited` per device (the report prints them) and let the real
 > spread accumulate before tuning anything.
 >
-> **The rate so far, across three runs of the same evening — nine device ejects, three
+> **The rate so far, across four runs of the same evening — twelve device ejects, three
 > vetoed:**
 >
-> | Run | Vetoed on first attempt |
-> |---|---|
-> | 1 (single-attempt code) | OWC, WD — both left dismounted, not powered down |
-> | 2 | none |
-> | 3 | OWC — powered down on its second attempt |
+> | Run | Vetoed on first attempt | Eject stage |
+> |---|---|---|
+> | 1 (single-attempt code) | OWC, WD — both left dismounted, not powered down | — |
+> | 2 | none | — |
+> | 3 | OWC — powered down on its second attempt | 15 s |
+> | 4 | none | 9 s |
 >
-> **About a third, and it moves.** Two of three on one run and none on the next is why a
-> single-attempt implementation looked fine for as long as it did, and why no conclusion
-> about eject should ever rest on one run.
+> **One in four device ejects, and it clusters rather than spreading evenly** — two on one
+> run, none on the next two, one on the fourth. That is why a single-attempt implementation
+> looked fine for as long as it did, and why no conclusion about eject should ever rest on
+> one run. It is also why the retry earns its place at a cost of 9–15 seconds on a normal
+> night.
 >
 > **The mechanism, since "race condition" is too vague to act on.** `FSCTL_LOCK_VOLUME`'s
 > exclusivity belongs to *the handle*. The handle must be closed before
@@ -2533,22 +2559,29 @@ dying card at 38 MB/s are the same number and opposite actions.
 **A destination's health signal is its verify rate, not its write rate.** Measured across
 three full runs in one evening on 2026-08-04, same 201.3 GB to the same four destinations:
 
-| Pass | Run 1 | Run 2 | Run 3 |
-|---|---|---|---|
-| Write | 7 m 47 s — **431 MB/s** | 10 m 47 s — **311** | 8 m 29 s — **395** |
-| Verify | 5 m 41 s | 5 m 47 s | 5 m 35 s |
+| Pass | Run 1 | Run 2 | Run 3 | Run 4 |
+|---|---|---|---|---|
+| Write | 7 m 47 s — **431 MB/s** | 10 m 47 s — **311** | 8 m 29 s — **395** | 8 m 10 s — **411** |
+| Verify | 5 m 41 s | 5 m 47 s | 5 m 35 s | 5 m 40 s |
 
-**Verify reproduces within 2 %. Write swings 28 %.** Per destination the verify windows
-agree to a few seconds across all three runs. **Writes are not reproducible and reads are**,
-which is the whole point: store `write_mb_s` for the record, warn on `verify_mb_s`.
+**Verify reproduces to ±1.8 % — a 12-second spread across four runs moving 201 GB to four
+devices each time**, with the per-destination windows agreeing to a few seconds throughout.
+That is what makes it usable as a health signal, and why decision 33 warns on `verify_mb_s`
+and merely records `write_mb_s`.
 
-**The cause of the write spread is not established, and a plausible one has already been
-tried and failed.** After two runs this section blamed SLC cache exhaustion and garbage
-collection falling behind. Run 3 refutes that as stated: it followed run 2 by 12 minutes —
-*less* recovery than run 2 had after run 1 — and came back faster, not slower. Whatever
-drives the spread, "how long the drives rested" does not predict it. **Do not quote a
-mechanism here; quote the spread.** `examples/write-contention.rs` remains unfit to
-investigate it (see its own note), which is why this is still open.
+**The write pass has one outlier, not a spread**, and saying so precisely matters. Three runs
+sit at **395–431 MB/s (±4 %)** and run 2 sits at 311. An earlier version of this section read
+"write swings 28 %", which implied general variability and invited a shrug; one anomalous run
+invites a cause.
+
+**Two explanations were tried and both failed.** After two runs this blamed SLC exhaustion
+and garbage collection falling behind — refuted by run 3, which followed run 2 by 12 minutes,
+had *less* recovery than run 2 had, and came back faster. Cumulative write load was the
+fallback, and run 4 refutes that too: it is the fourth consecutive 201 GB write onto the same
+drives and among the fastest. **Neither rest nor accumulated writes predicts it.** Machine
+uptime does not either — the fastest run was on the busiest machine, 17 minutes after boot.
+`examples/write-contention.rs` remains unfit to investigate it (see its own note), so this
+stays open and unexplained rather than explained badly.
 
 **So a write-rate history would record phantom degradation** — a healthy drive looks 28 %
 slower simply because it was written to recently, which is larger than the decline the check

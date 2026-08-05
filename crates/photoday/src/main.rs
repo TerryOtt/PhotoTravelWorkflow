@@ -328,6 +328,16 @@ struct Released {
     effort: eject::Effort,
 }
 
+/// The card phase 3 read from, in operator-facing output.
+///
+/// The manifest calls the same thing `source_card` and keeps that name, because a field on
+/// disk is read by `verify` years later and renaming it would be a schema change under
+/// decision 28. The report is read by a tired human at a desk; these are for them.
+const PRIMARY: &str = "primary";
+
+/// The card phase 4 corroborated against.
+const SECONDARY: &str = "secondary";
+
 /// How long after launch eject stops trying (decision 22).
 ///
 /// **The operator is at dinner, and dinner is 60–90 minutes** (`CONOPS.md`). A run reaches
@@ -540,15 +550,22 @@ fn dismount_cards(
         return Vec::new();
     }
 
-    std::iter::once(&plan.cards.source)
-        .chain(plan.cards.other.as_ref().map(|(card, _)| card))
-        .map(|card| {
+    // **Primary and secondary, not drive letters and not card types.** A letter is the one
+    // identifier decision 6 exists to keep out of decisions, and the tool genuinely cannot
+    // say "CFexpress": decision 7 identifies cards by measurement because serial,
+    // removability and bus type all fail, and a CFexpress in a bridge reader enumerates as
+    // USB. What is actually known is which card fed phase 3 and which corroborated it, so
+    // that is what the report says. `source_card` in the manifest is the same concept under
+    // its durable name (decision 12).
+    std::iter::once((PRIMARY, &plan.cards.source))
+        .chain(plan.cards.other.as_ref().map(|(card, _)| (SECONDARY, card)))
+        .map(|(role, card)| {
             let outcome = eject::dismount_card(&card.volume).unwrap_or_else(|error| {
                 eject::CardOutcome::Held {
                     reason: format!("{error:#}"),
                 }
             });
-            (card.label().to_string(), outcome)
+            (role.to_string(), outcome)
         })
         .collect()
 }
@@ -558,16 +575,19 @@ fn report_cards(cards: &[(String, eject::CardOutcome)]) {
         return;
     }
 
+    // Heading once, then indented rows — the same shape as the eject block above it. The
+    // first version repeated "Cards" on every line and read as two unrelated events.
     println!();
+    println!("  Cards");
     for (label, outcome) in cards {
         match outcome {
             eject::CardOutcome::Dismounted => {
-                println!("  Cards    {label:<8} dismounted — safe to pull");
+                println!("           {label:<9} dismounted — safe to pull");
             }
             // Deliberately not phrased as a failure: the card was always safe to pull, and an
             // operator reading "held" here would worry about data that was never at risk.
             eject::CardOutcome::Held { reason } => println!(
-                "  Cards    {label:<8} still mounted — safe to pull regardless, nothing was written to it\n           {reason}",
+                "           {label:<9} still mounted — safe to pull regardless, nothing was written to it\n           {reason}",
             ),
         }
     }
