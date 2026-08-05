@@ -208,6 +208,7 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // Flush left: this is a phase heading, the parent of the `Writing` and `Verifying`
     // sections below it, and it used to sit indented as though it were an item in a list.
     println!();
+    println!();
     println!(
         "Ingesting {} files to {} destinations…",
         count(plan.cards.files.len()),

@@ -27,8 +27,8 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::mpsc::{SyncSender, sync_channel};
+use std::sync::{Arc, Mutex, Once};
 use std::thread;
 
 use crate::progress::{self, Bar, Progress};
@@ -184,15 +184,10 @@ pub fn run(
 
     let total = sources.len();
 
-    // **Two sections, both created before any thread starts**, so `MultiProgress` draws the
-    // `Writing` rows and then the `Verifying` rows underneath in a stable order rather than in
-    // whatever order the destinations happen to reach each pass.
+    // **`Writing` exists from the start; `Verifying` appears when the first destination
+    // reaches it.** Showing four rows at `0.0%` for the whole write pass was noise that looked
+    // like stalled work.
     //
-    // A destination appears in both, and that is deliberate: there is no barrier between the
-    // passes (see below), so the screen shows the laptop already reading back while a USB
-    // drive is still being written. **That overlap is the single most useful thing on the
-    // display** — decision 14 names the slowest device as the report's most useful number for
-    // the same reason, and this is that, live.
     // Bound, not discarded: dropping a `Section` removes its heading from the screen.
     let _writing = progress.section("Writing", progress::PASS);
     let write_bars: Vec<Bar> = destinations
@@ -204,22 +199,46 @@ pub fn run(
         })
         .collect();
 
-    let _verifying = progress.section("Verifying", progress::PASS);
-    let verify_bars: Vec<Bar> = destinations
-        .iter()
-        .map(|destination| {
-            let bar = progress.bar(&destination.label, total, progress::PASS);
-            bar.set_pass("verifying");
-            bar
-        })
-        .collect();
+    // **The whole `Verifying` block is built at once, by whichever destination gets there
+    // first, and each thread then claims its own row.** The obvious alternative — every thread
+    // creating its own row when it starts verifying — would order the rows by *who finished
+    // writing first*, so the same rig would draw them differently run to run. Building all
+    // four together keeps them in the survey's order, which is the order every other block on
+    // the screen uses (decision 6's sort).
+    //
+    // There is still no barrier: a destination that finishes writing early starts verifying
+    // immediately, and its row simply fills while the rows above it sit at zero. That overlap
+    // is the point — decision 14 names the slowest device as the report's most useful number,
+    // and this shows it live.
+    let verifying = Once::new();
+    let verifying_section: Mutex<Option<progress::Section>> = Mutex::new(None);
+    let verify_slots: Mutex<Vec<Option<Bar>>> = Mutex::new(Vec::new());
+
+    let open_verifying = || {
+        verifying.call_once(|| {
+            let section = progress.section("Verifying", progress::PASS);
+            let bars: Vec<Option<Bar>> = destinations
+                .iter()
+                .map(|destination| {
+                    let bar = progress.bar(&destination.label, total, progress::PASS);
+                    bar.set_pass("verifying");
+                    Some(bar)
+                })
+                .collect();
+            *verify_slots.lock().expect("verify slots") = bars;
+            *verifying_section.lock().expect("verifying section") = Some(section);
+        });
+    };
 
     thread::scope(|scope| {
         let workers: Vec<_> = destinations
             .iter()
             .zip(receivers)
-            .zip(write_bars.into_iter().zip(verify_bars))
-            .map(|((destination, receiver), (write_bar, verify_bar))| {
+            .zip(write_bars)
+            .enumerate()
+            .map(|(index, ((destination, receiver), write_bar))| {
+                let open_verifying = &open_verifying;
+                let verify_slots = &verify_slots;
                 scope.spawn(move || {
                     let mut landed = Vec::new();
 
@@ -237,6 +256,14 @@ pub fn run(
                     // the laptop's NVMe verifies while the slowest SSD is still writing.
                     // Introducing a barrier here to tidy the display would idle the fast
                     // drives and cost wall clock against the primary metric.
+                    open_verifying();
+                    let verify_bar = verify_slots
+                        .lock()
+                        .expect("verify slots")
+                        .get_mut(index)
+                        .and_then(Option::take)
+                        .ok_or_else(|| anyhow!("no verify row for destination {index}"))?;
+
                     let done = verify(destination, landed, run_id, source, log, &verify_bar);
                     verify_bar.finish();
                     done

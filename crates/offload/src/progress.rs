@@ -145,8 +145,12 @@ impl Progress {
                 // The blank line belongs to the heading rather than to the caller. Every
                 // section wants one above it, and a rule each call site has to remember is a
                 // rule one call site will forget.
+                //
+                // A literal space, not an empty `{msg}`: an empty render is no line at all,
+                // so the first attempt produced no gap and looked exactly like the bug it was
+                // meant to fix.
                 let spacer = multi.add(ProgressBar::new(0));
-                if let Ok(style) = ProgressStyle::with_template("{msg}") {
+                if let Ok(style) = ProgressStyle::with_template(" ") {
                     spacer.set_style(style);
                 }
                 spacer.tick();
