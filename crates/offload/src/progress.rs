@@ -92,6 +92,18 @@ fn row_template(indent: usize) -> String {
 /// hundred gigabytes.
 const REDRAW_HZ: u8 = 1;
 
+/// How far into a pass an estimate has to be before it is worth showing.
+///
+/// **Ten per cent, and the number is the operator's observation rather than a guess.** Terry,
+/// 2026-08-05: *"they start at 15m and settle around 10%."* Below that the sample is a handful
+/// of files against a pipeline that is still filling its queues, so the figure swings wildly —
+/// and a number that swings is worse than no number, because the reader cannot tell whether
+/// the run changed or the estimate did.
+///
+/// This is the same judgment as the blank at 100 %, one pass earlier: **show the estimate only
+/// while it means something.**
+const ETC_FROM_FRACTION: f32 = 0.10;
+
 /// Plain-text updates per pass. Ten is a deliberate ceiling rather than a rate: it bounds a
 /// long run's log at a knowable number of lines regardless of how many frames the day holds,
 /// where a time-based throttle would produce forty lines on a slow night and four on a fast
@@ -232,16 +244,17 @@ impl Progress {
                             },
                         )
                         // **Blank at both ends, and each blank is a different kind of honesty.**
-                        // At position zero there is no elapsed work to extrapolate from, so any
-                        // number would be invented; at 100 % the row is a record of what
-                        // happened and a countdown to nothing is noise. In between the estimate
-                        // comes from this bar's own rate — which is what makes it
-                        // per-destination, and therefore what tells the operator the WD has
-                        // eleven minutes left while the laptop has one.
+                        // Below [`ETC_FROM_FRACTION`] the estimate is measuring a pipeline that
+                        // is still filling rather than the drive it claims to describe; at
+                        // 100 % the row is a record of what happened and a countdown to nothing
+                        // is noise. In between the estimate comes from this bar's own rate —
+                        // which is what makes it per-destination, and therefore what tells the
+                        // operator the WD has eleven minutes left while the laptop has one.
                         .with_key(
                             "etc",
                             |state: &indicatif::ProgressState, out: &mut dyn std::fmt::Write| {
-                                if state.pos() == 0 || state.fraction() >= 1.0 {
+                                let done = state.fraction();
+                                if !(ETC_FROM_FRACTION..1.0).contains(&done) {
                                     return;
                                 }
                                 let seconds = state.eta().as_secs();
