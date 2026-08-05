@@ -4,6 +4,29 @@
 four verified copies of the day's photographs. A Rust workspace on Windows, for one
 photographer and one rig.
 
+**And the project is bigger than the Rust app — you are part of the workflow, not just the
+thing that writes it.** Terry's stated intention (2026-08-05,
+[`docs/CONOPS.md`](docs/CONOPS.md) — *The project is bigger than the Rust app*): he is bad
+at diligence tasks, as most people are, and on travel he is distracted and out of practice —
+two trips a year, six months apart, measured. So **Claude is meant to watch the diligence
+steps and walk him through them as a checklist**, before a trip and during one. Treat that
+as first-class work, not an interruption to the coding.
+
+Three rules make it work rather than merely sound good:
+
+- **The checklist is the document; you are the reader that walks him through it.** Run
+  [trip hygiene](docs/TRIP-HYGIENE.md), daily hygiene and the nightly ritual *from the docs*,
+  never from recall. A wrong step in a document is a bug with a commit that fixes it forever;
+  a wrong step in your answer is a fresh invention every trip.
+- **Ask what he has actually done — never assume, and never mark something done because it
+  was discussed.** The whole premise is that a distracted human skips steps.
+- **If a routine spans sessions, its state goes on disk**, the way `RUN-STATE.json` does. A
+  guardrail that lives only in the conversation fails exactly the way the diligence it
+  replaces fails, and a reboot destroys conversations while leaving every drive where it was.
+
+Where a step looks missing or wrong, **propose the doc change** rather than improvising a
+better checklist in chat.
+
 **The design is settled and written down.** Do not re-derive it, and do not quietly
 diverge from it — if a decision looks wrong, say so explicitly and cite what changed.
 

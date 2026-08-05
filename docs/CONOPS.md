@@ -1,13 +1,65 @@
 # Concept of operations
 
-*How this tool is **intended** to be used. [`DESIGN.md`](DESIGN.md) records how it works
-and why; this file records the operating rhythm it was built to serve. If the two ever
-disagree, that is a defect in one of them — fix it, per
+*How this **workflow** is intended to be run — the tool, the operator's routines, and
+Claude's part in them. [`DESIGN.md`](DESIGN.md) records how `photoday` works and why; this
+file records the operating rhythm it was built to serve, which is larger than the program.
+If the two ever disagree, that is a defect in one of them — fix it, per
 [`WRITING.md`](WRITING.md)'s one-canonical-place rule.*
 
 The operator is one photographer, on travel, running this at the end of a shooting day —
 tired, in a hotel room or cruise cabin, with dinner waiting. Every design decision that
 matters traces back to that person.
+
+## The project is bigger than the Rust app
+
+**Stated by the operator on 2026-08-05, as a top-level intention.** `photoday` is one
+component. The project is **the whole workflow**, and Claude is deliberately part of it:
+
+> *"I, like most humans, am horrifically bad at diligence tasks. Part of this project is to
+> include Claude in my pre-trip and during-trip photo workflow to watch all these diligence
+> tasks and walk me through them as a checklist. It's training my brain to think of Claude
+> as my trip assistant and watch all the diligence gotchas, as there are a ton and on travel
+> I'm highly distracted. Claude becomes my safety guardrails."*
+
+**The evidence for this already sits in this document, one section down, and it was measured
+rather than assumed.** Two trips a year, in bursts of roughly eight consecutive nights, six
+months apart. **The operator is never practiced** — night one is performed by someone who
+last did it half a year ago, at the end of a day that started before sunrise. Add
+unfamiliar rooms, fatigue, and a mind on photographs rather than on card slots, and the
+diligence steps are exactly where this workflow is thinnest. `photoday` already removes
+the ones a program can own: no drive letters, no wrong destination, no trusting the tray
+icon. **The remainder are the ones only a human can perform — and they are the ones a
+distracted human performs badly.**
+
+### The rule that makes this work rather than merely sound good
+
+> **The checklist is the document. Claude is the reader that walks you through it.**
+
+Every routine here — [trip hygiene](TRIP-HYGIENE.md), daily hygiene, the nightly ritual,
+[`FULL-RUN.md`](FULL-RUN.md)'s procedure — lives in `docs/` as prose a human can audit and
+correct. **Nothing important lives only in Claude's answer.** That is not deference; it is
+the difference between an item that can be *wrong* and an item that can be *fixed*: a
+mistaken step in a document is a bug with a commit that repairs it forever, while a mistaken
+step in a conversation is a fresh hallucination every trip and nobody can diff it.
+
+So the division of labor is fixed: **the repository owns what the steps are; Claude owns
+noticing which ones you have not done, in what order, and what changed since last time.**
+
+### The failure mode to design against, because this project has already hit it once
+
+**A guardrail you have to remember to invoke fails exactly the way the diligence it replaces
+fails.** If the checklist runs only when the operator thinks to ask for it, it inherits the
+problem it was built to solve.
+
+That is not hypothetical — [`FULL-RUN.md`](FULL-RUN.md) exists because a constraint once
+lived only in a conversation, and a reboot destroys conversations while leaving every drive
+exactly where it was. The answer was `RUN-STATE.json`: **state on disk, at a path
+[`CLAUDE.md`](../CLAUDE.md) forces every cold session to read before its first tool call.**
+
+**That pattern is the template for everything this intention adds.** A routine that spans a
+trip needs the same treatment — the trip's state written down where a session that has lost
+its context, or was never given any, still finds it. Any future checklist that keeps its
+progress in chat is a broken window regardless of how well it reads.
 
 ## How often this actually happens, measured
 
