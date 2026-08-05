@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
+use console::style;
 use geotag::format::RawFormat;
 use geotag::raw::{Capture, MediaParser, capture_time};
 use geotag::track::GapLimits;
@@ -179,6 +180,9 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // and it fits the vocabulary the tool already had: the run ends at `LANDED`. Both words
     // come from the same place, which is why neither reads as jargon here.
     println!("Pre-Flight Checks");
+    // Every other heading gets a blank line under it from `Progress::section`; this one is a
+    // plain print and was the only one whose first line sat jammed against it.
+    println!();
     // Three periods, not U+2026. Terry, 2026-08-05: the single-glyph ellipsis "bothers my old
     // school DOS ANSI UI eyes." His screen, his call — and an ASCII ellipsis cannot render as
     // a box on a console that is having a bad code-page day, which is a small real benefit
@@ -284,7 +288,7 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // collides. On 2026-08-05 that put the LANDED banner inside eight progress rows and drew
     // the rows twice, once on each side of it.
     progress.clear();
-    landed(&outcome, elapsed, &runs_root);
+    landed(&outcome, elapsed);
 
     // Phases 4 and 5 both run after LANDED and may take as long as they like — decision 14
     // lets only phase 3 change the verdict, so neither a mismatch nor a geotag miss is a
@@ -854,7 +858,7 @@ fn laptop_root(plan: &preflight::Preflight) -> Result<PathBuf> {
 }
 
 /// Decision 14's verdict, announced when it happens rather than only at the end.
-fn landed(outcome: &pipeline::Outcome, elapsed: Duration, runs_root: &Path) {
+fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     let minutes = elapsed.as_secs() / 60;
     let seconds = elapsed.as_secs() % 60;
 
@@ -908,18 +912,32 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration, runs_root: &Path) {
     }
     println!();
 
+    // **These four lines are the emotional payload of the whole run**, and the operator said
+    // so plainly on 2026-08-05: *"That's the biggest warm fuzzy of the whole run. Genuine
+    // blood pressure drop at those four lines."* Decision 14 makes the verdict the last line
+    // and the answer; this is where the answer is *earned*, one destination at a time, and it
+    // is worth being legible at a glance rather than merely present.
+    //
+    // **Unlike the capacity tick in pre-flight, this badge can come out red.** That one is a
+    // receipt for a check that already refused the run; this one reports a comparison made
+    // moments ago against 3,883 files per destination, and a failure here is the difference
+    // between LANDED and NOT SAFE. So the colour carries meaning rather than reassurance,
+    // which is what `REVIEWING.md` asks of anything that looks like a verdict.
     for destination in &outcome.destinations {
+        let verdict = if destination.failed.is_empty() {
+            style(" OK ".to_string()).white().bold().on_green()
+        } else {
+            style(format!(" {} UNVERIFIED ", count(destination.failed.len())))
+                .white()
+                .bold()
+                .on_red()
+        };
         println!(
-            "  {:<8} {} written · {} skipped · {} verified   {}",
+            "  {:<8} {} written · {} skipped · {} verified   {verdict}",
             destination.label,
             count(destination.written),
             count(destination.skipped),
             count(destination.verified),
-            if destination.failed.is_empty() {
-                "OK".to_string()
-            } else {
-                format!("{} UNVERIFIED", count(destination.failed.len()))
-            }
         );
     }
 
@@ -931,8 +949,11 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration, runs_root: &Path) {
         );
     }
 
-    println!();
-    println!("  run log  {}", runs_root.join("run.jsonl").display());
+    // **No run-log path here.** It was the only line in this block that was not about the
+    // data being safe, and `CONOPS.md` says this block is what earns walking away — a file
+    // path serves nobody at that moment. Nothing is lost: the location is deterministic —
+    // `_runs` under the laptop copy, one directory per run id, sorted by timestamp — so the
+    // newest run is always the last entry.
 
     // No verdict here, deliberately. Decision 14 puts the verdict on the *last* line and
     // says its phrases appear nowhere else, so announcing one at LANDED — before
@@ -1093,10 +1114,24 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
     // about a diagnostic that cannot fail. The failing case is loud and lives in
     // `preflight.rs`: `NOT ENOUGH ROOM ON <label>`, quoting both numbers in the same units.
     let payload = offload::human::gib(cards.bytes);
+
+    // **White on green, via `console`** — which decision 29 declared for exactly this
+    // ("verdict styling, and whether this is a terminal at all") and which nothing had
+    // imported until now, making it one of the declared-but-unused crates `TRIP-HYGIENE.md`
+    // tracks by hand.
+    //
+    // `style` renders through `colors_enabled()`, so a redirected run — every run Claude
+    // drives — gets the plain characters and no escape sequences in the log. That is the same
+    // off-tty trap that nearly shipped the progress bars invisible, except here the library
+    // handles it instead of silently rendering nothing.
+    // Bold white on standard green, not bright green: bright-on-white is the *low* contrast
+    // pairing, and bold lifts the glyph rather than washing out the badge behind it.
+    let fits = style(" \u{2713} ").white().bold().on_green();
+
     for (label, place, free, note) in &dest_rows {
         println!(
             "        {label:<label_column$}{place:<place_column$}\
-             {free:>number_column$} GiB free, > {payload} GiB  \u{2713}{note}"
+             {free:>number_column$} GiB free, > {payload} GiB  {fits}{note}"
         );
     }
 
@@ -1377,11 +1412,18 @@ fn geotag_phase(
 fn report_corroboration(report: Option<&phase4::Report>) {
     println!();
     let Some(report) = report else {
-        println!("  Corrob   waived — only one card was present (--allow-single-source)");
+        println!("Corroborating");
+        println!("    waived — only one card was present (--allow-single-source)");
         return;
     };
 
-    print!("  Corrob   {} matched", count(report.matched));
+    // **The heading is reprinted here rather than surviving from the live display.**
+    // `progress.clear()` hands the terminal back before this runs, which takes the bars
+    // *and* their heading with it. The live block answers "how far along is it"; this
+    // one is the record - the same relationship the phase 3 bars have with the LANDED
+    // table.
+    println!("Corroborating");
+    print!("    {} matched", count(report.matched));
     if report.transient > 0 {
         // Not a data problem — the re-read agreed. It is a *reader* problem, and worth
         // saying so before it becomes one.
@@ -1394,7 +1436,7 @@ fn report_corroboration(report: Option<&phase4::Report>) {
 
     for (name, source, other) in &report.mismatched {
         println!(
-            "           {} — deleted everywhere, quarantined\n             source {}\n              other {}",
+            "        {} — deleted everywhere, quarantined\n             source {}\n              other {}",
             name.display(),
             &source[..16.min(source.len())],
             &other[..16.min(other.len())]
@@ -1402,7 +1444,7 @@ fn report_corroboration(report: Option<&phase4::Report>) {
     }
 
     if !report.mismatched.is_empty() {
-        println!("           quarantine  {}", report.quarantine.display());
+        println!("        quarantine  {}", report.quarantine.display());
     }
 
     if report.suspect_card() {
@@ -1417,13 +1459,15 @@ fn report_corroboration(report: Option<&phase4::Report>) {
 fn report_geotag(report: Option<&phase5::Report>) {
     let Some(report) = report else {
         println!();
-        println!("  Geotag   not run — no tracks (--no-gpx)");
+        println!("Geotagging");
+        println!("    not run — no tracks (--no-gpx)");
         return;
     };
 
     println!();
+    println!("Geotagging");
     print!(
-        "  Geotag   {} tagged · {} outside track",
+        "    {} tagged · {} outside track",
         count(report.tagged),
         count(report.outside_track)
     );
@@ -1436,10 +1480,10 @@ fn report_geotag(report: Option<&phase5::Report>) {
     // late start or a day of dropouts, and the response differs for each — so when every
     // miss sits on one side, name the boundary.
     if let Some(note) = report.boundary_note() {
-        println!("           {note}");
+        println!("        {note}");
     }
     if let Some(note) = report.gap_note() {
-        println!("           {note}");
+        println!("        {note}");
     }
 
     // Decision 23: a uniform miss pattern is a clock, not a logging gap, and saying so
@@ -1456,7 +1500,7 @@ fn report_geotag(report: Option<&phase5::Report>) {
     }
 
     println!(
-        "           {} sidecars written · {} left alone (already tagged)",
+        "    {} sidecars written · {} left alone (already tagged)",
         count(report.written),
         count(report.skipped)
     );

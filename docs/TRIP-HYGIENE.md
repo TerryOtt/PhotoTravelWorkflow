@@ -308,9 +308,10 @@ member. Nothing references them, so they never enter the dependency graph, **the
 `Cargo.lock` at all, and `cargo outdated` does not check them** — it reports on what resolved,
 and these never did.
 
-> **Currently affected: `console` and `windows-registry`.** It was three when this was found;
-> `indicatif` left the list the same afternoon when `crates/offload/src/progress.rs` was
-> written, which is the gap closing itself exactly as predicted below.
+> **Currently affected: `windows-registry` alone.** It was three when this was found, and both
+> the others left the same day — `indicatif` when `progress.rs` was written, `console` when the
+> pre-flight capacity tick became a white-on-green badge. **The gap closes itself exactly as
+> predicted below**, one crate at a time, as the features they were declared for get built.
 
 That is a direct consequence of a rule this workspace keeps on purpose: *a member's own
 manifest lists only what its code imports today, so a manifest never claims a dependency
@@ -318,20 +319,19 @@ nothing uses.* Worth keeping — but its cost is this hole, and the hole lands o
 crates the table above calls most at risk. All of them are pre-1.0, and the one that has since
 left the list — `indicatif` — is the crate that actually went stale in RawGeotag.
 
-The reason they are unused is that their features are unbuilt: `console` belongs to decision
-14's full report, `windows-registry` to decision 9's Defender check. **They become visible the
-day their code is written**, which is the good news — this is a gap that closes itself, and
-until then it has to be checked by hand.
+The reason one is still unused is that its feature is unbuilt: `windows-registry` belongs to
+decision 9's Defender check. **It becomes visible the day that code is written**, which is the
+good news — this is a gap that closes itself, and until then it has to be checked by hand.
 
 ```
-cargo search console --limit 1
 cargo search windows-registry --limit 1
 ```
 
-**`indicatif` is the worked example of that closing.** It was declared for decision 14 and
-imported by nothing until `progress.rs` was written on 2026-08-05; from that commit it is in
-`Cargo.lock`, `cargo outdated` sees it, and it drops out of this hand-checked list. When
-decision 9's Defender check and decision 14's full report land, the list empties.
+**`indicatif` and `console` are the worked examples of that closing.** Both were declared for
+decision 14 and imported by nothing until 2026-08-05 — `indicatif` when `progress.rs` was
+written, `console` a few hours later for the capacity badge. From those commits they are in
+`Cargo.lock`, `cargo outdated` sees them, and they drop out of this hand-checked list. When
+decision 9's Defender check lands, the list empties.
 
 **Compare the minor, not the whole version** — that is the same `0.x` rule one section up,
 and it is easy to get backwards when reading this output. `"0.18"` against a current 0.18.6

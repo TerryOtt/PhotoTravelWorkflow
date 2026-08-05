@@ -39,6 +39,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::io::IsTerminal;
+use std::sync::Mutex;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 
@@ -112,8 +113,15 @@ const UPDATES_PER_PASS: usize = 10;
 
 /// How the run reports progress. See the module note for why there are three of these.
 pub enum Progress {
-    /// stderr is a terminal: live bars.
-    Bars(MultiProgress),
+    /// stderr is a terminal: live bars, and every bar and heading handed out so far.
+    ///
+    /// **The second field is what makes [`Progress::clear`] work.** `MultiProgress::clear`
+    /// erases what is drawn and keeps owning the bars, so the next bar added anywhere causes a
+    /// redraw of the whole set — which on 2026-08-05 put eight finished phase 3 rows back on
+    /// screen underneath the LANDED report that had replaced them. Retiring a bar means
+    /// removing it from the multi, and that needs a handle after the worker thread has dropped
+    /// its own.
+    Bars(MultiProgress, Mutex<Vec<ProgressBar>>),
     /// stderr is redirected: throttled plain lines on stdout.
     Lines,
     /// Tests, and anything that wants nothing.
@@ -128,9 +136,10 @@ impl Progress {
     /// are ephemeral and would litter a saved log with half-drawn frames.
     pub fn detect() -> Self {
         if std::io::stderr().is_terminal() {
-            Self::Bars(MultiProgress::with_draw_target(
-                ProgressDrawTarget::stderr_with_hz(REDRAW_HZ),
-            ))
+            Self::Bars(
+                MultiProgress::with_draw_target(ProgressDrawTarget::stderr_with_hz(REDRAW_HZ)),
+                Mutex::new(Vec::new()),
+            )
         } else {
             Self::Lines
         }
@@ -168,7 +177,7 @@ impl Progress {
     #[must_use = "dropping the Section removes the heading from the screen"]
     pub fn section(&self, title: &str, indent: usize) -> Section {
         match self {
-            Self::Bars(multi) => {
+            Self::Bars(multi, drawn) => {
                 // The blank line belongs to the heading rather than to the caller. Every
                 // section wants one above it, and a rule each call site has to remember is a
                 // rule one call site will forget.
@@ -191,6 +200,10 @@ impl Progress {
                 // heading — which by definition never advances — needs this or it is invisible.
                 heading.tick();
 
+                if let Ok(mut drawn) = drawn.lock() {
+                    drawn.push(spacer.clone());
+                    drawn.push(heading.clone());
+                }
                 Section {
                     lines: vec![spacer, heading],
                 }
@@ -218,7 +231,15 @@ impl Progress {
     /// waiting on while it is happening*, which is a question that stops being asked the
     /// moment the phase ends.
     pub fn clear(&self) {
-        if let Self::Bars(multi) = self {
+        if let Self::Bars(multi, drawn) = self {
+            // **Retire, then erase.** Removing each bar from the multi is what stops the next
+            // phase's first redraw from bringing this phase's rows back; `clear` alone only
+            // wipes the screen and leaves the multi still owning them.
+            if let Ok(mut drawn) = drawn.lock() {
+                for bar in drawn.drain(..) {
+                    multi.remove(&bar);
+                }
+            }
             // A failure here means the terminal is already in a state we cannot improve.
             let _ = multi.clear();
         }
@@ -227,7 +248,7 @@ impl Progress {
     /// One labelled tracker of `len` steps.
     pub fn bar(&self, prefix: &str, len: usize, indent: usize) -> Bar {
         match self {
-            Self::Bars(multi) => {
+            Self::Bars(multi, drawn) => {
                 let bar = multi.add(ProgressBar::new(len as u64));
                 // A malformed template is a programming error in the constant above, and the
                 // honest response is a plain bar rather than aborting a run with hundreds of
@@ -257,14 +278,22 @@ impl Progress {
                                 if !(ETC_FROM_FRACTION..1.0).contains(&done) {
                                     return;
                                 }
+                                // Two columns each for minutes and seconds, right-aligned and
+                                // **not** zero-padded: `13m 48s` and ` 7m  4s` line up down the
+                                // four rows, so the eye compares magnitudes rather than reading
+                                // numbers. A leading zero would align just as well and reads as
+                                // a clock, which this is not — it is a duration.
                                 let seconds = state.eta().as_secs();
                                 let _ =
-                                    write!(out, "(ETC: {}m {:02}s)", seconds / 60, seconds % 60);
+                                    write!(out, "(ETC: {:>2}m {:>2}s)", seconds / 60, seconds % 60);
                             },
                         );
                     bar.set_style(style);
                 }
                 bar.set_prefix(prefix.to_owned());
+                if let Ok(mut drawn) = drawn.lock() {
+                    drawn.push(bar.clone());
+                }
                 Bar {
                     bar: Some(bar),
                     plain: None,

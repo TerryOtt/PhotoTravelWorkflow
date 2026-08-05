@@ -604,6 +604,7 @@ dependencies = [
  "blake3",
  "chrono",
  "clap",
+ "console",
  "geotag",
  "indicatif",
  "serde",

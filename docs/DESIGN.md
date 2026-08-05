@@ -10,6 +10,22 @@ Get back to the hotel, plug two card readers and three external SSDs into a Thun
 hub, run one command, go to dinner, and come back to four verified copies of the day's
 photos — so an SSD can go in the safe without anxiety.
 
+> **Said better by the operator, 2026-08-05, and worth keeping in his words:** *"four SSDs
+> have byte identical copies, don't need to pray your SD or CF cards stay good."*
+>
+> **That names the anxiety more precisely than the sentence above does.** The worry is not
+> about the SSD in the safe; it is that until the run finishes, the day exists **only on two
+> cards** — small, removable, repeatedly reformatted, carried around all day, and with a
+> failure mode that gives no warning. LANDED is the moment the day stops depending on them.
+>
+> Several decisions read differently once that is the stated goal rather than an implication.
+> **The tool never writes to a card** (binding constraint 2) because the cards are the only
+> copy for the whole shooting day and must not be risked by the program meant to rescue them.
+> **Both cards are read and compared** (decisions 4, 27) because a card that is quietly going
+> bad is the failure this exists to survive. **Decision 32 watches a card against its own
+> history** for the same reason. And the verify pass is unbuffered (decision 2) because
+> "copied" is not the claim being made — *byte identical, read back off the media* is.
+
 ## The two optimization metrics
 
 Standing, project-level, and in strict priority order. Nearly every engineering decision
@@ -920,6 +936,28 @@ reads ~64 MB from each, and uses the faster one as the phase 3 source.
 and is correct by construction: phase 3 always runs off the fast card regardless of which
 reader is in which port. A config override exists for the day that surprises us.
 
+> ⚠ **A dual-CFexpress body would remove the discriminator this decision runs on, and that is
+> worth knowing before it happens rather than after.** The operator, 2026-08-05, on rumours of
+> an R5 Mark III: *"that single feature would legit separate me from basically whatever Canon
+> decided to charge."* Two CFexpress cards measure within noise of each other, so *"the faster
+> card is the source"* stops picking anything — it becomes a coin toss between two equals.
+>
+> **That is a smaller problem than it looks, and the reason is decision 12.** When the cards
+> are equals, an arbitrary choice is a *correct* choice: either is a fine source, and
+> `source_volume_serial` already records which one was actually read rather than which role it
+> was assigned. The record stays honest without the tie-break being meaningful. What would need
+> checking is only that the selection is **stable within a run** and does not oscillate between
+> two near-identical timings.
+>
+> **What it would buy is most of the wall clock.** Corroboration is SD-bound and takes ~18 of
+> the ~27 minutes; off a second CFexpress it is ~3. **LANDED does not move** — phase 3 already
+> reads the fast card — so this is entirely a secondary-metric win, from ~27 minutes to ~12.
+> Per *Both metrics are thresholds*, that is a reason to want the body for other reasons and
+> enjoy the side effect, not a reason to buy one.
+>
+> A new body is a design event either way (`CONOPS.md`), and decision 34's config check would
+> report it on the first run.
+
 **A single card at offload is an equipment failure, not a mode.** The camera has two
 slots for a reason and every frame is shot to both (`CONOPS.md`, the shooting-day
 contract), so this tool is always run with two authoritative sources. If pre-flight
@@ -1367,6 +1405,23 @@ declaration (decision 12). Gating eject on bytes that provably no longer exist w
 wedge the tool for good.
 
 ### 14. The report separates "your raws are safe" from "everything went well"
+
+> **The four per-destination lines are where the answer is *earned*, and the operator named
+> them as the payload.** 2026-08-05, watching a run finish: *"That's the biggest warm fuzzy of
+> the whole run. Genuine blood pressure drop at those four lines."*
+>
+> That is worth recording because it corrects an assumption this decision could otherwise
+> invite. The verdict is the *last* line and the one that must be unambiguous — but it is a
+> summary, and a summary is believed rather than checked. **The relief comes from seeing each
+> destination account for itself**: `3,883 written · 0 skipped · 3,883 verified`, four times,
+> with a badge that could have been red and is not.
+>
+> So those lines get the visual weight: white on green when a destination verified clean, white
+> on red when it did not. **The colour is a signal rather than decoration**, which is the test
+> `REVIEWING.md` applies — this badge reports a comparison made moments earlier against every
+> file, and a failure in it is exactly the difference between LANDED and `NOT SAFE`. Contrast
+> pre-flight's capacity tick, which is a receipt for a check that already refused the run and
+> therefore can only ever be green.
 
 Phase 3 is the product and the rest is gravy, so **only phase 3 may change the verdict.**
 A geotag miss or a track that didn't cover the evening walk is a count in the body, never
@@ -2575,6 +2630,27 @@ and a reviewer should know they were made deliberately.**
   blocks on the slowest, so the intended behavior falls out of the types rather than
   being arranged. Nothing here needs `select!` or multiple consumers. A buffer pool whose
   free list has several returners is the evidence that would reopen this.
+
+  > **And the backpressure turned out to be *visible*, which nobody claimed when this was
+  > decided.** Terry, 2026-08-05, watching the progress bars: *"In verifying the ETCs pop in at
+  > markedly different times due to the drives hitting 10% at different times. Writing they're
+  > neck and neck the whole way through (due to queue backpressure I suspect?)"* — correct, and
+  > it is the clearest possible demonstration of the argument above.
+  >
+  > **Writing is in lockstep because three drives are waiting**, not because they are equally
+  > fast: one reader hands each frame to four bounded queues in turn and cannot get more than
+  > `DEPTH` frames ahead of the slowest. **Verify has no shared producer** — each destination
+  > re-reads its own files on its own thread — so the rows separate immediately, by actual
+  > hardware speed.
+  >
+  > **That makes the invariant checkable by eye.** *Lockstep means coupled; spread means
+  > independent.* A night where the **writing** rows separate would mean a destination had
+  > fallen out of the queue discipline — a failure mode nothing else in this tool watches for,
+  > and one the display would show in the first minute.
+  >
+  > A second-order effect worth knowing, since it costs nothing: **the order the verify ETCs
+  > appear in is the speed ranking**, because reaching the 10 % display threshold first means
+  > being fastest. The threshold was added purely to suppress noisy early estimates.
 
 **The rebuttals for the crates that were taken live in `Cargo.toml`, not here** — beside
 the version string each is about, where they cannot drift away from what they describe.

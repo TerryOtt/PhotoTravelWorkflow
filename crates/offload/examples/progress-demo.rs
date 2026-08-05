@@ -27,7 +27,7 @@ fn main() {
     let progress = Progress::detect();
 
     match &progress {
-        Progress::Bars(_) => eprintln!("\nstderr is a terminal — expect four live bars\n"),
+        Progress::Bars(..) => eprintln!("\nstderr is a terminal — expect four live bars\n"),
         Progress::Lines => println!("\nstderr is redirected — expect plain lines on stdout\n"),
         Progress::Silent => println!("\nsilent\n"),
     }
