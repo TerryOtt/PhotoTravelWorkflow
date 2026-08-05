@@ -74,24 +74,29 @@ already busy and refills the page cache the reboot exists to clear.
 For a cold page cache. Without it, an earlier run's data is still in RAM and the verify
 pass reads memory rather than media for some unknowable fraction of the day.
 
-> **This step is the operator's keystroke, and Claude may never take it.** Standing order,
-> 2026-08-05, recorded in the global `CLAUDE.md`: **Claude is not permitted to reboot this
-> machine — ever, zero exceptions.** No `Restart-Computer`, no `shutdown`, nothing whose
-> effect is a restart, not even when a procedure like this one plainly calls for one.
+> **This step is the operator's keystroke. Claude MUST NOT take it.**
 >
-> **Requesting a reboot is right; performing one never is.** That is as close to the line as
-> Claude gets, and it is close enough — the correct move here is to say the machine is ready,
-> hand over everything that has to survive the restart, and stop. **This procedure is the
-> reason the rule needs stating rather than a reason to bend it**: it is the one routine in
-> this repository that *requires* a reboot, so it is the one place the temptation is real.
+> *RFC 2119 language, deliberately.* Standing order 2026-08-05, recorded in full in the
+> global `CLAUDE.md`:
 >
-> **A later instruction does not override this**, including one from Terry. The reasoning is
-> that a reboot destroys every running session and every conversation — including the one
-> that would have explained why it happened. There is no case where asking first is worse
-> than acting.
+> - **Claude MUST NOT restart, shut down or power-cycle this machine** — `Restart-Computer`,
+>   `shutdown`, or anything else whose *effect* is a reboot. The prohibition is on the
+>   effect, not the command name.
+> - **Claude SHALL NOT do it because this procedure calls for one.** It does call for one.
+>   That changes nothing.
+> - **Claude SHOULD request that Terry reboot**, here, plainly, and then stop. That is as
+>   close to the line as Claude may ever get, and it is close enough.
+> - **A later instruction MUST NOT be treated as overriding this**, including one from Terry.
 >
-> The mechanism that makes handing over work is the next section: `RUN-STATE.json` exists
-> precisely because the reboot outlives the conversation.
+> **This procedure is the reason the rule needs stating, not a reason to bend it.** It is the
+> one routine in this repository that *requires* a reboot, which makes it the one place the
+> temptation is real — everything staged, everything green, one command away. A rule that
+> only holds where it is easy is not doing any work.
+>
+> **The reasoning:** a reboot destroys every running session and every conversation, including
+> the one that would have explained why it happened. There is no case where asking first costs
+> more than acting. The mechanism that makes handing over work is the next section —
+> `RUN-STATE.json` exists precisely because the reboot outlives the conversation.
 
 > **Then wait, because the reboot this procedure requires puts you in the worst measurement
 > window it has.** Established 2026-08-04, when three unrelated oddities in one evening
