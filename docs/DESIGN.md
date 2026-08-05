@@ -2984,6 +2984,24 @@ microseconds and no new dependency.
 > serial been unreachable, **`model` alone still carried the decision 23 payoff** — the part
 > that actually pays — so the feature was never blocked on this, only sharpened by it.
 
+**The lens is deliberately not checked, and the probe that reads the body serial reads the
+lens one too — so this needs saying before someone connects them.** `body-identity.rs` returns
+`LensModel` and `LensSerialNumber` alongside the body fields, and treating them the same way
+would be the obvious next step and a mistake.
+
+**Bodies and lenses have opposite operating models here** (`CONOPS.md`, the shooting-day
+contract). The fleet is *one body*, replacing it is a design event, and an unexpected one is
+worth a line in the report. **Lenses change constantly and by design** — the operator owns an
+RF 24-240 and rents specialized glass eagerly and often, an ultra-wide for Monument Valley in
+2024 being his own example. **A lens check would fire on every rental, which is to say most
+interesting trips**, and decision 34 has already rejected exit 2 for a signal that repeats.
+An INFO line that is wrong most of the time is no better: it is the warning you learn to read
+past, aimed at a fact that was never a problem.
+
+The tell that this is not a close call: **the very frame that settled the serial question
+carries `RF24-105mm F4-7.1 IS STM`, which is not a lens he owns.** A lens check would have
+produced its first false positive on the first real frame it ever saw.
+
 **One body, not a list**, per this project's preference for the flat thing until a real second
 case appears. A rental during a repair is the case that would promote it; until one happens,
 a list would be machinery for a fleet that has been size one for its entire history.
@@ -3008,6 +3026,7 @@ new evidence rather than fresh taste.
 | Blocking the run on a slow card | A slow card is still a correct card, and the guarantees are about bytes, not speed. Refusing a night's offload over a speed regression manufactures the emergency the tool exists to prevent. Decision 32 warns in the report |
 | Parquet, or any columnar format, for the throughput history | Raised by the operator and rejected on arithmetic before it was proposed. Columnar formats exist for data that will not fit in memory; this is six samples per run — two cards, four destinations — at ~30 travel days a year with two offloads a day. **360 samples a year, roughly 540 KB of JSON per decade**, and decision 33 bounds the list per device so the file stays under ~50 KB regardless. The query engine is a linear scan over a `Vec`. It would also spend the property decision 17 paid two minutes a run to keep: `history.json` opens in a text editor on any machine in 2031, where Parquet needs a specific library that may not still be around. Binary costs `git diff` and hand-repair too. Decision 33 |
 | JSON Lines for the throughput history | The global preference sends append-only logs to JSONL so a row can be added without rewriting the file — and it does not apply here, which is worth stating so the rule is not applied mechanically. Decision 33's history is *bounded* per device, so old samples are dropped and the file is rewritten atomically every run: a ring buffer, not an append log. The run log beside it *is* JSONL, because that one is genuinely append-only and has to survive a crash mid-write (decision 12) |
+| Checking the **lens** the way decision 34 checks the body | Opposite operating models: the fleet is one body and replacing it is a design event, while lenses change constantly and by design — he owns one and rents specialized glass often. A lens check fires on every rental, i.e. on most interesting trips, and an INFO line that is wrong most of the time is the warning you learn to read past. The frame that settled the serial question already carries a lens he does not own. Decision 34 |
 | Refusing a run whose frames came from an unexpected body | The frames are good photographs that still need four copies; refusing over a *process* violation leaves the night with zero backups, which is the inversion decisions 7 and 25 both reject. Decision 34 reports instead |
 | Making an unexpected body exit 2 | Decision 34's own first draft, corrected by the operator the same day. A replaced or rented body is true on *every* run until the config is edited, so exit 2 would fire nightly for a whole trip and teach the operator to read past a code that also carries unfiled frames, deleted mismatches and refused ejects. **A repeating fact is INFO however much it matters** |
 | A list of accepted camera bodies | Machinery for a fleet that has been size one for its entire history, and `CONOPS.md` records the intent to replace rather than add. Decision 34 takes the flat single body; a rental during a repair is the real second case that would promote it |

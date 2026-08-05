@@ -225,6 +225,14 @@ the deal:
   R5 was replaced with an owned one. The plan is to *replace* rather than add: a future
   Canon R body would be bought and the R5 sold, so the fleet stays at one.
 
+  **Lenses are the opposite, and the contrast is the point.** The body is one and its
+  replacement is a design event; **glass changes constantly and that is normal**. The operator
+  owns an RF 24-240 and rents specialized lenses eagerly and often — an ultra-wide for
+  Monument Valley in 2024 — so a *new lens is a no-op* as far as this tool is concerned and
+  must never be reported as anything. Nothing about the guarantees depends on which lens shot
+  a frame ([`DESIGN.md`](DESIGN.md) decision 34 records why the body is checked and the lens
+  explicitly is not).
+
   **Two card slots is a purchase criterion, not merely something to verify afterwards.**
   This is the part worth knowing before money is spent: "another Canon R body" does not
   imply compatibility. The R5 and R3 carry CFexpress + SD, the R6 line carries dual SD —
