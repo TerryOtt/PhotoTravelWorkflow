@@ -99,6 +99,13 @@ sections marked **COMPLETE** before any design.
    to be the moment the risk is over. Both are exactly what those two stages mean here. A new
    stage name **SHOULD** come from the same place rather than starting a second metaphor.
 
+   **`Eject` is the exception and MUST NOT be renamed to fit.** Terry spotted it: in aviation
+   the word belongs to a very bad day, which makes the run read *pre-flight checks, landed
+   safely, ejected* — backwards, and impossible in that order. It stays anyway, because it is
+   not borrowed from aviation at all: it is what Windows calls the tray icon and what the API
+   call is named (`CM_Request_Device_Eject`). **The operator's instrument wins over the
+   metaphor's tidiness**, the same rule that puts sizes in GiB and rates in decimal.
+
    **The two hygienes are a deliberate pair and the names should stay parallel** — same
    noun, different cadence: *trip* hygiene runs once, at home, and covers the whole rig;
    *daily* hygiene runs every session, in the field, and covers only the camera config.
