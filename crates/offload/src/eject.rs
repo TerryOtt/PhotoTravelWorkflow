@@ -81,6 +81,27 @@ const LOCK_RETRY: Duration = Duration::from_millis(500);
 /// tray icon a second time.
 const FIRST_BACKOFF: Duration = Duration::from_secs(2);
 
+/// The pause after losing the dismount-to-eject race, rather than the usual backoff.
+///
+/// **[`Veto::OutstandingOpen`] is not a device refusing; it is this tool arriving a moment
+/// late.** [`attempt`] must close its handle before asking the device to leave — the lock lives
+/// on that handle — and in the window between the two, Windows remounts the volume eagerly and
+/// anything at all may open it. Waiting seconds to try again is backwards: nothing is *busy*,
+/// a moment was *missed*, and the next moment is along directly.
+///
+/// **Measured support, 2026-08-06:** the same SanDisk released in 11 s on the 2 s backoff and
+/// took 15 m 12 s at a flat 300 s gap — 83× worse for asking less often. Whatever holds these
+/// volumes opens and closes on a short cycle, so the fast path is the one that catches it.
+const RACE_RETRY: Duration = Duration::from_millis(250);
+
+/// How many consecutive race retries before the normal backoff resumes.
+///
+/// **Bounded, because "we lost a race" and "something reopens this volume constantly" produce
+/// the same veto.** Unbounded fast retries against the second case would spin the whole budget
+/// away at four attempts a second and starve the patient path that actually works on
+/// [`Veto::Device`]. Eight is two seconds of trying hard before going back to waiting.
+const RACE_RETRIES: u32 = 8;
+
 /// The pause stops doubling here.
 ///
 /// What the backoff waits out is a scanner working through a few hundred freshly written
@@ -102,7 +123,11 @@ pub enum Outcome {
     /// Dismounted — the filesystem is flushed and detached, so the bytes are safe — but the
     /// enclosure declined to power down. Distinguished from [`Outcome::Held`] because the
     /// data is in a different state, even though both end with the operator at the tray.
-    Dismounted { reason: String },
+    ///
+    /// **`veto` says *which* refusal it was**, and the retry branches on it:
+    /// [`Veto::OutstandingOpen`] is a race this tool lost and can retry almost immediately,
+    /// where [`Veto::Device`] is a device stack that wants waiting out.
+    Dismounted { veto: Veto, reason: String },
     /// Something held the volume for the whole retry window. Still mounted, still safe,
     /// still to be ejected by hand.
     Held { reason: String },
@@ -150,7 +175,10 @@ pub fn dismount_only(volume: &Volume) -> Result<Outcome> {
     }
 
     match control(handle, FSCTL_DISMOUNT_VOLUME) {
+        // `Veto::Other` because nothing vetoed: no eject was asked for. The field describes a
+        // refusal, and there was none to describe.
         Ok(()) => Ok(Outcome::Dismounted {
+            veto: Veto::Other,
             reason: "dismounted only — no device eject was attempted".into(),
         }),
         Err(error) => Ok(Outcome::Held {
@@ -262,7 +290,7 @@ fn open_for_control(path: &str) -> Result<std::fs::File> {
 /// *cards are never powered down*, not as the general rule, because the device it reaches is
 /// the reader.
 pub fn power_down_disk(disk_number: u32) -> Result<()> {
-    power_down(disk_number)
+    power_down(disk_number).map_err(|refusal| anyhow!("{}", refusal.detail))
 }
 
 /// How one device's eject ended, and what it cost to get there.
@@ -369,15 +397,19 @@ pub fn eject(
     let started = Instant::now();
     let mut backoff = cadence.first();
     let mut attempts = 0;
+    let mut races = 0;
 
     loop {
         attempts += 1;
         let outcome = attempt(volume, device)?;
 
+        let (pause, still_racing) = pause_after(&outcome, races, backoff);
+        races = still_racing;
+
         // Tested after the attempt rather than before, so the deadline bounds how long this
-        // keeps *trying* rather than whether it tries at all. Adding `backoff` is what stops
+        // keeps *trying* rather than whether it tries at all. Adding the pause is what stops
         // it sleeping past the deadline only to give up on waking.
-        let last = outcome.is_ejected() || Instant::now() + backoff >= deadline;
+        let last = outcome.is_ejected() || Instant::now() + pause >= deadline;
 
         // Reported before the return, so the final attempt gets a line like every other one.
         // A watcher that fell silent exactly when the fight ended would be the least useful
@@ -386,7 +418,7 @@ pub fn eject(
             number: attempts,
             outcome: &outcome,
             elapsed: started.elapsed(),
-            retry_in: (!last).then_some(backoff),
+            retry_in: (!last).then_some(pause),
         });
 
         if last {
@@ -397,8 +429,44 @@ pub fn eject(
             });
         }
 
-        std::thread::sleep(backoff);
-        backoff = cadence.next(backoff);
+        std::thread::sleep(pause);
+
+        // **The backoff only advances when it was actually used**, which `races == 0` is exactly
+        // the test for. A burst of race retries must not push the patient path out to a minute,
+        // or losing eight races early would leave a genuinely busy device asked once a minute
+        // from then on.
+        if races == 0 {
+            backoff = cadence.next(backoff);
+        }
+    }
+}
+
+/// How long to wait after `outcome`, and the consecutive-race count to carry forward.
+///
+/// **Extracted from the loop so the bound can be tested**, which the loop itself cannot be
+/// without real hardware — every path through [`attempt`] needs a live volume and an enclosure
+/// willing to refuse. An untested spin guard is the shape `docs/REVIEWING.md` calls a check
+/// that cannot fail.
+///
+/// **The counter resets after any patient wait, and that is deliberate rather than incidental.**
+/// A device that keeps losing the race gets a fresh burst each cycle — a burst is two seconds,
+/// attempts are cheap, and 2026-08-06 measured that asking *more* often is what wins. What the
+/// bound prevents is the pathological case: something reopening the volume continuously, which
+/// would otherwise spin at four attempts a second for the whole budget and never once let the
+/// patient path run.
+fn pause_after(outcome: &Outcome, races: u32, backoff: Duration) -> (Duration, u32) {
+    let lost_race = matches!(
+        outcome,
+        Outcome::Dismounted {
+            veto: Veto::OutstandingOpen,
+            ..
+        }
+    );
+
+    if lost_race && races < RACE_RETRIES {
+        (RACE_RETRY, races + 1)
+    } else {
+        (backoff, 0)
     }
 }
 
@@ -434,8 +502,9 @@ pub fn attempt(volume: &Volume, device: &Device) -> Result<Outcome> {
 
     match power_down(device.disk_number) {
         Ok(()) => Ok(Outcome::Ejected),
-        Err(error) => Ok(Outcome::Dismounted {
-            reason: format!("{error:#}"),
+        Err(refusal) => Ok(Outcome::Dismounted {
+            veto: refusal.veto,
+            reason: refusal.detail,
         }),
     }
 }
@@ -481,16 +550,22 @@ fn control(handle: HANDLE, code: u32) -> Result<()> {
 /// device; the thing that can be powered down is its parent, the USB or Thunderbolt
 /// enclosure. So this walks up from the disk and asks the parent to leave, which is what
 /// "safely remove hardware" does.
-fn power_down(disk_number: u32) -> Result<()> {
-    let disk = devnode_for_disk(disk_number)?;
+fn power_down(disk_number: u32) -> std::result::Result<(), Refusal> {
+    let disk = devnode_for_disk(disk_number).map_err(|error| Refusal {
+        veto: Veto::Other,
+        detail: format!("{error:#}"),
+    })?;
 
     let mut parent = 0u32;
     // SAFETY: `disk` is a devnode this process just located; `parent` is written on success.
     let status = unsafe { CM_Get_Parent(&mut parent, disk, 0) };
     if status != CR_SUCCESS {
-        return Err(anyhow!(
-            "could not find the enclosure behind disk {disk_number} (CM_Get_Parent: {status:?})"
-        ));
+        return Err(Refusal {
+            veto: Veto::Other,
+            detail: format!(
+                "could not find the enclosure behind disk {disk_number} (CM_Get_Parent: {status:?})"
+            ),
+        });
     }
 
     // Windows fills this in with *what* vetoed the eject, which is far more useful to an
@@ -508,14 +583,56 @@ fn power_down(disk_number: u32) -> Result<()> {
 
     let name = String::from_utf16_lossy(&veto_name);
     let name = name.trim_end_matches('\0');
-    Err(anyhow!(
-        "Windows declined to power the device down ({status:?}, {veto_type:?}{})",
-        if name.is_empty() {
-            String::new()
-        } else {
-            format!(", held by {name}")
+    Err(Refusal {
+        veto: Veto::from(veto_type),
+        detail: format!(
+            "Windows declined to power the device down ({status:?}, {veto_type:?}{})",
+            if name.is_empty() {
+                String::new()
+            } else {
+                format!(", held by {name}")
+            }
+        ),
+    })
+}
+
+/// Why Windows refused, **as a value rather than as prose**.
+///
+/// **The retry has to branch on this, and until 2026-08-06 it could not.** The veto type was
+/// formatted straight into a message and discarded, so every refusal looked alike to the code
+/// that had to decide what to do next — and the two that matter want opposite responses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Veto {
+    /// `PNP_VetoOutstandingOpen` (5) — a handle was open on the volume.
+    ///
+    /// **This one is ours.** The lock lives on the handle, so [`attempt`] must close the handle
+    /// before asking the device to leave — and in that window the volume is unlocked, mounted
+    /// again by an eager Windows, and anything at all can open it. Losing that race is not a
+    /// device refusing; it is us arriving a moment late.
+    OutstandingOpen,
+    /// `PNP_VetoDevice` (6) — a device in the stack refused. Cause unknown as of 2026-08-06.
+    Device,
+    /// Any other veto type, or none reported.
+    Other,
+}
+
+impl From<PNP_VETO_TYPE> for Veto {
+    fn from(raw: PNP_VETO_TYPE) -> Self {
+        // The numbers are from `cfgmgr32.h`'s `PNP_VETO_TYPE`, matched by value because the
+        // `windows` crate exposes the enum as a newtype rather than as named variants.
+        match raw.0 {
+            5 => Veto::OutstandingOpen,
+            6 => Veto::Device,
+            _ => Veto::Other,
         }
-    ))
+    }
+}
+
+/// A refused power-down, carrying both the machine-readable reason and the operator-facing one.
+#[derive(Debug)]
+struct Refusal {
+    veto: Veto,
+    detail: String,
 }
 
 /// The device node for a physical disk number.
@@ -662,4 +779,120 @@ fn disk_number_of(path: &Path) -> Result<u32> {
     }?;
 
     Ok(number.DeviceNumber)
+}
+
+/// The retry's branching, which is the only part of this module that can be tested without
+/// hardware — every other path needs a live volume and an enclosure willing to refuse.
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const BACKOFF: Duration = Duration::from_secs(32);
+
+    fn raced() -> Outcome {
+        Outcome::Dismounted {
+            veto: Veto::OutstandingOpen,
+            reason: "PNP_VETO_TYPE(5)".to_owned(),
+        }
+    }
+
+    fn refused() -> Outcome {
+        Outcome::Dismounted {
+            veto: Veto::Device,
+            reason: "PNP_VETO_TYPE(6)".to_owned(),
+        }
+    }
+
+    /// **The distinction the whole change rests on.** Before 2026-08-06 both of these were
+    /// `Dismounted` with a prose reason, so the retry could not tell them apart and waited the
+    /// same seconds for each — including for a race where nothing was busy at all.
+    #[test]
+    fn a_lost_race_retries_fast_and_a_refusing_device_waits() {
+        assert_eq!(pause_after(&raced(), 0, BACKOFF), (RACE_RETRY, 1));
+        assert_eq!(pause_after(&refused(), 0, BACKOFF), (BACKOFF, 0));
+    }
+
+    /// A veto with no type, and the success case, must both take the patient path rather than
+    /// falling into the fast one by accident.
+    #[test]
+    fn only_an_outstanding_open_takes_the_fast_path() {
+        let other = Outcome::Dismounted {
+            veto: Veto::Other,
+            reason: "no type reported".to_owned(),
+        };
+        let held = Outcome::Held {
+            reason: "never got the lock".to_owned(),
+        };
+
+        assert_eq!(pause_after(&other, 0, BACKOFF), (BACKOFF, 0));
+        assert_eq!(pause_after(&held, 0, BACKOFF), (BACKOFF, 0));
+        assert_eq!(pause_after(&Outcome::Ejected, 0, BACKOFF), (BACKOFF, 0));
+    }
+
+    /// **The spin guard, which is the reason this function was extracted.** Something reopening
+    /// the volume continuously produces an unbroken run of type 5, and without a bound that
+    /// would retry four times a second for the whole 90-minute budget — never once letting the
+    /// patient path run against a device that might simply need waiting out.
+    #[test]
+    fn a_burst_of_lost_races_is_bounded_and_then_falls_back_to_waiting() {
+        let mut races = 0;
+        let mut run = 0;
+        let mut longest = 0;
+        let mut waits = 0;
+
+        // An unbroken stream of type 5 — the pathological case, where something reopens the
+        // volume on every single attempt rather than once by accident.
+        for _ in 0..RACE_RETRIES * 3 {
+            let (pause, next) = pause_after(&raced(), races, BACKOFF);
+            races = next;
+            if pause == RACE_RETRY {
+                run += 1;
+                longest = longest.max(run);
+            } else {
+                run = 0;
+                waits += 1;
+            }
+        }
+
+        assert_eq!(
+            longest, RACE_RETRIES,
+            "a burst must cap at RACE_RETRIES consecutive fast retries"
+        );
+        assert!(
+            waits >= 2,
+            "an unbroken run of lost races must keep yielding to the patient path, got {waits}"
+        );
+    }
+
+    /// **The counter resets after a patient wait, so bursts recur** — deliberate, since a burst
+    /// costs two seconds and asking more often is what was measured to win. Asserted because it
+    /// reads like an oversight and is not.
+    #[test]
+    fn the_burst_counter_resets_after_a_patient_wait() {
+        let (_, after_burst) = pause_after(&raced(), RACE_RETRIES, BACKOFF);
+        assert_eq!(
+            after_burst, 0,
+            "the bound must reset the counter, not freeze it"
+        );
+
+        let (pause, races) = pause_after(&raced(), after_burst, BACKOFF);
+        assert_eq!(
+            (pause, races),
+            (RACE_RETRY, 1),
+            "a fresh burst must be able to start"
+        );
+    }
+
+    /// The backoff is only advanced when it was the pause actually used, and `races == 0` is
+    /// the loop's test for that. If this drifted, a burst would push the patient path straight
+    /// to its ceiling.
+    #[test]
+    fn a_fast_retry_does_not_advance_the_backoff() {
+        let (pause, races) = pause_after(&raced(), 0, BACKOFF);
+        assert_eq!(pause, RACE_RETRY);
+        assert_ne!(
+            races, 0,
+            "a fast retry must leave races non-zero so the backoff is held"
+        );
+    }
 }

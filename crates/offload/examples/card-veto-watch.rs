@@ -127,7 +127,9 @@ fn main() -> ExitCode {
 
             let line = match &outcome {
                 Ok(eject::Outcome::Ejected) => "RELEASED".to_owned(),
-                Ok(eject::Outcome::Dismounted { reason }) => format!("dismounted — {reason}"),
+                Ok(eject::Outcome::Dismounted { veto, reason }) => {
+                    format!("dismounted [{veto:?}] — {reason}")
+                }
                 Ok(eject::Outcome::Held { reason }) => format!("held — {reason}"),
                 Err(error) => format!("ERROR — {error:#}"),
             };

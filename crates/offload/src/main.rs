@@ -695,7 +695,7 @@ fn watch_attempt(label: &str) -> impl FnMut(eject::Attempt<'_>) + '_ {
     move |attempt| {
         let (word, reason) = match attempt.outcome {
             eject::Outcome::Ejected => ("RELEASED", None),
-            eject::Outcome::Dismounted { reason } => ("dismounted", Some(reason)),
+            eject::Outcome::Dismounted { reason, .. } => ("dismounted", Some(reason)),
             eject::Outcome::Held { reason } => ("held", Some(reason)),
         };
 
@@ -878,7 +878,7 @@ fn report_ssd_release(
             }
             // Worth its own wording: the bytes are flushed and detached either way, and an
             // operator who reads "failed" for this would worry about the wrong thing.
-            eject::Outcome::Dismounted { reason } => writeln!(
+            eject::Outcome::Dismounted { reason, .. } => writeln!(
                 out,
                 "        {:<10} dismounted, not powered down — safe to unplug{effort}\n            {reason}",
                 r.label
@@ -975,7 +975,7 @@ fn report_card_release(
             // Neither remaining branch is phrased as a failure. The tool never wrote to a card,
             // so it was safe to pull before any of this ran; what was lost is tidiness, and an
             // operator reading "failed" here would worry about data that was never at risk.
-            eject::Outcome::Dismounted { reason } => writeln!(
+            eject::Outcome::Dismounted { reason, .. } => writeln!(
                 out,
                 "        {label:<10} dismounted, still listed — safe to pull anyway{asked}\n            {reason}",
             )?,
@@ -1958,6 +1958,7 @@ mod tests {
                 released(
                     "WD",
                     eject::Outcome::Dismounted {
+                        veto: eject::Veto::Device,
                         reason: "the enclosure declined to power down".to_owned(),
                     },
                     3,
