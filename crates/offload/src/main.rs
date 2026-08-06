@@ -740,7 +740,7 @@ fn watch_attempt(label: &str) -> impl FnMut(eject::Attempt<'_>) + '_ {
             None => format!("after {}", duration_aligned(attempt.elapsed)),
         };
 
-        println!(
+        let mut line = format!(
             "    {}  {label:<10} #{:<3} {word:<10} {next}",
             Utc::now().format("%H:%M:%SZ"),
             attempt.number
@@ -753,9 +753,21 @@ fn watch_attempt(label: &str) -> impl FnMut(eject::Attempt<'_>) + '_ {
         if let Some(reason) = reason
             && said.as_deref() != Some(reason.as_str())
         {
-            println!("                   {reason}");
+            line.push_str("\n                   ");
+            line.push_str(reason);
             said = Some(reason.clone());
         }
+
+        // **One `println!`, because up to five of these run concurrently.** The attempt line and
+        // its reason were two separate calls until 2026-08-06. `println!` locks stdout so a
+        // single line cannot tear, but nothing held the lock *across* the pair — so another
+        // device's attempt could land between a line and the reason belonging to it, printing
+        // a veto under the wrong device.
+        //
+        // **It had not bitten, and that was luck rather than safety.** Two devices produced
+        // reason lines in the same second on the 415 GB day and happened to interleave
+        // correctly; the window only widened when the cards became concurrent as well.
+        println!("{line}");
     }
 }
 
