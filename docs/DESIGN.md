@@ -2191,6 +2191,29 @@ since refusing to try at all would turn a slow night into a manual one for no ga
 > Widening the budget past an hour is not the answer, since the hour is the actual
 > constraint; **if this ever bites, the lever is starting eject earlier for destinations
 > nothing is waiting on, not waiting longer.**
+>
+> **Re-derived 2026-08-06 against the current baseline, because that table predates the
+> interleaved verify and the conclusion moved.** Scaled from the 2026-08-05 run — LANDED
+> 10 m 55 s, whole run 27 m 06 s, so ~15.5 min of corroboration — by the real ratio
+> 415.1 / 201.3 = 2.06×:
+>
+> | 415 GB day | corroborating on the **222 MB/s** card | on the **246 MB/s** card |
+> |---|---|---|
+> | LANDED | ~22 m 30 s | ~22 m 30 s |
+> | Corroboration | ~32 min | **~29 min** |
+> | Total before eject | ~55 min | **~52 min** |
+> | **Retry window left** | **~5 min** | **~8 min** |
+>
+> **Two things this changes.** The interleave bought LANDED back — 22 m rather than 30 — but
+> it bought eject *nothing*, because corroboration grew to fill it: the SD read is now most of
+> the run. And **which SD card corroborates is a lever on the eject budget**, worth 3 minutes
+> of retry at the 415 GB extreme. That is not a reason to choose a card, but it is a reason to
+> know the fastest one is doing that job on the biggest nights.
+>
+> **All six numbers here are arithmetic, not measurement.** No run at this size has happened.
+> They are recorded so the prediction is on the record *before* the run rather than fitted to
+> it afterwards — this project has a standing problem with plausible stories arriving after
+> the fact.
 
 **The devices are ejected concurrently**, which is not about speed — nothing waits on eject.
 It is because they share one deadline: done in sequence, a drive that retried to the end of
