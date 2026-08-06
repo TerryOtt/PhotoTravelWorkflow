@@ -40,8 +40,28 @@ refusing when the run ended.
 | 1 | A | 5s · 1 | 7s · 1 | 13s · 2 | **NEVER · 23** | 2s · 2 | **19m 20s** | the run that started this; ended by a tray eject |
 | — | `never` | 7s · 1 | 14s · 1 | 16s · 2 | 9s · 1 | 9s · 1 | 16s | reference only, no flush |
 | 2 | B | 3s · 1 | **29s · 5** | 5s · 1 | 6s · 1 | 3s · 2 | 29s | first B run; WD fought for the first time ever |
+| 3 | A | 5s · 1 | 16s · 3 | 2s · 1 | **HUNG · 8+** | 0s · 1 | stopped | stopped by hand at 8 attempts rather than wait out the 90-minute budget |
 
-**Running totals — A: 1 run, 1 hang. B: 1 run, 0 hangs.**
+**Running totals — A: 2 runs, 2 hangs. B: 1 run, 0 hangs.**
+
+> **The base rate is real, and that is the point of run 3.** Before it, the 23-attempt event
+> was a single occurrence and there was a live possibility that it was a fluke and nothing
+> needed fixing. **Two for two at `every-attempt` retires that.** The phenomenon reproduces.
+>
+> **A run MAY be stopped by hand once its outcome is established.** Riding a hang to the full
+> budget upgrades *"never released in 3 minutes"* to *"never released in 90 minutes"*, which is
+> marginal information for 87 minutes of an evening. Record that it was stopped and at which
+> attempt, so the row is not mistaken for a device that recovered.
+
+### The type 6 → type 5 → released descent has now been seen three times
+
+WD in runs 2 and 3, and once earlier. **Every device that has descended to
+`PNP_VetoOutstandingOpen` has then released.** The devices that hang — Primary, twice — stay on
+`PNP_VetoDevice` and never descend.
+
+**That is the sharpest predictor found so far**, and it suggests the two veto types are not two
+symptoms of one problem: type 5 is a transient this tool can out-wait, and type 6 on a card may
+be something else entirely.
 
 ## What each outcome would mean
 
