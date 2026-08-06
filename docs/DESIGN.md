@@ -3687,9 +3687,51 @@ attempt logs `Begin attempting to eject` → `End attempting`, status `0x8000002
 
 **What it points at.** A *file system* driver vetoing means what is being protected is
 filesystem state rather than device state, which puts this back inside what a run does to that
-volume — reachable, unlike the storage stack. **The next capture to take is of the attempt that
-finally succeeds**; the difference between a refused query-remove and an accepted one is the
-whole remaining question.
+volume — reachable, unlike the storage stack.
+
+#### The accepted query-remove is mechanically IDENTICAL to the refusals
+
+**Captured the same evening.** The operator tray-ejected the CFexpress after 23 consecutive
+tool refusals, with a trace running:
+
+```text
+VETOED (tool, 13:56:15)              ACCEPTED (tray, 13:56:56)
+.142  CfgMgr_QueryRemove Start       .354  CfgMgr_QueryRemove Start
+.142  DeviceEject Begin              .354  DeviceEject Begin
+.142  DeviceRemoval 47 0x0 true 0x2  .354  DeviceRemoval 47 0x0 true 0x2
+.142  Begin removal of PCI\VEN_27D1  .354  Begin removal of PCI\VEN_27D1
+.326  VETO 6 \FileSystem\exfat              ← 184 ms
+.328  End removal                  57.629  End removal            ← 1,275 ms
+.329  DeviceEject End 0x80000028   57.629  Removal of STORAGE\Volume\{3d2ab0c2}
+                                   57.629  DeviceEject End Status: 0x0
+```
+
+**Same device, same events, same order, same flags.** The tray used no different call and no
+privileged one. **The only difference is that exFAT consented** — which restores this
+decision's earlier conclusion that the tray is not special, after a same-day reversal that
+rested on a coincidence rather than on evidence.
+
+#### ⇒ The open hypothesis: this tool's lock-and-dismount may be counterproductive
+
+**Kernel-PnP only sees from `CM_Request_Device_Eject` onward**, so everything either program
+did *before* that call is invisible — and this tool does two things the tray almost certainly
+does not, then asks.
+
+**The timings fit that reading.** A refusal takes **184 ms**, because exFAT has nothing to do:
+the volume was already dismounted. The success takes **1,275 ms**, which is exFAT performing
+the flush and detach *itself*, as part of consenting — and only the successful path reaches the
+step that removes `STORAGE\Volume\{...}` as its own device node.
+
+**So the sequence may be defeating itself**: dismount, close the handle, watch Windows remount
+the volume eagerly, then ask PnP to remove a volume that mounted milliseconds ago.
+
+**`eject::power_down_disk` is already the bare call**, with no lock and no dismount, so the
+test is small. **If it succeeds where the full sequence fails, steps 1 and 2 are the defect.**
+
+> **This would overturn a claim at the top of `eject.rs`:** *"Three steps, in this order, and
+> none of them is optional."* **That has never been tested** — it is reasoning, written before
+> any of this was measured, and it is exactly the kind of asserted mechanism this project has
+> spent a day disproving.
 
 #### Two things worth carrying
 
