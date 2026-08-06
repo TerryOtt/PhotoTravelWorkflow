@@ -111,6 +111,20 @@ struct Offload {
     /// Leave the archive SSDs mounted when the run ends.
     #[arg(long)]
     no_eject: bool,
+
+    /// Ask this often during eject, instead of the 2s-doubling-to-60s backoff.
+    //
+    // Diagnostic, and it exists for one question: attempts and elapsed time are inseparable in
+    // normal operation, because the retry loop increments one by spending the other. So no
+    // ordinary run can say whether a long hold NEEDS many attempts or is CAUSED by them — and
+    // there is a mechanism for the second, since every attempt dismounts and closes, and
+    // Windows remounts eagerly. See `eject::Cadence` and DESIGN.md decision 22.
+    //
+    // Visible rather than hidden on purpose: this is a one-operator tool, and a knob that
+    // changes eject behavior should be findable in `--help` rather than known only to whoever
+    // added it. A nightly run should never set it.
+    #[arg(long, value_name = "SECONDS")]
+    eject_gap_seconds: Option<u64>,
 }
 
 /// Logical CPUs, per decision 15. Falls back to 1 on the platforms that cannot answer;
@@ -544,7 +558,7 @@ fn eject_phase(
     let released = std::thread::scope(|scope| {
         let running: Vec<_> = targets
             .iter()
-            .map(|resolved| scope.spawn(move || release(resolved, deadline)))
+            .map(|resolved| scope.spawn(move || release(resolved, deadline, cadence(args))))
             .collect();
 
         running
@@ -557,7 +571,11 @@ fn eject_phase(
 }
 
 /// Eject one resolved destination, turning both failure paths into a reportable outcome.
-fn release(resolved: &destinations::Resolved, deadline: Instant) -> Released {
+fn release(
+    resolved: &destinations::Resolved,
+    deadline: Instant,
+    cadence: eject::Cadence,
+) -> Released {
     // A destination resolved by serial always has a device; if it somehow does not, that is
     // a refusal to report rather than a reason to fail the run.
     let effort = match resolved.device.as_ref() {
@@ -565,6 +583,7 @@ fn release(resolved: &destinations::Resolved, deadline: Instant) -> Released {
             &resolved.volume,
             device,
             deadline,
+            cadence,
             watch_attempt(&resolved.label),
         )
         .unwrap_or_else(|error| eject::Effort {
@@ -641,6 +660,15 @@ fn verdict(
         println!("►  EJECTED — SAFE TO STORE. {claim}.");
     } else {
         println!("►  SAFE TO STORE — {}. {claim}.", actions.join(" AND "));
+    }
+}
+
+/// The retry cadence this run was asked for — the default backoff unless `--eject-gap-seconds`
+/// overrode it.
+fn cadence(args: &Offload) -> eject::Cadence {
+    match args.eject_gap_seconds {
+        Some(seconds) => eject::Cadence::Every(Duration::from_secs(seconds)),
+        None => eject::Cadence::Backoff,
     }
 }
 
@@ -742,14 +770,20 @@ fn release_cards(
             // or one lucky late one. Every run now contributes that data point for free, which
             // is the only way a sample larger than one is ever going to exist.
             let effort = match storage::device_of(&card.volume) {
-                Ok(device) => eject::eject(&card.volume, &device, deadline, watch_attempt(role))
-                    .unwrap_or_else(|error| eject::Effort {
-                        outcome: eject::Outcome::Held {
-                            reason: format!("{error:#}"),
-                        },
-                        attempts: 1,
-                        waited: Duration::ZERO,
-                    }),
+                Ok(device) => eject::eject(
+                    &card.volume,
+                    &device,
+                    deadline,
+                    cadence(args),
+                    watch_attempt(role),
+                )
+                .unwrap_or_else(|error| eject::Effort {
+                    outcome: eject::Outcome::Held {
+                        reason: format!("{error:#}"),
+                    },
+                    attempts: 1,
+                    waited: Duration::ZERO,
+                }),
                 // Zero attempts, because none was possible — see `Effort::attempts`.
                 Err(error) => eject::Effort {
                     outcome: eject::Outcome::Held {

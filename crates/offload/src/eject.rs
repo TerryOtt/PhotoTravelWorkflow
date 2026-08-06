@@ -317,15 +317,57 @@ pub struct Attempt<'a> {
     pub retry_in: Option<Duration>,
 }
 
+/// How long to wait between whole-sequence attempts.
+///
+/// **This exists to ask a question the retry loop otherwise makes unaskable.** Attempts and
+/// elapsed time are welded together by that loop — it increments one *by* spending the other —
+/// so no production run can separate *a long hold needs many attempts* from **many attempts
+/// cause the long hold**. Terry raised the second possibility on 2026-08-06 and it has a
+/// documented mechanism sitting in this very module: every attempt dismounts the volume and
+/// must close its handle, Windows remounts eagerly, and the next attempt then puts its question
+/// to a volume that has just come back online — which is exactly when a scanner takes interest.
+///
+/// **Two runs over the same corpus at different cadences separate them.** If asking is neutral,
+/// both take about the same wall clock and the patient one merely has coarser resolution. If
+/// asking is harmful, the patient one releases *sooner* while asking a fraction as often, and
+/// nothing else produces that signature.
+#[derive(Debug, Clone, Copy)]
+pub enum Cadence {
+    /// [`FIRST_BACKOFF`] doubling to [`MAX_BACKOFF`]. The default, and what every recorded run
+    /// so far used — so it is the baseline any comparison has to be made against.
+    Backoff,
+    /// A fixed pause between attempts. Diagnostic; see the type note.
+    Every(Duration),
+}
+
+impl Cadence {
+    /// The first pause, before any doubling.
+    fn first(self) -> Duration {
+        match self {
+            Cadence::Backoff => FIRST_BACKOFF,
+            Cadence::Every(gap) => gap,
+        }
+    }
+
+    /// The pause after `previous`.
+    fn next(self, previous: Duration) -> Duration {
+        match self {
+            Cadence::Backoff => (previous * 2).min(MAX_BACKOFF),
+            Cadence::Every(gap) => gap,
+        }
+    }
+}
+
 /// `watch` sees every attempt as it resolves — see [`Attempt`]. Pass `|_| {}` to ignore them.
 pub fn eject(
     volume: &Volume,
     device: &Device,
     deadline: Instant,
+    cadence: Cadence,
     mut watch: impl FnMut(Attempt<'_>),
 ) -> Result<Effort> {
     let started = Instant::now();
-    let mut backoff = FIRST_BACKOFF;
+    let mut backoff = cadence.first();
     let mut attempts = 0;
 
     loop {
@@ -356,7 +398,7 @@ pub fn eject(
         }
 
         std::thread::sleep(backoff);
-        backoff = (backoff * 2).min(MAX_BACKOFF);
+        backoff = cadence.next(backoff);
     }
 }
 

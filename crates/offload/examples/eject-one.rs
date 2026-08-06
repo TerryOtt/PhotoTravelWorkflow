@@ -106,7 +106,13 @@ fn main() -> ExitCode {
         );
     };
 
-    match eject::eject(&resolved.volume, device, deadline, watch) {
+    match eject::eject(
+        &resolved.volume,
+        device,
+        deadline,
+        eject::Cadence::Backoff,
+        watch,
+    ) {
         Ok(effort) => {
             println!(
                 "\n  {:#?}\n  {} attempt(s) over {:.1}s",
