@@ -114,10 +114,20 @@ struct Offload {
 
     /// When to lock and dismount before asking PnP to remove a device.
     //
-    // Diagnostic while the three are being compared. See `eject::Prepare` for what each means
-    // and what it costs. `first-attempt-only` is the candidate: it keeps the flush guarantee
-    // and stops re-disturbing a volume that has to settle before Windows will let it go.
-    #[arg(long, value_enum, default_value_t = PrepareArg::EveryAttempt)]
+    // **`first-attempt-only` is the default from 2026-08-06**, on Terry's call: *"apply the fix
+    // to --eject-prepare by flipping the default to what makes the world happy."*
+    //
+    // It locks and dismounts once — so decision 2's flush guarantee is unchanged — then asks
+    // bare on every retry. `every-attempt` re-dismounted before each ask, so it never once
+    // enquired about a *settled* volume, and exFAT answers a freshly remounted one with
+    // `PNP_VETO_TYPE(6)`, which never yields. That produced 23 consecutive unwinnable refusals
+    // over 19 minutes, twice out of two runs.
+    //
+    // **The flag stays because the comparison is not finished** — `EJECT-SERIES.md` wants
+    // alternating A/B runs, and `first-attempt-only` has one clean run behind it, not a series.
+    // Flipping the default means an ordinary run now gets the candidate rather than the mode
+    // known to hang; it does not mean the question is closed.
+    #[arg(long, value_enum, default_value_t = PrepareArg::FirstAttemptOnly)]
     eject_prepare: PrepareArg,
 
     /// Ask this often during eject, instead of the 2s-doubling-to-60s backoff.

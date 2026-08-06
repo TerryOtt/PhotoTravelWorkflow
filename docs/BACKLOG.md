@@ -32,12 +32,20 @@ is the scope of the product; this is what is in flight right now and what state 
 **Each item carries its CLI status in its heading**, so a drift between the two is visible rather
 than inferred. `OPEN` / `IN PROGRESS` / closed-and-moved-below.
 
-## 1. Eject vetoes — OPEN — cause found, fix built, not yet proven
+## 1. Eject vetoes — OPEN — fix is now the default, evidence still thin
 
-> **Not closed, and here is the checkable reason.** `--eject-prepare` still defaults to
-> `EveryAttempt` (`main.rs`, the `#[arg]` on `eject_prepare`) — **the behavior that hung twice out
-> of two runs.** `FirstAttemptOnly` is built and tested but must be passed by hand, so no ordinary
-> run has changed. Closing this means flipping the default *and* having runs behind it.
+> **The default moved on 2026-08-06**, on Terry's call: *"apply the fix to --eject-prepare by
+> flipping the default to what makes the world happy."* An ordinary run now gets
+> `first-attempt-only` rather than the mode known to hang.
+>
+> **That closes the shipping gap, not the question.** `first-attempt-only` has **one** clean run
+> behind it, against a phenomenon that fired **twice out of two**. The flag stays so `A` is still
+> reachable, and [`EJECT-SERIES.md`](EJECT-SERIES.md) still wants the alternating series.
+>
+> **Flipping it was still right on the evidence available**, and the asymmetry is the argument:
+> `every-attempt` is *known* to hang unwinnably, `first-attempt-only` is *unproven*. Defaulting to
+> the mode with two recorded failures because the alternative has only one success would be
+> preferring the devil we have measured.
 
 **Status: the most advanced and the least finished.** Full account in
 [`DESIGN.md`](DESIGN.md) decision 22; the run tally is in [`EJECT-SERIES.md`](EJECT-SERIES.md).
@@ -45,8 +53,8 @@ than inferred. `OPEN` / `IN PROGRESS` / closed-and-moved-below.
 - **Cause** — the retry re-dismounted before *every* attempt, so it never asked about a settled
   volume. exFAT refuses a freshly remounted one with `PNP_VETO_TYPE(6)`, which never yields.
 - **Base rate** — established. **2 hangs from 2 runs** at `every-attempt`.
-- **Fix** — `Prepare::FirstAttemptOnly`, built and pushed. Flushes once, then stops disturbing
-  the volume.
+- **Fix** — `Prepare::FirstAttemptOnly`, **the default since 2026-08-06.** Flushes once, then
+  stops disturbing the volume.
 - **Missing** — repeat runs. **One B run, zero hangs**, against a phenomenon that fires
   reliably. **The default MUST NOT move on that.**
 
