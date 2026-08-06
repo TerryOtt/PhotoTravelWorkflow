@@ -296,7 +296,22 @@ forever. The exposure concentrates in the pre-1.0 crates, which as of decision 2
 | `windows` | 0.62 | the storage-identity layer, eject and unbuffered I/O — all of it |
 | `windows-registry` | 0.6 | the Defender check only, which already warns rather than fails |
 | `indicatif` | 0.18 | the progress bars. Cosmetic, and the one that actually went stale in RawGeotag |
-| `console` | 0.16 | the verdict's styling. Cosmetic |
+| `console` | 0.16 | **the badge column and the verdict's headline — a safety signal, not cosmetic.** See below |
+
+> **`console` stopped being cosmetic on 2026-08-06 and this table said otherwise until it was
+> re-read.** It now renders the badge column that Terry reads as a **go/no-go on unplugging
+> drives** — all green means unhook and store, any yellow means touch nothing — and the verdict's
+> own headline badge (`DESIGN.md`, *the badge column is a go/no-go on unplugging things*).
+>
+> **A silent break here does not look like a break.** The badges are colour and glyph; if a bump
+> changed how `on_true_color` or `bold` render, the report still prints, still says the right
+> words, and the signal he has trained a reflex on quietly stops meaning what it means. **That is
+> worse than a crash**, and it is why this row moved out of the same bucket as the progress bars.
+>
+> **The lesson is not about `console`.** A dependency's risk rating is a claim about *what the
+> code does with it*, and it goes stale when the code changes rather than when the crate does —
+> so nothing in the dependency tooling can catch it. Re-read this column whenever a crate's job
+> grows.
 
 `nom-exif` reads `"3.6"` and looks pre-1.0 at a glance; it is not, so Cargo's minor rule
 does not apply to it and `cargo update` reaches 3.x freely.
@@ -312,6 +327,10 @@ and these never did.
 > the others left the same day — `indicatif` when `progress.rs` was written, `console` when the
 > pre-flight capacity tick became a white-on-green badge. **The gap closes itself exactly as
 > predicted below**, one crate at a time, as the features they were declared for get built.
+>
+> **And `console`'s job has since grown well past that capacity tick** — it now carries the whole
+> badge column and the verdict headline. A crate can leave this list and still become *more*
+> important; the two facts are unrelated.
 
 That is a direct consequence of a rule this workspace keeps on purpose: *a member's own
 manifest lists only what its code imports today, so a manifest never claims a dependency

@@ -149,14 +149,19 @@ assumed one.
 
 **Started 2026-08-06. What has actually been swept, so nobody assumes the rest was:**
 
+**Every document is now swept.** What remains is code comments.
+
 | Swept | Not yet swept |
 |---|---|
-| `CONOPS.md` verdict table — was naming phrases the tool no longer prints | `TRIP-HYGIENE.md` |
-| `DESIGN.md` decision 14 — verdict table, layout rules, badge section | `REVIEWING.md` (grepped only, not read) |
-| `progress.rs` — orphaned `clear()` doc | the rest of `main.rs`'s ~980 comment lines |
-| `main.rs` — `step_badge`, `phase_heading`, `verdict()` | `eject.rs` (429 comment lines), `human.rs`, `winio.rs` |
-| `WRITING.md` — gained the prose bar | `DESIGN.md`'s run records, which should move to their own file |
+| `CONOPS.md` verdict table — was naming phrases the tool no longer prints | the rest of `main.rs`'s ~980 comment lines |
+| `DESIGN.md` decision 14 — verdict table, layout rules, badge section | `eject.rs` (429 comment lines) |
+| `DESIGN.md` run records → [`RUNS.md`](RUNS.md), −18 % | `progress.rs` (270), `human.rs`, `winio.rs` |
+| `progress.rs` — orphaned `clear()` doc | |
+| `main.rs` — `step_badge`, `phase_heading`, `verdict()` | |
+| `WRITING.md` — gained the prose bar; `RUNS.md` registered | |
 | `FULL-RUN.md` — **clean**, no verdict or badge claims | |
+| `TRIP-HYGIENE.md` — **`console` was still filed as "cosmetic"** | |
+| `REVIEWING.md` — **still described a four-test project**; there are 122 | |
 | `--eject-prepare` references repo-wide — **all five describe the removal**, none instruct | |
 
 **Four defects found so far, none of them cosmetic:** `CONOPS.md` citing dead verdict phrases;

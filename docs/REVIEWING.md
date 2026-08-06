@@ -168,18 +168,39 @@ The policy is not license to relitigate. Specifically:
 
 ## Tests: four of them, and each has to be able to fail
 
-[`DESIGN.md`](DESIGN.md) decision 18 sets the scope deliberately narrow — the phase 4
+[`DESIGN.md`](DESIGN.md) decision 18 set the scope deliberately narrow — the phase 4
 deletion path, the naming function, one end-to-end happy path, and `verify` against a
-committed schema-1 manifest fixture. Everything else is untested on purpose.
+committed schema-1 manifest fixture.
 
-**That makes the bar on each surviving test higher, not lower:**
+> **That "four tests in total" figure is long superseded, and this section said otherwise until
+> 2026-08-06.** `offload` carries **122** — 103 library, 11 binary, 8 integration — plus 68 in
+> the lifted `geotag` engine. **The four were never a budget; they were the *end-to-end* surface,
+> and unit tests grew underneath them one shipped defect at a time.**
+>
+> **That growth was mostly earned and is not the thing to cut.** Most of these exist because
+> something broke in a real run: a card reported still mounted after being ejected, `verify`
+> answering CLEAN on an empty disk, a display that straddled a rounding boundary. **A regression
+> test for a defect that actually shipped is the cheapest documentation this project has.**
+>
+> **What to cut is a test that proves the same thing twice.** Four went on 2026-08-06 — three
+> that differed only in their fixture while exercising one function, and one asserting
+> `indent + badge_pad(indent) == BADGE_COLUMN`, which is `badge_pad`'s definition restated.
+
+**The bar on each test is high, and it is a bar of *usefulness* rather than of count:**
 
 > **Write the test, then break the thing it guards and confirm it fails — ideally that it,
 > and only it, fails. Revert immediately.**
 
 A green test proves the code passes today. It does not prove the test would notice if the
-code stopped being right. With only four tests there is no redundancy to cover for one
-that turns out to be decorative.
+code stopped being right.
+
+**Two questions retire a test**, and Terry's framing governs — *"we do not need anywhere near
+100 % code coverage on a hobby project"*:
+
+1. **Would breaking the code break this test *specifically*?** If another test already fails on
+   the same mutation, this one is redundancy rather than coverage.
+2. **Does it assert behavior, or restate an implementation?** A test that recomputes the formula
+   under test can only ever agree with it.
 
 RawGeotag produced a worked example worth knowing. A test asserted that `collect_paths`
 returned sorted results — on filenames the filesystem already yielded in order. It passed,

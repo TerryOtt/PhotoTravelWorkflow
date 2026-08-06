@@ -296,6 +296,31 @@ repeats.
    and prefer a mistake that is a compile error over one that is a runtime surprise. A
    reviewer may overrule this with an argument; nobody may overrule 1–4 with one.
 
+## Work the checklist without being prompted
+
+**Standing order, Terry, 2026-08-06:** *"keep working all items in the checklist without waiting
+for input from me until one of two conditions is hit: A) that task becomes genuinely blocked, or
+B) the task flips to Terry's move — meaning you need either my input or my signoff to get it to
+COMPLETE."*
+
+**So the default is to continue, and stopping is the thing that needs a reason.** Finishing a
+sub-task is not a reason to check in; nor is a natural pause, a commit, or a long turn.
+
+**The two stop conditions, and only these two:**
+
+| Stop when | Meaning |
+|---|---|
+| **Genuinely blocked** | Neither of you can advance it — undelivered hardware, a vendor, an unreleased fix. See the narrow definition above; *waiting on Terry is not blocked* |
+| **It becomes Terry's move** | It cannot reach COMPLETE without his input or his signoff — a decision only he can make, a cable only he can move, an approval only he can give |
+
+**When one is hit, say so plainly, say which condition, and move to the next checklist item.**
+Do not idle waiting for a reply that was never required.
+
+**A taste call is his move; a judgment call is not.** If the answer depends on how something
+*looks to him*, or on a preference he has not stated, that is condition B — render the options
+and ask ([[show-terry-the-side-by-side]] is the fast way). If it merely depends on a tradeoff a
+careful engineer could settle, settle it, say what was chosen and why, and keep going.
+
 ## A config item that is never used MUST NOT exist
 
 **Standing order, Terry, 2026-08-06, verbatim: *"a config item that is never used should not
