@@ -1505,6 +1505,48 @@ untouched, and a test asserting a rounded value MUST NOT be written against them
 > them would mean rendering one figure from another rather than from the measurement, which is
 > how a display bug becomes a wrong number.
 
+### The report's layout rules, settled 2026-08-06
+
+**RFC 2119 keywords, and the capitals are load-bearing.** These came out of an evening of the
+operator reading real output on a real terminal, which is the only place several of them were
+visible at all. **They are written down because they were re-derived three times in one session.**
+
+**Indentation carries the hierarchy, and nothing else does:**
+
+| Level | Column | Example |
+|---|---|---|
+| Phase | 0 | `Pre-Flight Checks`, `Offloading`, `Geotagging`, `Eject` |
+| Subsection | 4 | `Camera Cards`, `Travel SSDs`, `Corroborating`, the `LANDED` banner |
+| Row | 8 | a destination line, an eject attempt |
+| Detail about the row above | +4 | a veto reason, the gap explanation |
+
+**Blank lines above a heading MUST be:** two for a phase, one for a subsection, **none for a
+status line.** A status line is content, not a heading, so `Corroborating` is followed
+immediately by `50 matched`. `Pre-Flight Checks` is the **one deliberate exception** and its
+print site says so — it has three subsections under it where the others have a line of result,
+and a heading with sections under it wants air.
+
+**`LANDED` and `Corroborating` nest under `Offloading`; `Geotagging` does not.** The operator's
+model, and it is a better one than four peers in a row: those two are *what offloading
+produced*, where geotagging is — his words — *"value add and not part of offloading"*. The
+`LANDED` block closes with a rule of the banner's own width, so it reads as bounded rather than
+as a heading trailing off into the next phase.
+
+**Every line a human reads MUST start with a capital**, with three carve-outs: a line opening
+with a count keeps its digit (`49 tagged`), an identifier or flag or path keeps its case
+(`--no-eject`), and a status following a label is a table cell rather than a sentence
+(`SanDisk    ejected; ready to disconnect`). A wrapped sentence continuation also stays
+lowercase — capitalizing mid-sentence is worse than the inconsistency.
+
+**Padding is for columns, never for prose.** `duration_aligned` pads to two characters each way
+for the eject attempt block, where durations stack; `duration` does not, because a padded value
+mid-sentence reads as a double space rather than as alignment. The same call the operator made
+about the `LANDED` banner: *"leave landed alone, it looks better as is."*
+
+**Durations are one shape everywhere** — `5m 0s`, `15m 12s`. Never zero-padded, because `00s`
+reads as a clock and this is a measurement, and never dropping the minutes below sixty seconds,
+because the same quantity in two formats is what the consistency is for.
+
 Serials on every destination line so a glance confirms four genuinely distinct disks. The
 verdict is the last line and that phrase appears nowhere else, so it cannot be confused
 with anything above it. Its forms:
