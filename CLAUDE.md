@@ -128,6 +128,18 @@ was briefly the only record of four open items. **Claude MUST update that file w
 opens, closes or materially changes — in the same turn, not at the end of a session**, because
 end of session is exactly when a session does not get to finish.
 
+**And the checklist Terry sees in the CLI MUST stay synced with it.** Standing order, 2026-08-06:
+*"make sure the checklist in the CLI is always synced to backlog."* An item added to one MUST be
+added to the other in the same turn; the same for closing one.
+
+**The reason is that the CLI list is the only one he can see.** He reads the checklist in his
+terminal and cannot see `BACKLOG.md` unless he opens it — his words when this first came up:
+*"by the way is our checklist persisted? That's my memory right now and that's dangerous."*
+**So the two failure directions are not symmetric.** An item in the file but not on his list is
+invisible to him and gets forgotten *by him*; an item on his list but not in the file dies with
+the session and gets forgotten *by Claude*. The first is the one that wastes his evening, and it
+is the one that happened — `BACKLOG.md` gained the zoom-out item while the CLI list did not.
+
 **The precedence is absolute and the order is not cosmetic:**
 
 | | |
