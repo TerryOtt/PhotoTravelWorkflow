@@ -163,16 +163,20 @@ impl Report {
             .map(|gap| format!(", widest {}", humanise(gap)))
             .unwrap_or_default();
 
+        // **Capitalized because these begin a line of the report.** Terry, 2026-08-06: the
+        // output was inconsistent about it, and he wants sentences to start like sentences.
+        // A line opening with a count — `49 tagged`, `196 sidecars` — keeps its digit; the
+        // rule is about words, not about forcing a capital onto a number.
         if self.across_segments > 0 && self.within_segment == 0 {
             return Some(format!(
-                "all of them across breaks in the recording{widest} — the logger stopped \
+                "All of them across breaks in the recording{widest} — the logger stopped \
                  and restarted, and no gap limit can bridge that"
             ));
         }
 
         if self.within_segment > 0 && self.across_segments == 0 {
             return Some(format!(
-                "all of them inside one recording but past the limits{widest} — these are \
+                "All of them inside one recording but past the limits{widest} — these are \
                  what --max-gap-seconds and --max-gap-meters govern"
             ));
         }

@@ -924,7 +924,7 @@ fn report_ssd_release(
             writeln!(out)?;
             writeln!(out, "Eject")?;
             writeln!(out)?;
-            writeln!(out, "    withheld by --no-eject")?;
+            writeln!(out, "    Withheld by --no-eject")?;
         }
         return Ok(());
     };
@@ -1295,6 +1295,8 @@ fn laptop_root(plan: &preflight::Preflight) -> Result<PathBuf> {
 fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     let minutes = elapsed.as_secs() / 60;
     let seconds = elapsed.as_secs() % 60;
+
+    report_passes(outcome);
 
     println!();
     // **No phase number.** "phase 3" is this repository's word, not the operator's, and the
@@ -1886,6 +1888,69 @@ fn geotag_phase(
     .map(Some)
 }
 
+/// A static record of the two passes, printed where the live bars used to be.
+///
+/// **The bars are erased before this and cannot simply be left.** `MultiProgress` repaints
+/// wherever the cursor is, so a plain `println!` beside live bars *collides* — on 2026-08-05
+/// that drew the LANDED banner inside eight progress rows, twice. So `progress.clear()` hands
+/// the terminal back first, and what the operator watched fill up disappears with it.
+///
+/// **Terry asked for it back** (2026-08-06): *"I'd love to keep writing/verifying on there,
+/// above LANDED."* A finished pass vanishing reads as though something happened to it — the
+/// same argument `progress.rs` makes for leaving a bar full rather than clearing it.
+///
+/// **Two lines rather than eight.** A row per destination per pass would be four identical
+/// `50/50`s twice over, and the LANDED table three lines below already says more about each
+/// destination than that would. What this adds is the *shape* of the work — two passes
+/// happened, both completed — without restating the detail.
+///
+/// **The write pass counts written plus skipped**, because a convergence run writes nothing and
+/// still has to hash every target to prove the skip (see [`pipeline::DestinationOutcome`]).
+/// Counting `written` alone would report a converged run as having done no work at all.
+fn report_passes(outcome: &pipeline::Outcome) {
+    if outcome.destinations.is_empty() {
+        return;
+    }
+
+    let all = outcome.destinations.len();
+    let files = outcome.files;
+
+    // Named rather than inlined: "how many finished" and "how many there are" appearing as two
+    // bare numbers in a format string is exactly where an off-by-one hides.
+    let wrote = |d: &pipeline::DestinationOutcome| d.written + d.skipped == files;
+    let written_through = outcome.destinations.iter().filter(|d| wrote(d)).count();
+    let verified_through = outcome
+        .destinations
+        .iter()
+        .filter(|d| d.verified == files)
+        .count();
+
+    // **Says "all N" only when it is all of them.** A pass that finished on three of four
+    // destinations is the interesting case, and a line that rounds it up to "all" would hide
+    // the one thing worth seeing.
+    let tally = |done: usize| {
+        if done == all {
+            format!("all {} destinations", count(all))
+        } else {
+            format!("{} of {} destinations", count(done), count(all))
+        }
+    };
+
+    println!();
+    println!(
+        "    Writing     {} · {}/{}",
+        tally(written_through),
+        count(files),
+        count(files)
+    );
+    println!(
+        "    Verifying   {} · {}/{}",
+        tally(verified_through),
+        count(files),
+        count(files)
+    );
+}
+
 /// A phase heading with the blank lines it is owed, or just the gap when the live heading is
 /// still on screen and only the record follows.
 ///
@@ -1910,7 +1975,7 @@ fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: boo
     let Some(report) = report else {
         // Always headed: the waived path never drew bars, so nothing put the word on screen.
         phase_heading("Corroborating", true);
-        println!("    waived — only one card was present (--allow-single-source)");
+        println!("    Waived — only one card was present (--allow-single-source)");
         return;
     };
 
@@ -1952,7 +2017,7 @@ fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool, dest
     let Some(report) = report else {
         // Always headed: the skipped path never drew bars, so nothing put the word on screen.
         phase_heading("Geotagging", true);
-        println!("    not run — no tracks (--no-gpx)");
+        println!("    Not run — no tracks (--no-gpx)");
         return;
     };
 
