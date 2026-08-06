@@ -693,9 +693,17 @@ fn verdict_badge(clean: bool, text: &str) -> String {
 
 /// Decision 14's verdict: the last line, and its phrases appear nowhere else in the report.
 ///
-/// **`clean` decides the colour and the words together.** A yellow badge whose text said
-/// `SAFE TO STORE` would be worse than either alone, so the branches below are arranged so that
-/// phrase is unreachable unless `clean` holds.
+/// **The words and the colour answer different questions, and `SAFE TO STORE` in yellow is a
+/// real, intended combination.** Decision 14 says *only phase 3 may change the verdict*, and
+/// decision 22 keeps the cards out of it entirely — so the **words** are decided by the archive
+/// SSDs alone. The **badge** follows [`everything_released`], which includes the cards, because
+/// it is a *come and look* signal rather than a verdict.
+///
+/// So a night where all four archives released and a camera card would not prints a yellow
+/// ` SAFE TO STORE `. That reads oddly for a second and is right: the archives *are* safe to
+/// store, and something above still wants a glance. **An earlier version of this comment claimed
+/// the phrase was unreachable while yellow. It was wrong** — `actions.is_empty()` and `clean`
+/// are not the same condition, and a stuck card separates them.
 fn verdict(
     outcome: &pipeline::Outcome,
     released: Option<&[Released]>,

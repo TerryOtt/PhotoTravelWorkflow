@@ -251,19 +251,6 @@ impl Progress {
         }
     }
 
-    /// Hand the terminal back, erasing every bar and heading this phase drew.
-    ///
-    /// **Call this before printing anything at the end of a phase.** `MultiProgress` owns a
-    /// block of the screen and repaints it wherever the cursor happens to be, so an ordinary
-    /// `println!` while it is live does not appear below the bars — it collides with them.
-    /// On 2026-08-05 that put the LANDED banner in the middle of eight progress rows, with the
-    /// rows drawn twice around it.
-    ///
-    /// **The rows are not lost by clearing them.** Decision 14's report states the same
-    /// outcome in durable text — `3,883 written · 0 skipped · 3,883 verified   OK`, per
-    /// destination — and that is the record. The bars exist to show *which drive you are
-    /// waiting on while it is happening*, which is a question that stops being asked the
-    /// moment the phase ends.
     /// Whether [`Progress::clear`] actually erased anything — and so whether the report section
     /// that follows has to reprint its own heading.
     ///
@@ -280,6 +267,27 @@ impl Progress {
         matches!(self, Self::Bars(..))
     }
 
+    /// Hand the terminal back, erasing every bar and heading this phase drew.
+    ///
+    /// **Call this before printing anything at the end of a phase.** `MultiProgress` owns a
+    /// block of the screen and repaints it wherever the cursor happens to be, so an ordinary
+    /// `println!` while it is live does not appear below the bars — it collides with them.
+    /// On 2026-08-05 that put the LANDED banner in the middle of eight progress rows, with the
+    /// rows drawn twice around it.
+    ///
+    /// **Nothing is lost by clearing, because every erased row has a durable counterpart.**
+    /// The per-destination counts survive as decision 14's `3,883 written · 0 skipped ·
+    /// 3,883 verified   OK` lines, and since 2026-08-06 the `Writing` and `Verifying` headings
+    /// survive too, re-printed as static badged records above `LANDED`. **The bars exist to
+    /// answer *which drive am I waiting on right now*** — a question that stops being asked the
+    /// moment the phase ends.
+    ///
+    /// **This doc comment sat on [`Progress::heading_was_erased`] until 2026-08-06**, because
+    /// that function was inserted between the comment and the `fn` it described. Two unrelated
+    /// explanations then rendered as one, which read as the file contradicting itself — and
+    /// `clear`, the one carrying the warning above, was left with no documentation at all.
+    /// **A doc comment binds to whatever follows it, so inserting an item is enough to move
+    /// it**; nothing warns you, and `cargo doc` renders the result without complaint.
     pub fn clear(&self) {
         if let Self::Bars(multi, drawn) = self {
             // **Retire, then erase.** Removing each bar from the multi is what stops the next

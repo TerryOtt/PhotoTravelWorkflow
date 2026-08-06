@@ -135,13 +135,24 @@ Lightroom tree, clustering `YYYY-MM-DD` names into consecutive runs.*
 5. Back at the desk, read the **last line of the report first**. It is the verdict, and
    it is the only place its phrases ever appear ([`DESIGN.md`](DESIGN.md) decision 14):
 
+**The last line opens with a badge, and there is only one green one.** Green means the whole rig
+is down and you may start unplugging; anything yellow means read before you touch a cable.
+
 | The last line says | You do |
 |---|---|
-| `EJECTED — SAFE TO STORE` | Pull the SSDs — they are already ejected — put them in the safe, go to bed. |
-| `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` | Raws are safe on all four copies; certainty work remains. Do what it says. |
-| `SAFE TO STORE — UNPLUG <X>` | Everything is done. That drive is flushed and detached; Windows just would not power it down. **Pull it out and store it — there is nothing to do in the tray.** |
-| `SAFE TO STORE — EJECT <X> BY HAND` | Everything is done; one volume is still mounted and would not release. Eject it from the tray and store. |
-| `NOT SAFE — ...` | Something did not finish. Eject nothing; run `offload` again and it continues where it stopped. |
+| ` SAFE TO STORE ` *(green)* | Pull the SSDs — they are already ejected — put them in the safe, go to bed. |
+| ` UNPLUG FIRST ` *(yellow)* | Everything is done. The named drive is flushed and detached; Windows just would not power it down. **Pull it out and store it — there is nothing to do in the tray.** |
+| ` STILL MOUNTED ` *(yellow)* | A volume is still mounted. If it names one, eject it from the tray and store it. If it says *nothing was ejected*, you passed `--no-eject` — **nothing is safe to unplug yet.** |
+| ` NOT SAFE ` *(yellow)* | Something did not finish. Eject nothing; run `offload` again and it continues where it stopped. |
+
+**Yellow is not a severity — it is a stop signal on a physical act.** The cause is often
+harmless, and the badge still means *stop and read*. That is deliberate: it is gating whether the
+next thing you do is unplug five devices in a dark hotel room, not grading how bad the news is.
+Red is never used anywhere in this tool.
+
+> **A yellow ` SAFE TO STORE ` is possible and is not a contradiction.** The words are about the
+> archive SSDs; the colour counts the camera cards too. It means the archives are safe to store
+> and a card wants a glance — the `Cards` line above says which.
 
 The physical state carries the meaning: **an SSD this tool has ejected is a claim that
 every file from both cards is accounted for, verified, on that disk.** A still-mounted

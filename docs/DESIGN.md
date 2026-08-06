@@ -1477,8 +1477,14 @@ about already settled.
     5  geotag                            0:12       0 GB   ⎭ pass, and each other
     total                                5:41     561 GB
 
-  ►  EJECTED — SAFE TO STORE
+  ►  [ SAFE TO STORE ]
 ```
+
+> **The sample above is a layout sketch and does not render colour.** Every heading that is a
+> *step* carries a badge in the real output — `Writing`, `Verifying`, `Corroborating`,
+> `Geotagging`, `Travel SSDs`, `Cards`, `Safe to Unhook` — all pinned to one absolute column, and
+> the verdict's headline is itself a badge. **Read this block for structure, never for the exact
+> bytes**; the sections below the sample are what is kept current.
 
 **Sizes are whole GiB and rates carry one decimal**, added 2026-08-06 at the operator's
 request: *"at no point will I care about fractional GB"*, and for rates *"single digit after
@@ -1508,16 +1514,24 @@ untouched, and a test asserting a rounded value MUST NOT be written against them
 ### The opposite of green is never red
 
 **Standing order, Terry, 2026-08-06. RFC 2119 sense: a status badge MUST NOT be red.** Clean is
-green; anything else is **yellow — a bold black `!` on yellow**, meaning *this needs your
-attention*.
+green; anything else is yellow, meaning *this needs your attention*.
 
-**Black on yellow rather than white on yellow**, which is the higher-contrast pairing in the
-standard palette and the reason road signs and hazard tape use it. The green badge keeps white,
-because white on green is the strong pairing there.
+**The two badges, exactly:**
 
-**The attention badge is black on `#FFFF00`, set as a true colour and never bold.** Each of those
-three came out of looking at real output, and two of them contradicted the reasoning that
-preceded them.
+| | Glyph | Foreground | Background | Bold |
+|---|---|---|---|---|
+| Clean | `✓` | white | `SGR 42` green | **yes** |
+| Needs attention | `!!!` | black | `#FFFF00` true colour | **no** |
+
+Both are five cells wide — `!!!` is two characters wider than the tick, so the tick carries one
+extra space each side.
+
+**Black on yellow rather than white on yellow**, which is the higher-contrast pairing and the
+reason road signs and hazard tape use it. The green badge keeps white, because white on green is
+the strong pairing there.
+
+**Each of those choices came out of looking at real output, and two of them contradicted the
+reasoning that preceded them.**
 
 **It MUST NOT be bold, and that is the non-obvious one.** `black().bold()` emits `ESC[1;30m`, and
 this console renders bold black as *intense* black — **grey**. Terry, on seeing it: *"it's almost
@@ -1683,6 +1697,31 @@ visible at all. **They are written down because they were re-derived three times
 | Row | 8 | a destination line, an eject attempt |
 | Detail about the row above | +4 | a veto reason, the gap explanation |
 
+**A phase is either a *container* or a *step*, and only steps carry badges.** Settled 2026-08-06
+after a version that hung the `Eject` section's badge on a closing line and left the operator
+asking what it was for.
+
+| | Carries a badge | Why |
+|---|---|---|
+| **Container** — `Pre-Flight Checks`, `Offloading`, `Eject` | no | it has steps under it, and each answers for itself |
+| **Step** — `Writing`, `Verifying`, `Corroborating`, `Travel SSDs`, `Cards`, `Safe to Unhook` | yes | it is one thing that either went cleanly or did not |
+| **Both at once** — `Geotagging` | yes | a phase with no subsections *is* its own step |
+
+**`Eject`'s steps are `Progress Log`, `Travel SSDs`, `Cards` and `Safe to Unhook`.** The live
+per-attempt lines are the `Progress Log`'s rows at column 8 — **not** loose content under the
+phase heading, which is how they read before they had a step of their own and where they became
+an unattached preamble once `Travel SSDs` appeared beneath them.
+
+**`Safe to Unhook` is last because it is the roll-up and the decision**, and green only when
+every SSD *and* every card released. `--no-eject` therefore guarantees yellow, deliberately.
+
+> **`Eject` cannot carry the badge itself, and the reason is timing rather than taste.** Its
+> heading is printed before the stage runs, because `watch_attempt` starts writing the moment the
+> first device is asked and a header arriving after its own rows would read backwards. It also
+> could not roll up the cards without waiting for a retry that can run for minutes — and
+> reporting the SSDs the moment they are down, rather than behind a stuck card, was a deliberate
+> fix. **Both constraints point the same way, which is usually the sign of a real boundary.**
+
 **Blank lines above a heading MUST be:** two for a phase, one for a subsection, **none for a
 status line.** A status line is content, not a heading, so `Corroborating` is followed
 immediately by `50 matched`. `Pre-Flight Checks` is the **one deliberate exception** and its
@@ -1714,20 +1753,57 @@ Serials on every destination line so a glance confirms four genuinely distinct d
 verdict is the last line and that phrase appears nowhere else, so it cannot be confused
 with anything above it. Its forms:
 
-| Condition | Verdict |
+**The headline is a badge**, in the same two colours as the rest of the report and green in
+exactly one case — see *the badge column is a go/no-go on unplugging things*. Every row below
+was checked against `verdict()` on 2026-08-06.
+
+| Condition | Headline | Colour | Rest of the line |
+|---|---|---|---|
+| Phase 3 verified everywhere, every device released | ` SAFE TO STORE ` | green | the claim |
+| A volume dismounted but would not power down | ` UNPLUG FIRST ` | yellow | `UNPLUG SSD-B.` + the claim |
+| An eject refused with the volume still mounted | ` STILL MOUNTED ` | yellow | `EJECT SSD-B BY HAND.` + the claim |
+| Both, on different devices | ` STILL MOUNTED ` | yellow | `EJECT SSD-B BY HAND AND UNPLUG SSD-C.` + the claim |
+| Run under `--no-eject`, everything else complete | ` STILL MOUNTED ` | yellow | `Nothing was ejected;` + the claim |
+| Anything unverified anywhere | ` NOT SAFE ` | yellow | `See the unverified counts above.` |
+
+**The claim** is one of two sentences, and which one appears is decision 22's rule that an eject
+must not imply more than it proved: *every file from both cards is accounted for*, or *every file
+from the one card present is accounted for — corroboration was waived*.
+
+**Eject can modulate the safe verdict's wording; it can never turn SAFE into NOT SAFE.**
+
+> **`SAFE TO STORE` in yellow is a real combination, and it is not the contradiction it looks
+> like.** The **words** are decided by the archive SSDs alone — decision 14's *only phase 3 may
+> change the verdict*, and decision 22 keeping the cards out of it. The **colour** follows
+> `everything_released`, which counts the cards, because a badge is a *come and look* signal
+> rather than a verdict. A night where all four archives released and a camera card would not
+> therefore prints a yellow ` SAFE TO STORE `: the archives are safe to store, and something
+> above wants a glance. **Do not "fix" this by letting a card rewrite the headline** — that is
+> the boundary decision 22 exists to hold.
+
+### Specified here and never built
+
+**These four rows sat in the table above as though they were behavior, and none of them has ever
+been printed.** Found 2026-08-06 by grepping the source for each string; all four returned
+nothing. They are kept because they may still be wanted — **but they belong in `Still to build`,
+not in a table describing output.**
+
+| Condition | Intended verdict |
 |---|---|
-| Phase 3 verified everywhere, all ejects clean | `EJECTED — SAFE TO STORE` |
-| Phase 3 verified everywhere, a volume dismounted but would not power down | `SAFE TO STORE — UNPLUG SSD-B` |
-| Phase 3 verified everywhere, an eject refused with the volume still mounted | `SAFE TO STORE — EJECT SSD-B BY HAND` |
-| Both, on different devices | `SAFE TO STORE — EJECT SSD-B BY HAND AND UNPLUG SSD-C` |
-| Run under `--no-eject`, everything else complete | `SAFE TO STORE — STILL MOUNTED (--no-eject)` |
 | Phase 3 verified everywhere, corroboration incomplete | `SAFE, NOT EJECTED — ENSURE SDXC IS INSERTED AND RE-RUN` |
-| Anything unverified anywhere | `NOT SAFE — 12 files unverified on SSD-C` |
 | Phase 3 clean, mismatches far above baseline | append `— BUT CHECK YOUR SDXC CARD (47 mismatches)` |
 | Run under `--allow-single-source`, phase 3 verified everywhere | append `— SINGLE SOURCE, NEVER CORROBORATED` |
 | Run under `--without`, phase 3 verified on the rest | append `— SSD-C EXCLUDED, SYNC IT ON RETURN` |
 
-Eject can modulate the safe verdict's wording; it can never turn SAFE into NOT SAFE.
+**The single-source case is partly covered already**, by the second form of the claim rather than
+by a suffix — so building it means deciding whether the suffix adds anything the claim does not,
+rather than starting from nothing.
+
+> **This is the failure a spec document is uniquely good at hiding.** Every row read as a
+> description of the tool, the four false ones had been there long enough to look settled, and
+> **nothing in a Markdown table fails a test.** The lesson generalises past this file: when a
+> document states what a program prints, the strings are checkable, so check them — a grep per
+> row costs seconds and is the only thing standing between a specification and fiction.
 
 Because writes are write-through and verify reads unbuffered, the rates are real device
 throughput rather than page-cache artifacts — which is what makes the per-destination
