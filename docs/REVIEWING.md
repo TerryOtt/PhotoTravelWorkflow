@@ -287,12 +287,25 @@ in a hurry, at the keyboard, while chasing something else — and they are belie
 | Element 5 topology probe | the OWC "on a laptop port" | matched chain names against `Element 5`; a PCIe-tunnelled device enumerates through anonymous `PCI Express Switch Port` entries that never name the hub |
 | dependency currency check | `indicatif 0.18 <-- BEHIND 0.18.6` | compared a *requirement* against a *version*. `"0.18"` reaches 0.18.6 — for a `0.x` crate the **minor** is the breaking position |
 | `eject-check.ps1` readers | "none found" about a reader sitting there healthy | filtered `-Class DiskDrive`, and a reader only presents a DiskDrive while a card is *in* it |
+| **`offload verify` — in the product, not a script** | **`CLEAN — every recorded file is present and matches`, on a disk holding zero manifests** | `clean()` is three `== 0` tests, and **all three are vacuously true when nothing was found.** An empty archive and a fully verified one are spelled identically ([`DESIGN.md`](DESIGN.md) decision 20) |
 
-**Four of the five reported the reassuring answer**, which is the part that makes this
+**Five of the six reported the reassuring answer**, which is the part that makes this
 dangerous rather than merely annoying: a broken check that cries wolf gets fixed within
-minutes, and one that says *all clear* gets believed for months. The USB 2.0 row is the
+minutes, and one that says *all clear* gets believed for months. The USB 2.0 row was the
 worst of them — a check written specifically to catch a 5.8× silent throughput loss, which
 could not have caught it on any rig, ever.
+
+**The `verify` row is worse still, and it is worth saying why rather than leaving it in the
+table.** The other five are diagnostics *about* the rig, written at the keyboard while chasing
+something else. That one is **the shipped command whose whole job is to answer whether an
+archive survived** — the thing decision 20 promises will still work on a disk pulled from a
+safe in 2031, on a machine that has never seen this tool. A wrong *reassuring* answer there
+has no backstop anywhere in the system, and nobody would ever go looking.
+
+> **So the rule earns a second half: a check must be able to say "I could not check."**
+> Distinguishing *pass* from *fail* is not enough — **the third state, where the check found
+> nothing to examine, has to be spelled differently from both.** Five of these six collapse it
+> into *pass*, which is the direction that gets believed.
 
 **Two habits that would have caught all five**, and both are cheap:
 

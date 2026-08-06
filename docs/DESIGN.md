@@ -1845,6 +1845,37 @@ photographs; then every raw re-hashed unbuffered
 against it. Tombstones are honored, so a file deliberately deleted in phase 4 reports clean
 rather than missing.
 
+> ⚠ **DEFECT, found 2026-08-06: `verify` reports `CLEAN` on a disk that holds nothing.**
+> Run against `I:\Travel\Images` after the drive was knocked off a desk, it printed:
+>
+> ```
+> 0 files verified across 0 folders
+> ►  CLEAN — every recorded file is present and matches
+> ```
+>
+> The archive tree had been cleared after an earlier run; only the destination marker
+> remained. `Report::clean()` is `damaged == 0 && missing == 0 && unreadable_manifests
+> .is_empty()`, and **all three are vacuously true when there are no manifests at all.**
+>
+> **This is the shape [`REVIEWING.md`](REVIEWING.md) collects under *A diagnostic that cannot
+> fail*, and it is the worst instance yet because it is in the product rather than in a
+> script.** The five recorded there are probes written in a hurry; this is the command whose
+> entire purpose is to answer *is this disk still good*, and it answers **the reassuring thing**
+> when it cannot answer at all. The scenario decision 20 exists for is a disk pulled from a safe
+> years later — where "CLEAN" on a silently empty disk is precisely the wrong answer, and there
+> is no second chance to notice.
+>
+> **The fix is a fourth outcome, not a tweak to `clean()`.** Today the verdict has three:
+> `CLEAN`, `NOT CLEAN`, and `CANNOT FULLY VERIFY` for an unreadable manifest. **A disk with no
+> manifests is a fourth state** — *nothing here claims to be an archive* — and it must not be
+> spelled the same way as a verified one. `REVIEWING.md`'s own rule names this exactly: **an
+> empty result must never be spelled the same way as a negative result.**
+>
+> Also worth carrying: **the check that prompted this proved nothing.** It was run to see
+> whether a dropped drive had lost data, on a disk that turned out to hold none — the tool was
+> asked a question it had no material to answer, and said `CLEAN`. *Confirm the check has
+> something to check before quoting its verdict.*
+
 **Sidecar drift should not exist on any destination**, and after decision 11's correction
 `verify` says so about all four rather than excusing one. Nothing edits these copies, so
 a sidecar that differs between them means either a phase 5 re-run that did not reach every
