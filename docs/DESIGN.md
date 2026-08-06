@@ -3437,7 +3437,22 @@ at least one recorded run was convergence, so the comparison above is anchored t
   **Found 2026-08-05 while a spare SD card was being acceptance-tested**, which is what makes
   it worth recording rather than theoretical: loading a card with test frames gives it a
   `DCIM`, and a `DCIM` volume that is not a configured destination *is* a card as far as
-  decision 7's rule is concerned. Three readers on one hub is not an exotic rig.
+  decision 7's rule is concerned. Three readers on one hub is not an exotic rig, and the
+  spares list in memory holds two spare SD readers.
+
+  > **Corrected within the hour, and the mistake is the more useful half.** This entry first
+  > said *"there are three of them on this machine tonight."* There were **two**:
+  > `full-run-check.ps1` reports `cards found — 2 volume(s) with DCIM`, because the test card
+  > was sitting *in the corroborator's reader* rather than beside it. The hazard is **latent,
+  > not present** — it needs a second SD reader and a loaded card at the same time.
+  >
+  > **The gap itself is unaffected**, which is why the entry stands rather than being deleted:
+  > the code has no upper bound whatever the rig currently holds. What was wrong was a claim
+  > about live state, asserted from an inference — *the test card has a DCIM, therefore three
+  > cards* — without running the two-second check that would have answered it. That is the
+  > same shape as the memory note *a comment explaining why is a claim*, and the same shape as
+  > the disk-renumbering write-up two days earlier: **the reasoning was sound and the premise
+  > was never looked up.**
 
   **It fails safe and that is the problem.** If the stray wins the corroborator slot, decision
   27's gate refuses on a listing mismatch — correct, but the refusal names a card the operator
