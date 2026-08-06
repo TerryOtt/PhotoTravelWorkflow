@@ -1250,8 +1250,12 @@ fn report_unhook_gate(
     )?;
 
     if released.is_none() {
+        // **Says why, and MUST NOT say what the verdict says.** Decision 14 reserves the
+        // verdict's phrases to the verdict, and this line briefly read *"— every drive is still
+        // mounted"* two lines above a verdict of `STILL MOUNTED`. The badge already carries the
+        // state; this only has to carry the cause.
         let why = if no_eject {
-            "Withheld by --no-eject — every drive is still mounted"
+            "Withheld by --no-eject"
         } else {
             "Not reached — the run did not land"
         };
@@ -2711,11 +2715,14 @@ mod tests {
         report_unhook_gate(&mut out, None, &[], true).expect("writing to a Vec");
         let gate = String::from_utf8(out).expect("the report is UTF-8");
 
-        assert!(gate.contains("still mounted"), "{gate}");
-        assert!(
-            !gate.to_ascii_uppercase().contains("SAFE TO STORE"),
-            "the gate must not offer the verdict's phrase: {gate}"
-        );
+        assert!(gate.contains(ATTENTION), "{gate}");
+        assert!(gate.contains("Withheld by --no-eject"), "{gate}");
+
+        // Neither of the verdict's two phrases may appear here — not the one that would be a
+        // lie, and not the one that is true, because decision 14 keeps both for the last line.
+        let shouted = gate.to_ascii_uppercase();
+        assert!(!shouted.contains("SAFE TO STORE"), "{gate}");
+        assert!(!shouted.contains("STILL MOUNTED"), "{gate}");
     }
 
     /// Every badge lands on the same column whatever its heading's indent — the property the
