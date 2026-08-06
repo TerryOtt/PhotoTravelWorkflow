@@ -1468,7 +1468,6 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
         } else {
             style(format!(" {} UNVERIFIED ", count(destination.failed.len())))
                 .black()
-                .bold()
                 .on_yellow()
         };
         println!(
@@ -2122,21 +2121,30 @@ fn report_passes(outcome: &pipeline::Outcome) {
 /// **And a badge that could only come out green would be worthless** — the whole point is that
 /// the eye is allowed to stop on it, which requires that it sometimes does not.
 ///
-/// **`⚠` U+26A0, confirmed rendering on this machine's console** — Terry checked on 2026-08-06
-/// after it was first avoided for fear of emoji presentation. **The risk that remains is
-/// width, not glyph**: were it ever drawn double-wide, the badge column would shift and the
-/// alignment this report depends on would break. Verified against the `!` form side by side
-/// before it landed.
+/// **`!!!` rather than `⚠`, decided by looking at both on the real console.** U+26A0 renders
+/// there with *emoji presentation* — an orange-filled triangle that draws its own colours and
+/// ignores the foreground this sets, so it came out orange-on-yellow and muddy. Width was the
+/// worry going in and turned out to be a non-issue; **legibility was the real problem, and only
+/// a side-by-side on the actual terminal found it.**
 ///
-/// **Black on yellow, not white on yellow.** Terry's call, and it is the objectively higher
-/// contrast pairing rather than only the conventional one — which is why road signs and hazard
-/// tape use it. The green badge keeps white, because white on green *is* the strong pairing
-/// there.
+/// **The yellow badge MUST NOT be bold, and that is the whole reason it was grey.** Terry,
+/// 2026-08-06: *"it's almost a gray and getting washed out on the yellow."* `black().bold()`
+/// emits `ESC[1;30m`, and the Windows console renders bold black as *intense* black — grey. **The
+/// attribute added to make it louder was what silenced it.**
+///
+/// **The green badge keeps `bold`, because there the same rule helps**: bold white is *bright*
+/// white, which is the stronger of the two on green. Same attribute, opposite effect, entirely
+/// because of which base colour it is promoting.
+///
+/// **Both badges are five cells wide.** `!!!` is two characters wider than `✓`, so the tick
+/// carries one extra space each side. They sit at the end of their lines, so an uneven pair
+/// would not break the column — it would just look unfinished, and this report is read by
+/// someone who notices that.
 fn step_badge(clean: bool) -> String {
     if clean {
-        style(" \u{2713} ").white().bold().on_green().to_string()
+        style("  \u{2713}  ").white().bold().on_green().to_string()
     } else {
-        style(" \u{26A0} ").black().bold().on_yellow().to_string()
+        style(" !!! ").black().on_yellow().to_string()
     }
 }
 
@@ -2559,7 +2567,7 @@ mod tests {
     }
 
     const CLEAN: &str = "\u{2713}";
-    const ATTENTION: &str = "\u{26A0}";
+    const ATTENTION: &str = "!!!";
 
     fn render_gate(released: Option<&[Released]>, cards: &[(String, eject::Effort)]) -> String {
         let mut out = Vec::new();

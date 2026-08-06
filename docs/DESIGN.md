@@ -1515,6 +1515,13 @@ attention*.
 standard palette and the reason road signs and hazard tape use it. The green badge keeps white,
 because white on green is the strong pairing there.
 
+**And the yellow badge MUST NOT be bold**, which is the non-obvious half. `black().bold()` emits
+`ESC[1;30m`, and the Windows console renders bold black as *intense* black — **grey**. Terry, on
+seeing it: *"it's almost a gray and getting washed out on the yellow."* **The attribute added to
+make it louder was the thing silencing it.** The green badge keeps `bold` because there the same
+promotion helps: bold white is *bright* white. Same attribute, opposite effect, entirely
+because of which base colour it is applied to.
+
 **His reasoning, and it is about the moment the badge is read rather than about the fact it
 reports:** *"let's be gentle with 11pm Terry and just flag it as 'hey this needs your attention,
 don't freak out, we're gonna be fine, you shoot dual card for a reason, no data is lost, just
@@ -1531,12 +1538,21 @@ warnings.** A red badge at 11pm on night three produces a jolt of adrenaline and
 hour; it does not produce a faster fix. Spend that often enough and the operator either stops
 reading badges or starts dreading the run — and this tool exists so he can walk away and sleep.
 
-**`⚠` (U+26A0) was first avoided and is now in use.** The fear was emoji presentation — a glyph
-that might come out as a coloured picture is not one you can rely on at a glance. Terry checked
-it on this machine's console on 2026-08-06 and it renders as text. **The risk that remains is
-*width*, not glyph:** drawn double-wide it would shift the badge column, which the next section
-makes load-bearing. It MUST be compared against the `!` form side by side on any new terminal
-before being trusted there.
+**The glyph is `!!!`, and `⚠` (U+26A0) was tried and rejected on 2026-08-06.** It renders on this
+console with *emoji presentation* — an orange-filled triangle that supplies its own colours and
+ignores the foreground set for it — so on the yellow ground it came out orange-on-yellow and
+muddy. The triple is the universal form and is unambiguous at a distance.
+
+**Width was the worry going in and was never the problem; legibility was.** `⚠` draws
+single-width here, so nothing would have shifted. **That is worth remembering as a method
+failure rather than a colour one:** the risk that was reasoned about in advance was not the risk
+that materialised, and only rendering both candidates side by side on the real terminal
+distinguished them. A screenshot of the glyph in *another* renderer — Claude Code's own output —
+suggested double-width and was wrong about that too.
+
+**Both badges are five cells wide**: `!!!` is two characters wider than `✓`, so the tick carries
+one extra space each side. They sit at the end of their lines, so an uneven pair would not break
+the column — it would merely look unfinished.
 
 **The ban is total, and the last exception was closed on 2026-08-06.** The per-destination badge
 in the `LANDED` block — ` N UNVERIFIED ` — was red, and had an argument for it: it reports a
