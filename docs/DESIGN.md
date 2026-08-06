@@ -1551,6 +1551,20 @@ applies to an emissive panel two feet from a face.
 and the 4K monitor and survives a theme change. For a signal whose entire job is instant
 recognition, a colour that moves with the current scheme is one that has to be re-learned.
 
+**The clean badge stays on `SGR 42`, reviewed and deliberately not changed.** Three greens were
+put beside the new yellow on 2026-08-06 and Terry kept the one already shipping: *"going darker
+against the white check helped. The SGR 42 green looks right to me."* **So the pair is
+deliberately half true-colour and half palette**, and that asymmetry is accepted rather than
+overlooked — pinning the green would harden it against a theme change that has never happened,
+at the cost of freezing a colour chosen by eye under one scheme.
+
+> **The scheme is Campbell, and that is verified rather than assumed.** Windows Terminal's
+> `settings.json` sets no `colorScheme` on the defaults, on any profile, or as a custom scheme,
+> so the built-in default applies — which is what makes `SGR 43` `#C19C00` and bright black
+> `#767676`. `intenseTextStyle` is likewise unset and therefore `bright`, which is the promotion
+> that greyed the badge. **Re-check all three before trusting this paragraph on another machine**;
+> every colour statement above is downstream of them.
+
 > **The method note, which outlived every colour decision above.** The first comparison used a
 > single thin `!` and could not have distinguished black from grey whatever the truth was —
 > anti-aliasing smears a one-pixel stroke into whatever is behind it. It produced a confident
