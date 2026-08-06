@@ -93,7 +93,20 @@ fn main() -> ExitCode {
     // exercising the retry.
     let deadline = Instant::now() + Duration::from_secs(90);
 
-    match eject::eject(&resolved.volume, device, deadline) {
+    let watch = |attempt: eject::Attempt<'_>| {
+        println!(
+            "  #{:<3} {:<28} {:.1}s",
+            attempt.number,
+            match attempt.outcome {
+                eject::Outcome::Ejected => "RELEASED",
+                eject::Outcome::Dismounted { .. } => "dismounted, not powered down",
+                eject::Outcome::Held { .. } => "held",
+            },
+            attempt.elapsed.as_secs_f64()
+        );
+    };
+
+    match eject::eject(&resolved.volume, device, deadline, watch) {
         Ok(effort) => {
             println!(
                 "\n  {:#?}\n  {} attempt(s) over {:.1}s",

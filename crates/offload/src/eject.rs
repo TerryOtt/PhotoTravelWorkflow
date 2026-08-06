@@ -299,7 +299,31 @@ pub struct Effort {
 ///
 /// The caller owns the deadline because the caller owns the budget — see decision 22 and
 /// `RUN_BUDGET` in the binary. This module deliberately knows nothing about dinner.
-pub fn eject(volume: &Volume, device: &Device, deadline: Instant) -> Result<Effort> {
+/// One attempt, handed to the caller the moment it resolves.
+///
+/// **The retry is otherwise invisible while it happens.** [`Effort`] reports the last attempt
+/// and a total, both only once the fight is over — so an eleven-minute hold looks identical to
+/// a hang, and the forty vetoes that preceded the win are never seen at all. Terry asked for
+/// the live version on 2026-08-06, and it earns its keep twice: he gets to watch the tool
+/// out-wait Windows, and the transcript answers **whether the veto changes across the window**,
+/// which is the open question no completed run has been able to speak to.
+pub struct Attempt<'a> {
+    /// 1-based.
+    pub number: u32,
+    pub outcome: &'a Outcome,
+    /// Since the first attempt began.
+    pub elapsed: Duration,
+    /// The pause before the next attempt, or `None` when this was the last one.
+    pub retry_in: Option<Duration>,
+}
+
+/// `watch` sees every attempt as it resolves — see [`Attempt`]. Pass `|_| {}` to ignore them.
+pub fn eject(
+    volume: &Volume,
+    device: &Device,
+    deadline: Instant,
+    mut watch: impl FnMut(Attempt<'_>),
+) -> Result<Effort> {
     let started = Instant::now();
     let mut backoff = FIRST_BACKOFF;
     let mut attempts = 0;
@@ -311,7 +335,19 @@ pub fn eject(volume: &Volume, device: &Device, deadline: Instant) -> Result<Effo
         // Tested after the attempt rather than before, so the deadline bounds how long this
         // keeps *trying* rather than whether it tries at all. Adding `backoff` is what stops
         // it sleeping past the deadline only to give up on waking.
-        if outcome.is_ejected() || Instant::now() + backoff >= deadline {
+        let last = outcome.is_ejected() || Instant::now() + backoff >= deadline;
+
+        // Reported before the return, so the final attempt gets a line like every other one.
+        // A watcher that fell silent exactly when the fight ended would be the least useful
+        // moment to stop talking.
+        watch(Attempt {
+            number: attempts,
+            outcome: &outcome,
+            elapsed: started.elapsed(),
+            retry_in: (!last).then_some(backoff),
+        });
+
+        if last {
             return Ok(Effort {
                 outcome,
                 attempts,

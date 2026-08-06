@@ -335,6 +335,17 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // **They share the deadline and not the stakes.** An SSD that will not power down reaches
     // the exit code (decision 18); a card can never touch it, and `exit_code` is not even
     // given the card results so that it cannot start.
+    //
+    // **The heading is printed here rather than in the report** because `watch_attempt` starts
+    // writing the moment the first device is asked, and a header that arrived after its own
+    // section would read backwards.
+    if !args.no_eject && outcome.landed() {
+        println!();
+        println!();
+        println!("Eject");
+        println!();
+    }
+
     let (released, (cards, cards_took, budget_spent)) = std::thread::scope(|scope| {
         let cards = scope.spawn(|| {
             let outcomes = release_cards(&plan, args, deadline);
@@ -550,15 +561,19 @@ fn release(resolved: &destinations::Resolved, deadline: Instant) -> Released {
     // A destination resolved by serial always has a device; if it somehow does not, that is
     // a refusal to report rather than a reason to fail the run.
     let effort = match resolved.device.as_ref() {
-        Some(device) => {
-            eject::eject(&resolved.volume, device, deadline).unwrap_or_else(|error| eject::Effort {
-                outcome: eject::Outcome::Held {
-                    reason: format!("{error:#}"),
-                },
-                attempts: 1,
-                waited: Duration::ZERO,
-            })
-        }
+        Some(device) => eject::eject(
+            &resolved.volume,
+            device,
+            deadline,
+            watch_attempt(&resolved.label),
+        )
+        .unwrap_or_else(|error| eject::Effort {
+            outcome: eject::Outcome::Held {
+                reason: format!("{error:#}"),
+            },
+            attempts: 1,
+            waited: Duration::ZERO,
+        }),
         None => eject::Effort {
             outcome: eject::Outcome::Held {
                 reason: "the volume reports no physical device to power down".into(),
@@ -629,6 +644,53 @@ fn verdict(
     }
 }
 
+/// One timestamped line per eject attempt, printed as it happens.
+///
+/// **Terry asked to watch the retry rather than only its result** (2026-08-06): *"ideally I'd
+/// like screen output with timestamp of every eject attempt. It's interesting and slightly
+/// amusing for me to see the code have a battle of patience with windows and win."* It also
+/// lands in the log — he runs the tool through Claude whenever he has internet — so the same
+/// lines are the evidence for whether a held device recovers predictably, which
+/// [`eject::Effort`] alone could never show.
+///
+/// **The reason prints only when it CHANGES**, which is the one judgment call here. Sixteen
+/// identical vetoes a minute apart is a wall of text that hides the interesting case; a veto
+/// that changes shape mid-fight is the open question about what actually holds a card. Same
+/// rule `scripts/watch-rig.ps1` follows — every line is a change — and it turns the transcript
+/// into evidence rather than a log to be skimmed.
+///
+/// UTC, per the operator's standing preference, and seconds resolution because the backoff
+/// flattens to one attempt a minute.
+fn watch_attempt(label: &str) -> impl FnMut(eject::Attempt<'_>) + '_ {
+    let mut said: Option<String> = None;
+
+    move |attempt| {
+        let (word, reason) = match attempt.outcome {
+            eject::Outcome::Ejected => ("RELEASED", None),
+            eject::Outcome::Dismounted { reason } => ("dismounted", Some(reason)),
+            eject::Outcome::Held { reason } => ("held", Some(reason)),
+        };
+
+        let next = match attempt.retry_in {
+            Some(pause) => format!("retry in {}", duration(pause)),
+            None => format!("after {}", duration(attempt.elapsed)),
+        };
+
+        println!(
+            "    {}  {label:<10} #{:<3} {word:<10} {next}",
+            Utc::now().format("%H:%M:%SZ"),
+            attempt.number
+        );
+
+        if let Some(reason) = reason
+            && said.as_deref() != Some(reason.as_str())
+        {
+            println!("               {reason}");
+            said = Some(reason.clone());
+        }
+    }
+}
+
 /// The labels of the released devices whose outcome matches `wanted`.
 fn labels(released: &[Released], wanted: impl Fn(&eject::Outcome) -> bool) -> Vec<&str> {
     released
@@ -680,17 +742,14 @@ fn release_cards(
             // or one lucky late one. Every run now contributes that data point for free, which
             // is the only way a sample larger than one is ever going to exist.
             let effort = match storage::device_of(&card.volume) {
-                Ok(device) => {
-                    eject::eject(&card.volume, &device, deadline).unwrap_or_else(|error| {
-                        eject::Effort {
-                            outcome: eject::Outcome::Held {
-                                reason: format!("{error:#}"),
-                            },
-                            attempts: 1,
-                            waited: Duration::ZERO,
-                        }
-                    })
-                }
+                Ok(device) => eject::eject(&card.volume, &device, deadline, watch_attempt(role))
+                    .unwrap_or_else(|error| eject::Effort {
+                        outcome: eject::Outcome::Held {
+                            reason: format!("{error:#}"),
+                        },
+                        attempts: 1,
+                        waited: Duration::ZERO,
+                    }),
                 // Zero attempts, because none was possible — see `Effort::attempts`.
                 Err(error) => eject::Effort {
                     outcome: eject::Outcome::Held {
@@ -719,8 +778,9 @@ fn release_cards(
 /// power down reaches the exit code (decision 18) and leaves a chore. A card that will not
 /// release is tidiness, and the tool never wrote to it.
 ///
-/// **The heading lives here** because this half always prints first, and the card half needs
-/// it already on screen.
+/// **The heading no longer lives here.** `watch_attempt` prints a line the moment the first
+/// device is asked, so `Eject` is written before the stage starts — a header that arrived after
+/// its own section would read backwards. This half still owns the `Travel SSDs` sub-heading.
 ///
 /// **They keep sub-headings.** `Travel SSDs` and `Cards` at one level in: the two groups differ
 /// in what you do with them and in what a failure means, and grouping is what stops five rows
@@ -738,22 +798,23 @@ fn report_ssd_release(
     no_eject: bool,
     elapsed: Duration,
 ) -> io::Result<()> {
-    writeln!(out)?;
-    writeln!(out)?;
-    writeln!(out, "Eject")?;
-    writeln!(out)?;
-
     // `None` means the stage never ran: either `--no-eject`, or phase 3 did not land so the
     // gate never opened. The verdict says which; this only avoids claiming an empty list of
-    // devices was released.
+    // devices was released. The `Eject` heading is not printed in that case either, so this
+    // branch owns its own framing.
     let Some(ssds) = released else {
         if no_eject {
+            writeln!(out)?;
+            writeln!(out)?;
+            writeln!(out, "Eject")?;
+            writeln!(out)?;
             writeln!(out, "    withheld by --no-eject")?;
         }
         return Ok(());
     };
 
     if !ssds.is_empty() {
+        writeln!(out)?;
         writeln!(out, "    Travel SSDs")?;
     }
     for r in ssds {
