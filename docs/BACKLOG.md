@@ -61,16 +61,27 @@ absent.
 
 ## 1. SanDisk 512 GB SD acceptance test — OPEN, TERRY'S MOVE — passed, one cold pass left
 
-**It passed the bar decisively. One step remains and it needs Terry:**
+**It passed the bar decisively at 281 MB/s. The only remaining step is a cold second pass**, and
+it needs nothing from Terry — the corpus lives at `E:\burnin\100CANON`, outside the ingest path.
 
-1. **Reformat the card in the R5** — it currently holds 40 GiB of bench data.
-2. Shoot frames onto it.
-3. `cargo run --release --example sustained -- E:\DCIM\<folder> 150`
-
-**Why that is not ceremony:** the 281 figure was taken on a **Windows-written layout immediately
-after a bulk write**, so the card's SLC cache may still have been folding, and camera-written
-geometry is what the card will actually carry. `REVIEWING.md` — *read the second pass*. **Nothing
-is expected to change the verdict**; the card is 34 MB/s clear of the previous best.
+> **RETIRED 2026-08-06: the "camera-written layout" caveat was never real.** It had been carried
+> since the Lexar acceptance and it does not survive being stated plainly. Terry: *"it's an exFAT
+> file system. Windows won't write to it any differently than the camera."*
+>
+> **Filesystem geometry is set at *format* time, not write time.** Both cards are exFAT with a
+> **262,144-byte allocation unit**, both formatted in the R5, and copying files into a
+> camera-formatted volume uses the clusters the camera would have used. The caveat would only
+> bite if *Windows had formatted the card*, which has never happened here.
+>
+> **And it proves too much.** `D:`'s 7,395 frames were also copied on by Windows onto a
+> camera-formatted card — that is how the 390 corpus was loaded — so **every throughput figure
+> this project has ever taken sits on Windows-written files**, including the fleet baselines the
+> caveat was meant to protect. A caveat that invalidates its own reference points is not a
+> caveat.
+>
+> **What survives is the SLC caveat**, which is about *timing* rather than provenance: a read
+> taken straight after a bulk write can be flattered by the card's cache still folding.
+> `REVIEWING.md` — *read the second pass*.
 
 Bar was the fleet range, **205–247 MB/s**; the known dud did 73.
 
