@@ -540,48 +540,23 @@ pub fn attempt(volume: &Volume, device: &Device, prepare: bool) -> Result<Outcom
 
 /// Whether to lock and dismount the volume before asking PnP to remove the device.
 ///
-/// **This exists to test a claim at the top of this module** — *"three steps, in this order,
-/// and none of them is optional"* — which was reasoning written before any of it was measured,
-/// and which 2026-08-06's traces put in doubt.
+/// **Settled 2026-08-06: [`Prepare::FirstAttemptOnly`] is what the tool does, and the
+/// `--eject-prepare` flag that compared these was deleted once it had.** `DESIGN.md` decision 22
+/// carries the traces and the argument. This enum stays because the losing arms are still worth
+/// running from `examples/eject-one.rs`, and because their tests document the divergence.
 ///
-/// **What the traces showed.** A vetoed query-remove and an accepted one are byte-for-byte the
-/// same sequence of PnP events on the same device with the same flags; the only difference is
-/// that exFAT consented to one. But Kernel-PnP only sees from `CM_Request_Device_Eject`
-/// onward, so **what this tool does *before* that call is invisible to it** — and the tray,
-/// which succeeds, almost certainly does none of it.
+/// **The finding, in one line:** re-dismounting before every attempt means never asking about a
+/// *settled* volume, and exFAT answers a freshly remounted one with `PNP_VETO_TYPE(6)`, which
+/// never yields.
 ///
-/// **The timings fit.** A refusal takes 184 ms, because exFAT has nothing left to do: we
-/// already dismounted. The success takes **1,275 ms**, which is exFAT flushing and detaching
-/// *itself*, as part of consenting — and only that path reaches the step that removes the
-/// volume's own device node. So the preparation may be defeating the request: we dismount, we
-/// must close the handle, Windows remounts the volume eagerly, and then we ask PnP to remove a
-/// volume that mounted milliseconds ago.
+/// **Why the flush is kept on attempt one rather than dropped entirely.** Lock-and-dismount is
+/// what *guarantees* the filesystem is flushed before the device leaves, and that protects data
+/// this tool wrote — four verified copies on the SSDs. **Going fully bare would trade a
+/// data-safety property for speed this project does not need.**
 ///
-/// **A faster bare eject would NOT automatically be the fix for an archive SSD**, and that is
-/// the part to hold on to. Lock-and-dismount is what *guarantees* the filesystem is flushed
-/// before the device leaves. Dropping it means trusting exFAT's own teardown inside the
-/// query-remove — probably sound, and it is the documented path, but it is a data-safety
-/// property this project does not hand over on one measurement.
-///
-/// # The risk is not symmetric, and cards are the cheap side
-///
-/// **Terry, 2026-08-06:** *"I'm fine with some potential data risk on cards as the minute they
-/// come out of the reader they are getting formatted in body. With no writes to them, it's even
-/// lower risk."*
-///
-/// **He is right, and it is worth being precise about why.** The flush guarantee protects data
-/// this tool *wrote*. It wrote four verified copies to the SSDs, so the guarantee is the whole
-/// point there. **It has never written a byte to a card** — binding constraint 2 — and
-/// `CONOPS.md` has both cards low-level formatted in the body at the start of the next session.
-/// So there is no state on a card at eject time that anything could lose.
-///
-/// **So the likely landing place is [`Prepare`] chosen per device class rather than per run**:
-/// SSDs keep the full sequence, cards go bare. That also happens to point it at the class that
-/// does all of the fighting — every multi-minute hold this project has recorded has been a
-/// card, and the CFexpress specifically.
-/// **The names say *when*, because when is the whole finding.** The original variant was called
-/// `LockAndDismount`, which hid the fact that it happens before *every* attempt — and that is
-/// exactly what went unnoticed for three days.
+/// **The names say *when*, because when was the whole finding.** The original variant was
+/// `LockAndDismount`, which hid that it happened before *every* attempt — and that is exactly
+/// what went unnoticed for three days.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Prepare {
     /// Lock, dismount and close the handle before **every** attempt. What every run before
