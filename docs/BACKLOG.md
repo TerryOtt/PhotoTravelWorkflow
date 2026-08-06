@@ -59,91 +59,6 @@ about warnings that fire when you cannot act.
 the closed list — so what is *missing* from the checklist is explained here rather than simply
 absent.
 
-## 1. SanDisk 512 GB SD acceptance test — OPEN, TERRY'S MOVE — passed, one cold pass left
-
-**It passed the bar decisively at 281 MB/s. The only remaining step is a cold second pass**, and
-it needs nothing from Terry — the corpus lives at `E:\burnin\100CANON`, outside the ingest path.
-
-> **RETIRED 2026-08-06: the "camera-written layout" caveat was never real.** It had been carried
-> since the Lexar acceptance and it does not survive being stated plainly. Terry: *"it's an exFAT
-> file system. Windows won't write to it any differently than the camera."*
->
-> **Filesystem geometry is set at *format* time, not write time.** Both cards are exFAT with a
-> **262,144-byte allocation unit**, both formatted in the R5, and copying files into a
-> camera-formatted volume uses the clusters the camera would have used. The caveat would only
-> bite if *Windows had formatted the card*, which has never happened here.
->
-> **And it proves too much.** `D:`'s 7,395 frames were also copied on by Windows onto a
-> camera-formatted card — that is how the 390 corpus was loaded — so **every throughput figure
-> this project has ever taken sits on Windows-written files**, including the fleet baselines the
-> caveat was meant to protect. A caveat that invalidates its own reference points is not a
-> caveat.
->
-> **What survives is the SLC caveat**, which is about *timing* rather than provenance: a read
-> taken straight after a bulk write can be flattered by the card's cache still folding.
-> `REVIEWING.md` — *read the second pass*.
-
-Bar was the fleet range, **205–247 MB/s**; the known dud did 73.
-
-| Step | State |
-|---|---|
-| Low-level format in the R5, before anything else touched it | **done** — Terry, 2026-08-06 |
-| Card identity and capacity | **done** — `EOS_DIGITAL`, exFAT, 511,898,025,984 bytes ≈ 512 GB |
-| PnP parent chain shows SuperSpeed | **done — passes**, see the topology below |
-| Frames on the card | **done** — 748 real CR3s, 40 GiB, copied on the bench. Legitimate because no trip is in progress; see `CONOPS.md` on the two scopes |
-| Sustained read | **PASSES, decisively — 281 MB/s** |
-| A confirming second pass | **still wanted**, see the caveats below |
-
-### The result
-
-| | |
-|---|---|
-| **Sustained read** | **281 MB/s**, over 150 s, decaying to 273 — **97 %**, a mild and normal thermal droop |
-| **Write** | **122 MB/s** average over 40 GiB, and flat: nine 4 GiB windows spanning 119.7–125.8 |
-| **The bar** | fleet range 205–247. The known dud did 73 |
-
-**This is the fleet's fastest SD by a wide margin**, displacing the Lexar Silver Pro 512 GB's 247.
-Nothing else was touching the bus during the read.
-
-> **It refutes a number this project had recorded.** The planned confound was that *"the SDDR-409's
-> own ceiling is 247, so a ~247 result cannot separate card from reader."* **281 MB/s through that
-> same reader retires the claim** — 247 was the *Lexar's* limit, never the reader's, and it had
-> been written down as a property of the reader. **The confound dissolves rather than being
-> controlled for**, and the Lexar cross-check is no longer needed to interpret this number.
->
-> **How the error happened is the reusable part:** one card was measured through one reader, and
-> the resulting figure was attributed to *the reader*. Nothing distinguished the two until a
-> faster card arrived. Same shape as `REVIEWING.md`'s *when two runs agree, change the other
-> variable*.
-
-**Two caveats before it joins the travel case**, and neither is a reason to doubt the figure:
-
-- **Measured on a Windows-written layout**, not a camera-written one — the same caveat the Lexar
-  512 carries. The acceptance measurement that matters most is on frames the R5 wrote.
-- **Read immediately after a bulk write**, so the card's SLC cache may still have been folding.
-  `REVIEWING.md` — *read the second pass* — asks for a re-read cold.
-
-**The chain, walked 2026-08-06** — every hop SuperSpeed, no USB 2 fallback:
-
-```
-SANDISK SDDR-409 USB Device            [DiskDrive]
-  USB Mass Storage Device              Port_#0003.Hub_#0005
-    Generic SuperSpeed USB Hub         Port_#0004.Hub_#0003
-      Generic SuperSpeed USB Hub       Port_#0002.Hub_#0001
-        USB Root Hub (USB 3.0)
-          Intel(R) USB 3.20 eXtensible Host Controller
-```
-
-**A SuperSpeed hub in the path is real evidence rather than a hopeful reading**: a device that
-negotiated USB 2.0 attaches to the *companion* hub, which enumerates as a plain "Generic USB
-Hub". Seeing SuperSpeed hubs the whole way up means the reader came up at SuperSpeed.
-
-> **New fact, and it matters more for the reader characterization than for this card: the SD
-> reader sits behind TWO chained SuperSpeed hubs**, not directly on the laptop. That is shared
-> bandwidth and a potential confound for any throughput number taken through it. **Establish
-> whether it changes the figure before running the 2 × 3 matrix** — otherwise three readers get
-> characterized through an untested variable, which is the mistake `REVIEWING.md`'s
-> *when two runs agree, change the other variable* records.
 
 ## 2. Characterize all three UHS-II USB SD readers — OPEN, TERRY'S MOVE
 
@@ -256,3 +171,100 @@ Kept briefly so a resumed session does not re-open them.
   and were reviewed on both the 4K monitor and the laptop. **The one leftover is prose and moved
   to the zoom-out**: `progress.rs` still argues with itself about erasing the Writing/Verifying
   block, while the code is now correct
+
+### SanDisk 512 GB SD acceptance test — CLOSED 2026-08-06, ACCEPTED at 279–281 MB/s
+
+**Accepted. The fleet's fastest SD by 32 MB/s**, and confirmed over two independent passes.
+
+| Pass | Result |
+|---|---|
+| Straight after a 40 GiB write | 281 → 273 MB/s over 150 s (**2.8 %** decay) |
+| Cold, hours idle | **279 → 277 MB/s** over 150 s (**0.7 %** — essentially flat) |
+| Write | 122 MB/s, flat across 40 GiB |
+| The bar | fleet range 205–247; the known dud did 73 |
+
+**The two passes agree within 0.7 %**, inside this project's ±2 % band for reads. **And the
+difference between them is itself the finding: the first pass's droop was the SLC cache folding,
+not heat.** That is exactly what `REVIEWING.md`'s *read the second pass* exists to separate, and
+it separated cleanly — a thermal problem would have got *worse* on the second run, not vanished.
+
+> **RETIRED 2026-08-06: the "camera-written layout" caveat was never real.** It had been carried
+> since the Lexar acceptance and it does not survive being stated plainly. Terry: *"it's an exFAT
+> file system. Windows won't write to it any differently than the camera."*
+>
+> **Filesystem geometry is set at *format* time, not write time.** Both cards are exFAT with a
+> **262,144-byte allocation unit**, both formatted in the R5, and copying files into a
+> camera-formatted volume uses the clusters the camera would have used. The caveat would only
+> bite if *Windows had formatted the card*, which has never happened here.
+>
+> **And it proves too much.** `D:`'s 7,395 frames were also copied on by Windows onto a
+> camera-formatted card — that is how the 390 corpus was loaded — so **every throughput figure
+> this project has ever taken sits on Windows-written files**, including the fleet baselines the
+> caveat was meant to protect. A caveat that invalidates its own reference points is not a
+> caveat.
+>
+> **What survives is the SLC caveat**, which is about *timing* rather than provenance: a read
+> taken straight after a bulk write can be flattered by the card's cache still folding.
+> `REVIEWING.md` — *read the second pass*.
+
+Bar was the fleet range, **205–247 MB/s**; the known dud did 73.
+
+| Step | State |
+|---|---|
+| Low-level format in the R5, before anything else touched it | **done** — Terry, 2026-08-06 |
+| Card identity and capacity | **done** — `EOS_DIGITAL`, exFAT, 511,898,025,984 bytes ≈ 512 GB |
+| PnP parent chain shows SuperSpeed | **done — passes**, see the topology below |
+| Frames on the card | **done** — 748 real CR3s, 40 GiB, copied on the bench. Legitimate because no trip is in progress; see `CONOPS.md` on the two scopes |
+| Sustained read | **PASSES, decisively — 281 MB/s** |
+| A confirming second pass | **still wanted**, see the caveats below |
+
+### The result
+
+| | |
+|---|---|
+| **Sustained read** | **281 MB/s**, over 150 s, decaying to 273 — **97 %**, a mild and normal thermal droop |
+| **Write** | **122 MB/s** average over 40 GiB, and flat: nine 4 GiB windows spanning 119.7–125.8 |
+| **The bar** | fleet range 205–247. The known dud did 73 |
+
+**This is the fleet's fastest SD by a wide margin**, displacing the Lexar Silver Pro 512 GB's 247.
+Nothing else was touching the bus during the read.
+
+> **It refutes a number this project had recorded.** The planned confound was that *"the SDDR-409's
+> own ceiling is 247, so a ~247 result cannot separate card from reader."* **281 MB/s through that
+> same reader retires the claim** — 247 was the *Lexar's* limit, never the reader's, and it had
+> been written down as a property of the reader. **The confound dissolves rather than being
+> controlled for**, and the Lexar cross-check is no longer needed to interpret this number.
+>
+> **How the error happened is the reusable part:** one card was measured through one reader, and
+> the resulting figure was attributed to *the reader*. Nothing distinguished the two until a
+> faster card arrived. Same shape as `REVIEWING.md`'s *when two runs agree, change the other
+> variable*.
+
+**Two caveats before it joins the travel case**, and neither is a reason to doubt the figure:
+
+- **Measured on a Windows-written layout**, not a camera-written one — the same caveat the Lexar
+  512 carries. The acceptance measurement that matters most is on frames the R5 wrote.
+- **Read immediately after a bulk write**, so the card's SLC cache may still have been folding.
+  `REVIEWING.md` — *read the second pass* — asks for a re-read cold.
+
+**The chain, walked 2026-08-06** — every hop SuperSpeed, no USB 2 fallback:
+
+```
+SANDISK SDDR-409 USB Device            [DiskDrive]
+  USB Mass Storage Device              Port_#0003.Hub_#0005
+    Generic SuperSpeed USB Hub         Port_#0004.Hub_#0003
+      Generic SuperSpeed USB Hub       Port_#0002.Hub_#0001
+        USB Root Hub (USB 3.0)
+          Intel(R) USB 3.20 eXtensible Host Controller
+```
+
+**A SuperSpeed hub in the path is real evidence rather than a hopeful reading**: a device that
+negotiated USB 2.0 attaches to the *companion* hub, which enumerates as a plain "Generic USB
+Hub". Seeing SuperSpeed hubs the whole way up means the reader came up at SuperSpeed.
+
+> **New fact, and it matters more for the reader characterization than for this card: the SD
+> reader sits behind TWO chained SuperSpeed hubs**, not directly on the laptop. That is shared
+> bandwidth and a potential confound for any throughput number taken through it. **Establish
+> whether it changes the figure before running the 2 × 3 matrix** — otherwise three readers get
+> characterized through an untested variable, which is the mistake `REVIEWING.md`'s
+> *when two runs agree, change the other variable* records.
