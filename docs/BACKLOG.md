@@ -19,6 +19,14 @@ turn, not at the end of a session. RFC 2119 keywords, and the capitals are load-
 This is a *backlog*, not a design document. [`DESIGN.md`](DESIGN.md)'s **Still to build** list
 is the scope of the product; this is what is in flight right now and what state it is in.
 
+> **The numbers below are positions, not identifiers, and they renumber when an item closes.**
+> Cite an item by its **title** anywhere that has to survive — a commit message, a task
+> description, another document. "Backlog item 5" was accurate for four hours.
+
+> **The CLI checklist shows at most five items**, so on a list this length the newest one is
+> invisible to Terry. **This file is therefore the only complete copy**, not a backup of his
+> screen — see [`../CLAUDE.md`](../CLAUDE.md) on keeping the two synced.
+
 ---
 
 ## 1. Eject vetoes — cause found, fix built, not yet proven
@@ -36,23 +44,7 @@ is the scope of the product; this is what is in flight right now and what state 
 
 **Next action:** more B runs, alternating with A. Each costs five cable replugs.
 
-## 2. Terry's signoff on the CLI output
-
-**Every question he raised on 2026-08-06 is answered and shipped, and both open threads closed
-the same evening. This item is now waiting on his word, not on work.**
-
-- **The Writing/Verifying block above LANDED — done.** `progress.clear()` erased it and he wanted
-  it kept; a static re-print after clearing is what shipped, both lines badged. **What remains is
-  documentation, not behavior:** `progress.rs`'s `finish()` doc argues for keeping the block and
-  `clear()`'s doc argues for removing it, so **the file still contradicts itself** while the code
-  is now correct. **Folded into item 5** — it is exactly the kind of superseded prose that review
-  exists to catch.
-- **Terminal width — closed, it fits.** The geotag gap explanation is ~133 characters and had
-  only ever been read at 4K. Seen on the XPS 15 at **1920 × 1200** on 2026-08-06: no wrap, ending
-  around 85 % of the window. **The premise was wrong rather than the line** — the laptop is not a
-  1080p machine, which is worth remembering before the next width worry.
-
-## 3. SanDisk 512 GB SD acceptance test
+## 2. SanDisk 512 GB SD acceptance test
 
 Card arrived 2026-08-06; **step 1 done** — Terry low-level formatted it in the R5 before
 anything else touched it. Remaining: confirm the PnP parent chain shows SuperSpeed, get frames
@@ -62,13 +54,13 @@ did 73.
 **Planned confound:** the SDDR-409's own ceiling is 247, so a ~247 result cannot separate card
 from reader. Read it in the Lexar LRWM04U as well.
 
-## 4. Characterize all three UHS-II USB SD readers
+## 3. Characterize all three UHS-II USB SD readers
 
 One known-good card through all three, so Terry knows every reader in the bag is safe to travel
 with. A slow reader is silent in the field — the card mounts, every file reads, nothing errors,
-and you lose 5.8×. Combines with item 3 into a 2 cards × 3 readers matrix.
+and you lose 5.8×. Combines with the acceptance test above into a 2 cards × 3 readers matrix.
 
-## 5. Zoom out over the badge and verdict work — NOT YET
+## 4. Zoom out over the badge and verdict work — NOT YET
 
 **Opened 2026-08-06, deliberately deferred by Terry while the CLI work is still moving:** *"we're
 gonna have some GOOD doc comments and doc changes flowing out of this. We've made a LOT of
@@ -92,7 +84,7 @@ read the result end to end.** That is exactly how decision 14's layout rules cam
 **Do this after the CLI signoff closes**, and treat it as a documentation review rather than a
 code one — the code is tested; the prose is not.
 
-## 6. Put the docs and tests on a diet — LOW PRIORITY
+## 5. Put the docs and tests on a diet — LOW PRIORITY
 
 186 tests and a 3,600-line `DESIGN.md`. **The count is not the metric**; most of those tests are
 regressions for defects that actually shipped, and the "considered and rejected" material exists
@@ -115,3 +107,8 @@ Kept briefly so a resumed session does not re-open them.
 - Cards ejected sequentially, so Primary could starve Secondary
 - A card already ejected reported as `still mounted`
 - **OBE** — concurrency as the veto cause, overtaken by the settle-time explanation
+- **Terry's signoff on the CLI output — explicitly given 2026-08-06.** The badge column, the
+  colours, the `Eject` restructure, the `SAFE TO STORE` defect and the verdict badge all landed
+  and were reviewed on both the 4K monitor and the laptop. **The one leftover is prose and moved
+  to the zoom-out**: `progress.rs` still argues with itself about erasing the Writing/Verifying
+  block, while the code is now correct
