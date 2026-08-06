@@ -315,12 +315,43 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // Decision 22: last, because phases 4 and 5 still write to the archives. The volumes
     // must be released only once nothing remains to put on them.
     let ejecting = Instant::now();
-    let released = eject_phase(&plan, &outcome, args, started + RUN_BUDGET);
+    let deadline = started + RUN_BUDGET;
 
-    // Cards after the archives, because phase 4 read the SDXC and phase 3 the CFexpress — and
-    // the whole list before the verdict, which does not consider the result (decision 22).
-    let cards = release_cards(&plan, args, started + RUN_BUDGET);
-    report_release(released.as_deref(), &cards, args, ejecting.elapsed());
+    // **All five start together, and the SSDs report the moment they are down.** Terry,
+    // 2026-08-06: *"I am INTERESTED in total time to eject all five, but SSD are like two
+    // orders of magnitude more important. Let's start shutting them all down at the same time
+    // but print how long until SSD were fully put to bed as soon as all three are down."*
+    //
+    // **The run that produced that instruction is the argument for it.** The three SSDs were
+    // down in 15 s; a CFexpress then retried for 22 minutes and never released; and the one
+    // conflated closing line reported the pair as `Released 5 devices in 22m 16s`. The answer
+    // that actually mattered existed at fifteen seconds and was withheld for twenty-two
+    // minutes — and the count was wrong as well, since four devices had been released.
+    //
+    // This is decision 14's rule about LANDED applied to the stage Terry calls his number one
+    // risk: announce a milestone when it happens rather than only in the final summary.
+    //
+    // **They share the deadline and not the stakes.** An SSD that will not power down reaches
+    // the exit code (decision 18); a card can never touch it, and `exit_code` is not even
+    // given the card results so that it cannot start.
+    let (released, (cards, cards_took, budget_spent)) = std::thread::scope(|scope| {
+        let cards = scope.spawn(|| {
+            let outcomes = release_cards(&plan, args, deadline);
+            (outcomes, ejecting.elapsed(), Instant::now() >= deadline)
+        });
+
+        // The archives on this thread, so their result is in hand — and printed — without
+        // waiting on a card retry that cannot change it.
+        let released = eject_phase(&plan, &outcome, args, deadline);
+        report_ssd_release(released.as_deref(), args, ejecting.elapsed());
+
+        (
+            released,
+            cards.join().expect("the card release thread panicked"),
+        )
+    });
+
+    report_card_release(&cards, cards_took, budget_spent);
     verdict(&outcome, released.as_deref(), corroboration.as_ref(), args);
 
     Ok(exit_code(
@@ -646,52 +677,47 @@ fn release_cards(
         .collect()
 }
 
-/// Every removable device the run released, in one list.
+/// The archive SSDs' half of the eject stage, printed the moment all of them are resolved.
 ///
-/// **`Eject` and `Cards` used to be two blocks and they reported the same event.** Terry,
-/// 2026-08-05: *"They are telling me the same thing."* Splitting them made the reader assemble
-/// one list of five devices out of two lists, and implied a difference in kind where the only
-/// real difference is **what you physically do next** — which now lives in the row's wording,
-/// where the reader is already looking.
+/// **Split from the cards on 2026-08-06, at Terry's direction, and the run that prompted it is
+/// the argument.** The three SSDs were down in 15 s while a CFexpress retried for 22 minutes
+/// and never released — and one shared closing line reported the pair as
+/// `Released 5 devices in 22m 16s`. Two things were wrong with that. The answer that matters
+/// existed at fifteen seconds and was withheld for twenty-two minutes; and the count was a lie,
+/// because four devices had been released, which is the same shape decision 22 fixed once
+/// already when the report claimed cards were released and a dismount had released nothing.
 ///
-/// **They keep sub-headings, though.** `Travel SSDs` and `Cards` at one level in: the two
-/// groups genuinely differ in what you do with them and in what a failure would mean, and
-/// grouping five rows is what stops the list reading as an undifferentiated pile. Same
-/// shape as `Pre-Flight Checks` — phase at column 0, groups at 4, rows at 8.
-fn report_release(
-    released: Option<&[Released]>,
-    cards: &[(String, eject::Outcome)],
-    args: &Offload,
-    ejecting: Duration,
-) {
-    if released.is_none() && cards.is_empty() {
-        if args.no_eject {
-            println!();
-            println!();
-            println!("Eject");
-            println!();
-            println!("    withheld by --no-eject");
-        }
-        return;
-    }
-
+/// His framing: *"SSD are like two orders of magnitude more important."* An SSD that will not
+/// power down reaches the exit code (decision 18) and leaves a chore. A card that will not
+/// release is tidiness, and the tool never wrote to it.
+///
+/// **The heading lives here** because this half always prints first, and the card half needs
+/// it already on screen.
+///
+/// **They keep sub-headings.** `Travel SSDs` and `Cards` at one level in: the two groups differ
+/// in what you do with them and in what a failure means, and grouping is what stops five rows
+/// reading as an undifferentiated pile. Same shape as `Pre-Flight Checks` — phase at column 0,
+/// groups at 4, rows at 8.
+fn report_ssd_release(released: Option<&[Released]>, args: &Offload, elapsed: Duration) {
     println!();
     println!();
     println!("Eject");
     println!();
 
-    // **The clock is not on the heading.** Decision 22 made eject a *timed* stage because an
-    // unlabeled twenty-minute retry reads as a hang while a timed one reads as persistence —
-    // that argument is about the stage, and a number beside the heading covered only the three
-    // archive SSDs. It prints once, below, over everything released.
-    let mut devices = 0;
+    // `None` means the stage never ran: either `--no-eject`, or phase 3 did not land so the
+    // gate never opened. The verdict says which; this only avoids claiming an empty list of
+    // devices was released.
+    let Some(ssds) = released else {
+        if args.no_eject {
+            println!("    withheld by --no-eject");
+        }
+        return;
+    };
 
-    let ssds = released.unwrap_or_default();
     if !ssds.is_empty() {
         println!("    Travel SSDs");
     }
     for r in ssds {
-        devices += 1;
         // What it cost, but only when it cost anything — a device that powered down on the
         // first ask should read as cleanly as it behaved. When Windows did make the run work
         // for it, that is worth printing: decision 22 can only be tuned from real numbers, and
@@ -728,12 +754,55 @@ fn report_release(
         }
     }
 
-    if !cards.is_empty() {
-        println!();
-        println!("    Cards");
+    // Flush left: the closing fact of this half of the stage rather than a row in the list
+    // above it. **It prints here, before the cards are joined**, which is the whole change —
+    // this is the number Terry is waiting on and it must not queue behind a card retry that
+    // cannot affect it.
+    let down = ssds
+        .iter()
+        .filter(|r| r.effort.outcome.is_ejected())
+        .count();
+    println!();
+    println!();
+    if down == ssds.len() {
+        println!(
+            "Travel SSDs — all {} put to bed in {}. Safe to store.",
+            count(down),
+            duration(elapsed)
+        );
+    } else {
+        // **This branch has to be able to fire, and a suite that only sees the clean path
+        // cannot prove it does** — mutation-check it by forcing a Held outcome. The line it
+        // replaced printed a device count that included devices it had just described as not
+        // powered down.
+        let stuck = labels(ssds, |o| !o.is_ejected());
+        println!(
+            "Travel SSDs — {} of {} put to bed in {}. {} still needs you; see above.",
+            count(down),
+            count(ssds.len()),
+            duration(elapsed),
+            stuck.join(", ")
+        );
     }
+}
+
+/// The cards' half, printed when they resolve — which may be long after the SSDs.
+///
+/// **Nothing here may change the verdict or the exit code**, and `exit_code` is not even given
+/// these results so that it cannot start. The tool never wrote to a card, so it was safe to
+/// pull before this ran and is safe to pull if it fails (decision 22).
+///
+/// `budget_spent` distinguishes *the retry ran out of time* from *it gave up for another
+/// reason*, because Terry asked for the 90-minute case to be declared rather than left to be
+/// inferred from a large number.
+fn report_card_release(cards: &[(String, eject::Outcome)], elapsed: Duration, budget_spent: bool) {
+    if cards.is_empty() {
+        return;
+    }
+
+    println!();
+    println!("    Cards");
     for (label, outcome) in cards {
-        devices += 1;
         match outcome {
             // A card comes *out*; an SSD gets *unplugged*. Same event, different next action.
             eject::Outcome::Ejected => {
@@ -751,14 +820,48 @@ fn report_release(
         }
     }
 
-    // Flush left: the closing fact of a stage rather than a row in the list above it.
+    // The second closing fact, and the one nobody is waiting on. Its elapsed time shares an
+    // origin with the SSD line above, so the larger of the two is the answer to "how long to
+    // put all five to bed" — which Terry asked to keep, just not at the cost of the number
+    // that matters.
+    let down = cards.iter().filter(|(_, o)| o.is_ejected()).count();
     println!();
     println!();
-    println!(
-        "Released {} devices in {}",
-        count(devices),
-        duration(ejecting)
-    );
+    if down == cards.len() {
+        println!(
+            "Cards — all {} put to bed in {}.",
+            count(down),
+            duration(elapsed)
+        );
+    } else {
+        let stuck: Vec<&str> = cards
+            .iter()
+            .filter(|(_, o)| !o.is_ejected())
+            .map(|(label, _)| label.as_str())
+            .collect();
+
+        // **Declared rather than inferred from a large number.** Terry asked for the budget
+        // case to say so: a reader who sees `90m 00s` should not have to work out whether that
+        // was persistence or a hang.
+        let gave_up = if budget_spent {
+            format!(
+                "retried to the {}-minute budget and gave up",
+                RUN_BUDGET.as_secs() / 60
+            )
+        } else {
+            "gave up".to_string()
+        };
+
+        println!(
+            "Cards — {} of {} put to bed in {}. {} never released ({}). \
+             Safe to pull anyway: nothing was written to them.",
+            count(down),
+            count(cards.len()),
+            duration(elapsed),
+            stuck.join(", "),
+            gave_up
+        );
+    }
 
     // **The cost of doing this properly, said out loud rather than discovered.** Releasing a
     // card means ejecting its device, and for a USB card reader that device *is* the reader:
