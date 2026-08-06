@@ -302,12 +302,63 @@ Report 'gpx tracks' ($tracks.Count -gt 0) "$($tracks.Count) in $($config.gpx_dir
 
 if ($Nightly) {
     ''
-    '  (nightly mode: skipping the git and binary checks - they matter for a measured'
-    '   run, not for tonight. Run without -Nightly before quoting any timing.)'
+    '  (nightly mode: skipping the build-chain, git and binary checks - they matter for a'
+    '   measured run, not for tonight. Run without -Nightly before quoting any timing.)'
 }
 else {
 Push-Location $RepoPath
 try {
+    # ---- build chain freshness ---------------------------------------------
+    #
+    # Terry's standing order: build chains stay within 24 hours of current. The probe
+    # lives OUTSIDE this repo (`~/.claude/hooks`) because it is his obsession rather than
+    # the project's, so this row MUST degrade to "not verified" when it is absent rather
+    # than failing - a fresh clone on another machine is not a stale toolchain.
+    #
+    # **BEHIND fails this script, for the same reason `binary is HEAD's` does.** Both mean
+    # the artifact is not the thing the number will be attributed to; cargo fingerprints
+    # rustc and not the linker, so a new toolset changes the binary's inputs while cargo
+    # sees nothing to do. NOT READY does not forbid the run - it forbids quoting it.
+    #
+    # **"Could not confirm" MUST NOT fail.** Offline is not stale. A hotel with no wi-fi
+    # manufacturing a NOT READY is exactly the warning that teaches you to skip warnings,
+    # which is the argument docs/REVIEWING.md makes about `offload verify`.
+    $probe = Join-Path $env:USERPROFILE '.claude\hooks\rust-toolchain-check.py'
+    if (Test-Path $probe) {
+        $env:PYTHONIOENCODING = 'utf-8'
+        $chain = (& python $probe --probe 2>&1 | Out-String)
+        $chainCode = $LASTEXITCODE
+
+        # Provenance: the versions land in this script's own output, so the run log records
+        # which toolchain produced the binary and the question cannot be reopened later.
+        #
+        # The probe pads its versions into columns for a human reading it standalone. Those
+        # runs of spaces are noise inside a one-line row, so collapse them; the first line is
+        # the probe's own header, which duplicates this row's label and is dropped.
+        $chainLines = @($chain -split "`r?`n" |
+            ForEach-Object { ($_ -replace '\s+', ' ').Trim() } |
+            Where-Object { $_ })
+
+        if ($chainCode -eq 0) {
+            Report 'build chain' $true (($chainLines | Select-Object -Skip 1) -join ' · ')
+        }
+        elseif ($chainCode -eq 2) {
+            Report 'build chain' $false 'BEHIND STABLE — see the banner below'
+            ''
+            $chain.TrimEnd()
+            '  Fixing it means an update, then `cargo clean`, then a rebuild — which refills'
+            '  the page cache the reboot just cleared. Your call: fix it and reboot again, or'
+            '  run now and do not quote the number.'
+            ''
+        }
+        else {
+            '      {0,-30} {1}' -f 'build chain', "not verified — offline or a missing tool. Not evidence of staleness."
+        }
+    }
+    else {
+        '      {0,-30} {1}' -f 'build chain', "not verified — no probe at $probe. Not evidence of staleness."
+    }
+
     $dirty = git status --porcelain
     Report 'working tree' ([string]::IsNullOrWhiteSpace($dirty)) `
         $(if ($dirty) { "$(($dirty -split "`n").Count) file(s) modified" } else { "clean at $(git rev-parse --short HEAD)" })
