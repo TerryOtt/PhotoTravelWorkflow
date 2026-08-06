@@ -3428,6 +3428,27 @@ at least one recorded run was convergence, so the comparison above is anchored t
   **Decision 22's retry made this possible** — it holds the failure open for up to an hour,
   where previously the moment passed before anyone could look. Do this before concluding
   anything about Defender
+- **a third card is silently ignored** (decision 7). `preflight::phase1` refuses at zero
+  cards and at one, and has no upper bound; `cards::choose` sorts by speed, takes the fastest
+  as the source and `measured.next()` as the corroborator, and **drops every card after the
+  second without a word.** Decision 7 is titled *there are always two* and that premise is
+  simply unenforced at the top end.
+
+  **Found 2026-08-05 while a spare SD card was being acceptance-tested**, which is what makes
+  it worth recording rather than theoretical: loading a card with test frames gives it a
+  `DCIM`, and a `DCIM` volume that is not a configured destination *is* a card as far as
+  decision 7's rule is concerned. Three readers on one hub is not an exotic rig.
+
+  **It fails safe and that is the problem.** If the stray wins the corroborator slot, decision
+  27's gate refuses on a listing mismatch — correct, but the refusal names a card the operator
+  did not think was in play. If the real corroborator wins, the run proceeds normally and
+  nothing ever says a third card was seen. Either way the tool knows something the operator
+  does not, which is the shape [`REVIEWING.md`](REVIEWING.md) — *A diagnostic that cannot
+  fail* — exists to catch.
+
+  **The fix is decision 7's own argument applied at the other end**: one card is an equipment
+  failure rather than a mode, and three is equally not a mode, so pre-flight should say what
+  it found and refuse. What it must *not* do is pick two and carry on quietly
 - **the card degradation check** (decision 32) — record pre-flight's existing speed
   measurement per card, warn when a card falls off its own history. Record first; the
   threshold is set from accumulated evidence, not chosen up front
