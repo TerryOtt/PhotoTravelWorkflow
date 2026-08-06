@@ -1515,12 +1515,49 @@ attention*.
 standard palette and the reason road signs and hazard tape use it. The green badge keeps white,
 because white on green is the strong pairing there.
 
-**And the yellow badge MUST NOT be bold**, which is the non-obvious half. `black().bold()` emits
-`ESC[1;30m`, and the Windows console renders bold black as *intense* black — **grey**. Terry, on
-seeing it: *"it's almost a gray and getting washed out on the yellow."* **The attribute added to
-make it louder was the thing silencing it.** The green badge keeps `bold` because there the same
-promotion helps: bold white is *bright* white. Same attribute, opposite effect, entirely
-because of which base colour it is applied to.
+**The attention badge is black on `#FFFF00`, set as a true colour and never bold.** Each of those
+three came out of looking at real output, and two of them contradicted the reasoning that
+preceded them.
+
+**It MUST NOT be bold, and that is the non-obvious one.** `black().bold()` emits `ESC[1;30m`, and
+this console renders bold black as *intense* black — **grey**. Terry, on seeing it: *"it's almost
+a gray and getting washed out on the yellow."* **The attribute added to make it louder was the
+thing silencing it.** The green badge keeps `bold` because there the same promotion helps: bold
+white is *bright* white. Same attribute, opposite effect, entirely because of which base colour
+it is applied to.
+
+> **Why terminals do this**, since it looks like a bug and is not. On the original hardware bold
+> was not a font weight — it was more beam current, so bold meant *brighter*. Sixteen-colour
+> palettes kept faith with that by mapping bold + colour *N* onto colour *N+8*, the bright half.
+> For seven colours that is exactly right. Index 0 is black and index 8 is **"bright black"**,
+> which is the palette's name for grey — so black is the one colour where brighter moves *toward*
+> a light background. Terry: *"first time in my life I've seen bold go backwards."* It only bites
+> when black sits on a light ground, which in a terminal is rare and is exactly what a hazard
+> badge wants.
+
+**The palette's yellow was the other half of the washout.** `SGR 43` is `#C19C00` in Windows
+Terminal's default scheme — a dark mustard gold — so black on it was low contrast before bold got
+involved. **Two causes were dulling the same badge and each was hiding the other**, which is why
+the first fix improved things without fixing them.
+
+**Pure yellow beat the road-sign amber it was expected to lose to.** `#FFD500` was the reasoned
+choice — hazard tape, highway signage, the colour the association argues for — and lost a
+side-by-side instantly: *"for my eyes, pure yellow is the clear winner, that does what an
+attention badge should."* **Maximum luminance beat the correct reference.** Signage amber is
+chosen partly for how it holds up under sun, rain and retroreflective sheeting, none of which
+applies to an emissive panel two feet from a face.
+
+**And it is a true colour rather than a palette index**, so it is identical on the laptop panel
+and the 4K monitor and survives a theme change. For a signal whose entire job is instant
+recognition, a colour that moves with the current scheme is one that has to be re-learned.
+
+> **The method note, which outlived every colour decision above.** The first comparison used a
+> single thin `!` and could not have distinguished black from grey whatever the truth was —
+> anti-aliasing smears a one-pixel stroke into whatever is behind it. It produced a confident
+> reading that was then *retracted* on equally thin evidence. The test that settled it set a wide
+> bar of bold black against an **explicitly** bright-black one, so the two either match or they
+> do not; they matched exactly. **An instrument that cannot fail cannot confirm either** — the
+> same rule this project applies to a verification tool, applied to a screenshot.
 
 **His reasoning, and it is about the moment the badge is read rather than about the fact it
 reports:** *"let's be gentle with 11pm Terry and just flag it as 'hey this needs your attention,

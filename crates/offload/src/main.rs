@@ -1468,7 +1468,7 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
         } else {
             style(format!(" {} UNVERIFIED ", count(destination.failed.len())))
                 .black()
-                .on_yellow()
+                .on_true_color(255, 255, 0)
         };
         println!(
             "        {:<8} {} written · {} skipped · {} verified   {verdict}",
@@ -2127,10 +2127,34 @@ fn report_passes(outcome: &pipeline::Outcome) {
 /// worry going in and turned out to be a non-issue; **legibility was the real problem, and only
 /// a side-by-side on the actual terminal found it.**
 ///
-/// **The yellow badge MUST NOT be bold, and that is the whole reason it was grey.** Terry,
-/// 2026-08-06: *"it's almost a gray and getting washed out on the yellow."* `black().bold()`
-/// emits `ESC[1;30m`, and the Windows console renders bold black as *intense* black — grey. **The
-/// attribute added to make it louder was what silenced it.**
+/// **The yellow badge MUST NOT be bold, and that is why it was grey.** Terry, 2026-08-06:
+/// *"it's almost a gray and getting washed out on the yellow."* `black().bold()` emits
+/// `ESC[1;30m`, and this console renders bold black as *intense* black — grey. **The attribute
+/// added to make it louder was what silenced it.**
+///
+/// **Confirmed by a test built specifically to fail**, after the first side-by-side was too weak
+/// to show anything: a wide bar of bold black set against an *explicitly* bright-black one. They
+/// matched, which is the promotion happening in plain sight. The earlier comparison used a single
+/// thin `!` that anti-aliases into its background, so it could not have distinguished black from
+/// grey whatever the truth was — **an instrument that cannot fail cannot confirm either.**
+///
+/// **The background is a fixed `#FFFF00` rather than the palette's yellow, and that was the other
+/// half of the washout.** `SGR 43` is `#C19C00` under Windows Terminal's default scheme — a dark
+/// mustard gold. Black on *that* is genuinely low contrast, so two separate causes were dulling
+/// the same badge and each was hiding the other.
+///
+/// **Pure yellow beat the road-sign amber it was expected to lose to.** `#FFD500` was the
+/// reasoned pick — hazard tape, highway signage, the colour the association argues for — and
+/// Terry chose `#FFFF00` off a side-by-side without hesitating: *"pure yellow is the clear
+/// winner, that does what an attention badge should."* **Maximum luminance won over the correct
+/// reference**, which is the sort of thing only looking settles. Signage amber is chosen partly
+/// for how it survives sun, rain and retroreflective sheeting; none of that applies to an
+/// emissive panel two feet from someone's face.
+///
+/// **A true colour also makes the badge scheme-independent**, which matters more here than
+/// palette politeness: this signal's whole job is instant recognition, and a colour that shifts
+/// with whichever theme is loaded is a signal that has to be re-learned. The green badge stays
+/// on the palette until there is a reason to move it; nobody has reported it reading wrong.
 ///
 /// **The green badge keeps `bold`, because there the same rule helps**: bold white is *bright*
 /// white, which is the stronger of the two on green. Same attribute, opposite effect, entirely
@@ -2144,7 +2168,10 @@ fn step_badge(clean: bool) -> String {
     if clean {
         style("  \u{2713}  ").white().bold().on_green().to_string()
     } else {
-        style(" !!! ").black().on_yellow().to_string()
+        style(" !!! ")
+            .black()
+            .on_true_color(255, 255, 0)
+            .to_string()
     }
 }
 
