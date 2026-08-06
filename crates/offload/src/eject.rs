@@ -272,6 +272,17 @@ fn eject_media_on(handle: HANDLE) -> Result<()> {
 /// `storage::Volume::open` hands out cannot be reused here. Sharing stays permissive because
 /// the *lock*, not the open, is what has to win exclusivity — failing the open instead would
 /// report the wrong thing entirely.
+/// Whether this failure means the volume no longer exists — i.e. that it is already gone.
+///
+/// **Separate and named because the distinction is the whole defect.** *Could not open it* and
+/// *it is not there* arrive through the same `Err`, and collapsing them made a released device
+/// report as held.
+fn missing_volume(error: &anyhow::Error) -> bool {
+    error
+        .downcast_ref::<std::io::Error>()
+        .is_some_and(|io| io.kind() == std::io::ErrorKind::NotFound)
+}
+
 fn open_for_control(path: &str) -> Result<std::fs::File> {
     const GENERIC_READ_WRITE: u32 = 0x8000_0000 | 0x4000_0000;
     const FILE_SHARE_READ_WRITE: u32 = 0x0000_0001 | 0x0000_0002;
@@ -481,8 +492,23 @@ fn pause_after(outcome: &Outcome, races: u32, backoff: Duration) -> (Duration, u
 /// approximated this sequence would be measuring itself rather than the tool.
 pub fn attempt(volume: &Volume, device: &Device, prepare: bool) -> Result<Outcome> {
     if prepare {
-        let file = open_for_control(volume.device_path())
-            .with_context(|| format!("opening {} for eject", volume.guid_path))?;
+        let file = match open_for_control(volume.device_path()) {
+            Ok(file) => file,
+            // **A volume that is not there has been released, and saying otherwise is a lie the
+            // report has already told.** On 2026-08-06 the operator ejected a card from the
+            // tray mid-run; the next attempt could not open it, that became `Held`, and the
+            // run announced `Primary still mounted` about the most thoroughly ejected device
+            // in the room — then excluded it from the count of devices put to bed.
+            //
+            // **Matched on the error kind, not on the message.** `ERROR_FILE_NOT_FOUND` on a
+            // volume path means the volume object is gone, which is exactly what success looks
+            // like from here; a message match would break on a non-English Windows.
+            Err(error) if missing_volume(&error) => return Ok(Outcome::Ejected),
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("opening {} for eject", volume.guid_path));
+            }
+        };
 
         let handle = HANDLE(file.as_raw_handle());
 
@@ -870,6 +896,38 @@ mod tests {
     use super::*;
 
     const BACKOFF: Duration = Duration::from_secs(32);
+
+    /// **The defect this guard exists for**: on 2026-08-06 a card was ejected from the tray
+    /// mid-run, the next attempt could not open the volume, and the run reported
+    /// `Primary still mounted` about a device that was unambiguously gone — then left it out
+    /// of the count of devices put to bed.
+    #[test]
+    fn a_volume_that_no_longer_exists_reads_as_gone() {
+        let vanished = anyhow::Error::from(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "The system cannot find the file specified.",
+        ));
+
+        assert!(missing_volume(&vanished));
+    }
+
+    /// **Everything else is still a real failure.** A volume that is present and refusing must
+    /// not be waved through as released — that would turn this fix into a worse version of the
+    /// bug it repairs, since the operator would be told to store a drive still holding a lock.
+    #[test]
+    fn other_failures_are_not_mistaken_for_a_released_volume() {
+        for kind in [
+            std::io::ErrorKind::PermissionDenied,
+            std::io::ErrorKind::Other,
+            std::io::ErrorKind::InvalidInput,
+        ] {
+            let error = anyhow::Error::from(std::io::Error::new(kind, "nope"));
+            assert!(!missing_volume(&error), "{kind:?} must not read as gone");
+        }
+
+        // And an error carrying no `io::Error` at all — the downcast must fail closed.
+        assert!(!missing_volume(&anyhow::anyhow!("something else entirely")));
+    }
 
     fn raced() -> Outcome {
         Outcome::Dismounted {
