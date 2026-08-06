@@ -365,11 +365,13 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // **The heading is printed here rather than in the report** because `watch_attempt` starts
     // writing the moment the first device is asked, and a header that arrived after its own
     // section would read backwards.
+    // **No blank between the heading and the first attempt line.** Terry, 2026-08-06: a
+    // sub-heading earns a blank line above it, a status line does not — and the attempt lines
+    // are status. `Corroborating` and `Geotagging` already read that way; this one did not.
     if !args.no_eject && outcome.landed() {
         println!();
         println!();
         println!("Eject");
-        println!();
     }
 
     let (released, (cards, cards_took, budget_spent)) = std::thread::scope(|scope| {
@@ -923,7 +925,6 @@ fn report_ssd_release(
             writeln!(out)?;
             writeln!(out)?;
             writeln!(out, "Eject")?;
-            writeln!(out)?;
             writeln!(out, "    Withheld by --no-eject")?;
         }
         return Ok(());
