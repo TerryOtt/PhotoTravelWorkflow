@@ -1442,7 +1442,7 @@ about already settled.
 ```
 ═══ 2026-08-03 · LANDED 18:26:16 · phase 3 took 4m 12s ═══
 
-  1,247 files · 56.1 GB · read from CFexpress
+  1,247 files · 57 GB · read from CFexpress
 
   laptop  C:\Travel\Images        1,247 written · 1,247 verified   OK
   SSD-A   Samsung T9   S5H9NS...    1,247 written · 1,247 verified   OK
@@ -1459,26 +1459,43 @@ about already settled.
      1611Z_2087.CR3 → _runs\2026-08-03T18-22-04\quarantine\
 
   I/O          bytes        rate
-    read      336.6 GB    1,113 MB/s
-    written   224.4 GB      890 MB/s
-    total     561.0 GB     1.65 GB/s        10.0× amplification
+    read        337 GB    1,113 MB/s
+    written     225 GB      890 MB/s
+    total       561 GB      1.7 GB/s        10.0× amplification
 
   Per destination        moved     sustained
-    laptop  C:\        112.2 GB   1,842 MB/s
-    SSD-A   Samsung    112.2 GB     731 MB/s
-    SSD-B   Samsung    112.2 GB     724 MB/s
-    SSD-C   SanDisk    112.2 GB     445 MB/s   ← set the pace
+    laptop  C:\          113 GB   1,842 MB/s
+    SSD-A   Samsung      113 GB     731 MB/s
+    SSD-B   Samsung      113 GB     724 MB/s
+    SSD-C   SanDisk      113 GB     445 MB/s   ← set the pace
 
   Phase                                  wall     I/O
     1  pre-flight: camera card contents  0:02        —
     2  pre-flight: destinations and GPX  0:02        —
-    3  ingest & verify                   4:12   504.9 GB
-    4  corroborate                       3:31    56.1 GB   ⎫ overlapped 3's verify
-    5  geotag                            0:12     0.0 GB   ⎭ pass, and each other
-    total                                5:41   561.0 GB
+    3  ingest & verify                   4:12     505 GB
+    4  corroborate                       3:31      57 GB   ⎫ overlapped 3's verify
+    5  geotag                            0:12       0 GB   ⎭ pass, and each other
+    total                                5:41     561 GB
 
   ►  EJECTED — SAFE TO STORE
 ```
+
+**Sizes are whole GiB and rates carry one decimal**, added 2026-08-06 at the operator's
+request: *"at no point will I care about fractional GB"*, and for rates *"single digit after
+the decimal with basic rounding. 1.65 GB/s should become 1.7."* Sizes round **up** and free
+space rounds **down**, so a printed pair always straddles the truth outward — `human::gib_up`
+and `human::gib_down` carry the argument, and `preflight`'s `NOT ENOUGH ROOM` is the line that
+would otherwise print two equal numbers while refusing the run.
+
+**This is a rendering rule and nothing more. Every stored, compared, asserted and serialized
+figure stays at full precision** — manifests, checksums, the capacity check and the run log are
+untouched, and a test asserting a rounded value MUST NOT be written against them.
+
+> **A consequence to know before someone "fixes" it: rounded components need not sum to the
+> rounded total.** Each figure is rounded independently from exact bytes, so a column can be
+> off by a GiB or two against its own total. That is arithmetic, not a defect — reconciling
+> them would mean rendering one figure from another rather than from the measurement, which is
+> how a display bug becomes a wrong number.
 
 Serials on every destination line so a glance confirms four genuinely distinct disks. The
 verdict is the last line and that phrase appears nowhere else, so it cannot be confused

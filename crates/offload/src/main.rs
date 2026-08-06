@@ -1042,7 +1042,7 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     println!(
         "  {} files · {} GiB · read once from the source card",
         count(outcome.files),
-        offload::human::gib(outcome.bytes)
+        offload::human::gib_up(outcome.bytes)
     );
 
     // What the hardware actually did, which no single per-device rate shows. The source read
@@ -1066,8 +1066,8 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
             // it. `Gbps` stays decimal because it is a *bits* unit whose only purpose is
             // comparison against a link — 10 Gbps is 10^10 bits by definition, and a figure
             // in GiB/s cannot be held up against the number printed on the cable.
-            "  {} GiB moved · {:.2} GiB/s · {:.1} Gbps",
-            offload::human::gib(moved),
+            "  {} GiB moved · {:.1} GiB/s · {:.1} Gbps",
+            offload::human::gib_up(moved),
             moved as f64 / GIB / seconds,
             moved as f64 * 8.0 / 1e9 / seconds
         );
@@ -1166,7 +1166,7 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
         } else {
             format!("· single source ({})", cards.source.label())
         },
-        offload::human::gib(cards.bytes),
+        offload::human::gib_up(cards.bytes),
         rig.distinct_disks,
     );
 
@@ -1218,7 +1218,7 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
             (
                 resolved.label.as_str(),
                 resolved.root.display().to_string(),
-                offload::human::gib_whole(resolved.volume.free_bytes),
+                offload::human::gib_down(resolved.volume.free_bytes),
                 match &resolved.matched {
                     destinations::Match::SerialAtNewVolume { .. } => {
                         "   ! REFORMATTED — update the config's volume_guid"
@@ -1275,7 +1275,7 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
     // that happened, not the check itself — the distinction `REVIEWING.md` draws when it warns
     // about a diagnostic that cannot fail. The failing case is loud and lives in
     // `preflight.rs`: `NOT ENOUGH ROOM ON <label>`, quoting both numbers in the same units.
-    let payload = offload::human::gib(cards.bytes);
+    let payload = offload::human::gib_up(cards.bytes);
 
     // **White on green, via `console`** — which decision 29 declared for exactly this
     // ("verdict styling, and whether this is a terminal at all") and which nothing had

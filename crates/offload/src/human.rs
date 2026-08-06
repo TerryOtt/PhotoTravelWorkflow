@@ -25,35 +25,44 @@ pub fn count(n: usize) -> String {
     out
 }
 
-/// Bytes as **GiB**, one decimal place, for anything that answers *how much space*.
+/// Bytes as **whole GiB, rounded up**, for anything answering *how much is there to move*.
 ///
-/// **Capacity is GiB and rates are decimal, and the split is deliberate.** Windows is what
-/// the operator checks a figure against — Explorer, PowerShell's `/1GB`, the drive's own
-/// properties dialog all divide by 2^30 — so a payload reported as `201.3 GB` sends him to a
-/// file manager that says `187` and invites him to wonder which is lying. Neither is; they are
-/// the same bytes in two units, and the one that matches his other instruments wins.
+/// **Whole rather than fractional at the operator's request** (2026-08-06): *"at no point will
+/// I care about fractional GB."* A tenth of a GiB is 107 MB — below the resolution of any
+/// decision made from this figure, and one more digit to skip past on every line carrying one.
+///
+/// **Up rather than to-nearest, and the direction is load-bearing.** This renders payloads and
+/// requirements, where overstating is the safe error: `387` for a 386.6 GiB day can never
+/// promise that something fits when it does not. Free space rounds the other way, in
+/// [`gib_down`], so the two always move *apart*. That is what stops `NOT ENOUGH ROOM` from
+/// printing two identical numbers while refusing the run — which is exactly what one shared
+/// rounding would produce at 386.2 GiB free against 386.6 GiB needed.
+///
+/// **Integer arithmetic, not `f64::ceil`.** `div_ceil` is exact at every input, where a float
+/// path has to be reasoned about at the boundary — the same class of trap that once had a test
+/// in this file asserting `1,688.0` for a value stored as `1687.949999...`.
+///
+/// **Capacity is GiB and rates are decimal, and the split is deliberate.** Windows is what the
+/// operator checks a figure against — Explorer, PowerShell's `/1GB`, the drive's own properties
+/// dialog all divide by 2^30 — so a payload reported in decimal `GB` as `202` sends him to a
+/// file manager that says `188` and invites him to wonder which is lying. Neither is; they are
+/// the same bytes in two units, and the one matching his other instruments wins.
 ///
 /// **Throughput stays decimal** (`GB/s`, `Gbps`) because a link's speed is decimal by
 /// definition — 10 Gbps is 10^10 bits — and a rate expressed in GiB/s cannot be compared to
 /// the number printed on the cable. So sizes are GiB, rates are GB, and each is the unit its
 /// own question is asked in.
-pub fn gib(bytes: u64) -> String {
-    // Rounded to one decimal *first*, then separated, so the separator is applied to the
-    // digits actually printed. Doing it the other way rounds 1,687.95 to a whole 1,687 and a
-    // fraction 10, which renders as `1,687.10`.
-    let text = format!("{:.1}", bytes as f64 / (1u64 << 30) as f64);
-    match text.split_once('.') {
-        Some((whole, fraction)) => match whole.parse::<usize>() {
-            Ok(whole) => format!("{}.{fraction}", count(whole)),
-            Err(_) => text,
-        },
-        None => text,
-    }
+pub fn gib_up(bytes: u64) -> String {
+    count(bytes.div_ceil(1u64 << 30) as usize)
 }
 
-/// Whole GiB with thousands separators, for the free-space column.
-pub fn gib_whole(bytes: u64) -> String {
-    count((bytes as f64 / (1u64 << 30) as f64).round() as usize)
+/// Bytes as **whole GiB, rounded down**, for anything answering *how much room is there*.
+///
+/// **Down because understating what you have is the safe error**, mirroring [`gib_up`], which
+/// overstates what you need. Together they guarantee the pre-flight line can never read as
+/// though tonight fits when it does not.
+pub fn gib_down(bytes: u64) -> String {
+    count((bytes / (1u64 << 30)) as usize)
 }
 
 /// `done` of `total` as a percentage, one decimal place.
@@ -97,21 +106,48 @@ mod tests {
     /// The four-digit case is the one that matters: a full run moves ~1,687 GiB, and the
     /// figure shipped without a separator until the operator spotted it in real output.
     #[test]
-    fn gib_carries_separators_and_one_decimal() {
-        assert_eq!(gib(0), "0.0");
-        assert_eq!(gib(201_252_000_000), "187.4");
-        assert_eq!(gib(1_811_700_000_000), "1,687.3");
-        assert_eq!(gib_whole(1_620_000_000_000), "1,509");
+    fn gib_carries_separators_and_no_fraction() {
+        assert_eq!(gib_up(0), "0");
+        assert_eq!(gib_up(201_252_000_000), "188");
+        assert_eq!(gib_up(1_811_700_000_000), "1,688");
+        assert_eq!(gib_down(1_620_000_000_000), "1,508");
     }
 
-    /// Separating before rounding would carry the fraction wrong and render `1,687.10`.
-    ///
-    /// One byte under 1,688 GiB, so the rounding is exact rather than resting on how a
-    /// decimal literal lands in binary — an earlier version of this test asserted `1,688.0`
-    /// for `1687.95`, which is stored as `1687.949999...` and formats to `1687.9`.
+    /// An exact multiple must not be inflated — `div_ceil`'s boundary, asserted from both
+    /// sides. One byte more is a whole GiB more, which is the cost of rounding up and is
+    /// the intended behavior rather than an accident of it.
     #[test]
-    fn a_fraction_that_rounds_up_does_not_corrupt_the_separator() {
-        assert_eq!(gib(1_688 * (1u64 << 30) - 1), "1,688.0");
+    fn an_exact_multiple_is_not_rounded_up() {
+        assert_eq!(gib_up(387 * (1u64 << 30)), "387");
+        assert_eq!(gib_up(387 * (1u64 << 30) + 1), "388");
+        assert_eq!(gib_down(387 * (1u64 << 30)), "387");
+        assert_eq!(gib_down(388 * (1u64 << 30) - 1), "387");
+    }
+
+    /// **The invariant the pair exists to hold.** For the same bytes, what you *need* must
+    /// never render below what you *have*, or `NOT ENOUGH ROOM` can print two equal numbers
+    /// while refusing the run. They must also never differ by more than one whole GiB, which
+    /// is what keeps the overstatement honest rather than merely safe.
+    #[test]
+    fn up_and_down_straddle_the_true_value_and_never_cross() {
+        let plain = |text: String| text.replace(',', "").parse::<u64>().unwrap();
+        for bytes in [
+            0,
+            1,
+            (1u64 << 30) - 1,
+            1u64 << 30,
+            (1u64 << 30) + 1,
+            386_600_000_000,
+            415_137_034_818,
+            u64::MAX / 4,
+        ] {
+            let (up, down) = (plain(gib_up(bytes)), plain(gib_down(bytes)));
+            assert!(up >= down, "{bytes}: up {up} below down {down}");
+            assert!(
+                up - down <= 1,
+                "{bytes}: up {up} and down {down} differ by more than 1"
+            );
+        }
     }
 
     #[test]

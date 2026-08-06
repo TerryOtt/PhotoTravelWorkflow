@@ -221,12 +221,17 @@ pub fn phase2(
             // and matching File Explorer, which is where he will actually go look. A refusal
             // that quotes a different unit than the drive's own properties dialog is a
             // refusal he has to do arithmetic on before he can act on it.
+            //
+            // **The two roundings deliberately disagree**: free rounds DOWN and needed rounds
+            // UP, so the printed pair always straddles the truth outward. Rounding both the
+            // same way lets this line read `387 GiB free, 387 GiB needed` while refusing —
+            // a refusal whose own numbers appear to contradict it is worse than no numbers.
             bail!(
                 "NOT ENOUGH ROOM ON {} — {} GiB free, {} GiB needed for tonight plus \
                  margin.",
                 resolved.label,
-                crate::human::gib(resolved.volume.free_bytes),
-                crate::human::gib(needed)
+                crate::human::gib_down(resolved.volume.free_bytes),
+                crate::human::gib_up(needed)
             );
         }
     }
