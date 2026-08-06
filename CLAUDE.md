@@ -280,6 +280,41 @@ breaking position, so `"0.17"` can never resolve to 0.18, and `cargo update` rep
 "Locking 0 packages" while three releases behind. **A clean `cargo update` is not
 evidence of being current.** `TRIP-HYGIENE.md` names which crates here are exposed.
 
+## The build chain is checked live, once a day, on the first build
+
+**Standing order, Terry, 2026-08-06, in his words: *"it's important to me to keep my
+buildtool chains within 24 hours of current."*** He calls it an obsession; treat it as a
+requirement.
+
+**A hook does it, so neither of us has to remember.**
+`~/.claude/hooks/rust-toolchain-check.py` fires on the first
+`cargo build|test|clippy|run|bench` and is scoped by `~/.claude/toolchain-projects.json`,
+which names this repository. It **MUST** ask the network every time. It **MUST NOT** answer
+from recall, from a cached version, or from anything written in this file — a freshness check
+that trusts a memory is not a freshness check.
+
+**Three outcomes, three volumes, and Terry is shown all three:**
+
+| What it established | How it appears | What you do |
+|---|---|---|
+| **Confirmed current** | one quiet line per toolchain, naming the latest stable it just read and that the installed one matches | nothing. **Cite those version numbers** rather than re-running `rustup check` |
+| **Could not confirm** — offline, missing tool | a short informational note | nothing. **Offline is not stale**, and you MUST NOT report it as though it were |
+| **Confirmed behind** | an unmissable banner | **raise it with Terry before further work**, and offer to run the update |
+
+**The middle row is the one to get right.** *I could not check* is a real answer and MUST NOT
+be spelled like *current* — the same rule [`docs/REVIEWING.md`](docs/REVIEWING.md) applies to
+`offload verify`, and the reason a flight with no wi-fi MUST NOT manufacture an alarm.
+
+**The cadence is deliberately two rules.** A clean result is suppressed for 24 hours; a
+**behind** result re-fires once per session until it is fixed. A stale chain is actionable and
+one command from repaired, so repeating it is correct — the opposite of decision 34's rented
+body, which repeats *unfixably* and is INFO for exactly that reason.
+
+**After any toolchain or linker change, `cargo clean` before anything you intend to trust.**
+Cargo fingerprints `rustc` and not the linker, so an incremental build re-checks bytes the old
+toolset produced and passes. The banner says so;
+[`docs/TRIP-HYGIENE.md`](docs/TRIP-HYGIENE.md) carries the reasoning.
+
 ## The workflow
 
 - **Commits go straight to `main`** — one maintainer, no PR. Self-review at commit time

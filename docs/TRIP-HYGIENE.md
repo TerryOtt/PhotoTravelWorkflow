@@ -395,6 +395,44 @@ Comparing one against the other reads as a mismatch on a machine that is perfect
 The `18` in the URL is the VS major version, and is the one thing here that has to be
 edited by hand rather than asked for.
 
+### None of the above waits for trip hygiene — a hook checks it daily
+
+**Standing order, Terry, 2026-08-06: the build chain stays within 24 hours of current.** So
+both checks in this section also run **automatically, on the first
+`cargo build|test|clippy|run|bench` of the day**, from
+`~/.claude/hooks/rust-toolchain-check.py`. It lives outside the repository because it is
+machine tooling serving several projects; `~/.claude/toolchain-projects.json` is what opts
+this one in.
+
+**It queries the network every time and never answers from a cached version** — a freshness
+check that trusts a stored answer is not one. Three outcomes, deliberately different volumes:
+
+```text
+Build chain confirmed current -- asked the network just now
+  rust  latest stable 1.97.1          installed matches
+  msvc  latest stable 18.8.12023.21   installed matches
+```
+
+That is the *quiet* one — a line per toolchain naming the version the network just reported,
+because a bare "current" is too easily confused with a check that never ran. A short
+informational note covers **could not** confirm, and an unmissable banner covers confirmed
+behind. **Offline is not stale**, and the middle outcome exists so a flight cannot manufacture
+an alarm — nor a missing tool report a clean bill of health.
+
+**Two improvements it carries over the manual snippet above**, both verified on this machine
+on 2026-08-06:
+
+- **It derives the VS major from what is installed**, so the hand-edited `18` cannot rot.
+- **It then probes major + 1 to catch a whole new Visual Studio**, and validates that the
+  channel actually carries a `Microsoft.VisualStudio.Product.BuildTools` item. That check is
+  load-bearing: `aka.ms/vs/19/stable/channel` **answers 200 today** with an empty
+  `channelItems` list, so "the URL resolved" would have reported BEHIND every day forever.
+
+**This does not retire the manual pass.** Trip hygiene is the deeper one — it also covers
+rustup itself, the workflow action pins, the declared-but-unused crates `cargo outdated`
+cannot see, and the dry run against the real rig. The hook only answers *is the compiler and
+linker current today*, which is the half that goes stale on its own between trips.
+
 ## Step 3 — verify, and mean it
 
 ```
