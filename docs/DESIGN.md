@@ -279,6 +279,13 @@ Let **N** = one copy of the day's raws.
 > in the mean file size: 3 MB through 2016, 7–10 MB to 2020, 16 MB in 2021, and 26–27 MB from
 > 2022 — which is a raw and its sidecar, and is how the R5 era identifies itself.
 >
+> ⚠ **That 26–27 MB is per *file*, not per frame, and it reads as the frame size.** Every raw
+> is paired with a ~3 KB sidecar, so the mean is almost exactly half the truth. **An R5
+> uncompressed CR3 is ~52–56 MB** — measured directly 2026-08-06: 51.8 MB across 2022-09-27's
+> 3,883 frames and 56.1 MB across 2024-10-02's 7,395. Use **~55 MB** for anything that asks
+> how many frames fit somewhere; the 26 is only ever an era fingerprint. A session that read
+> it the other way halved every card-capacity answer it gave.
+>
 > *Method: whole date folders from the historical archive, so file counts include sidecars.
 > The arithmetic checks out on the known day — 2022-09-27 reports 7,767 files, exactly 3,883
 > raws + 3,883 sidecars + 1 manifest.*

@@ -337,13 +337,21 @@ the deal:
   operator created by pairing unequal cards. **512 against 512 makes the constraint
   symmetric**, so both fill together or neither does.
 
-  **The margin, honestly bounded rather than asserted:** the largest *day* on record is
-  **415 GB** — 81 % of a 512 GB card. But the card constraint is **per session, not per
-  day**, because both cards are formatted at the start of each one and a day may hold
-  several. So the worst load any single card has actually carried is **at most 415 GB and
-  probably well under it, and nobody has counted.** The catalog groups by date folder, which
-  cannot see the session split. Worth counting before a trip that expects a bigger day than
-  any on record.
+  **The margin, measured from the catalog 2026-08-06:** the largest *day* on record is
+  **2024-10-02 — 7,395 frames, 386.6 GiB, 415.1 GB decimal, which is 81 % of a 512 GB card.**
+  Pure CR3 and sidecars at 56.1 MB a frame; no video, no JPEG. It is day 4 of the 2024-09-29
+  trip and **48 % of that whole seven-day trip by itself**, with 32–82 GiB days either side.
+
+  **But the card constraint is per session, not per day**, because both cards are formatted at
+  the start of each one and a day may hold several. So the worst load any single card has
+  actually carried is **at most 415 GB and possibly far less — nobody has counted.** The
+  catalog groups by date folder and cannot see the session split. **Count it before a trip
+  expecting a day bigger than any on record**, because at 81 % there is not a second one of
+  those days' worth of headroom.
+
+  **A day over 200 GB happens about once a year** — 2021, 2022, 2023 and 2024 each have
+  exactly one ([`DESIGN.md`](DESIGN.md), *Where the wall clock goes*). The extreme recurs; it
+  is not a freak.
 
   **Anything smaller than 512 GB is a spare or a test card, not a shooting card.** The
   256 GB Lexar Silver Pro measures healthy and stays in the bag on that basis — it spent
