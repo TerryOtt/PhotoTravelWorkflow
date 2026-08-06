@@ -60,7 +60,7 @@ the closed list — so what is *missing* from the checklist is explained here ra
 absent.
 
 
-## 2. Characterize all three UHS-II USB SD readers — OPEN, TERRY'S MOVE
+## 1. Characterize all three UHS-II USB SD readers — OPEN, TERRY'S MOVE
 
 One known-good card through all three, so Terry knows every reader in the bag is safe to travel
 with. A slow reader is silent in the field — the card mounts, every file reads, nothing errors,
@@ -71,7 +71,7 @@ SDDR-409 has already produced a number worth beating: 281 MB/s** — which retir
 247 was that reader's ceiling, so the other two readers now have a real bar rather than an
 assumed one.
 
-## 3. Zoom out over the badge and verdict work — IN PROGRESS, roughly half done
+## 2. Zoom out over the badge and verdict work — IN PROGRESS, roughly half done
 
 **Started 2026-08-06. What has actually been swept, so nobody assumes the rest was:**
 
@@ -116,7 +116,7 @@ read the result end to end.**
 **Do this after the CLI signoff closes**, and treat it as a documentation review rather than a
 code one — the code is tested; the prose is not.
 
-## 4. Put the docs and tests on a diet — IN PROGRESS
+## 3. Put the docs and tests on a diet — IN PROGRESS
 
 **Terry raised the priority on 2026-08-06** and set the framing: *"pretty aggressive... this is a
 hobby project, we aren't launching nuclear missiles, nobody's gonna die. Use a fresh pair of
