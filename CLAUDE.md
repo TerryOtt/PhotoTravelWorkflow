@@ -253,6 +253,34 @@ repeats.
    and prefer a mistake that is a compile error over one that is a runtime surprise. A
    reviewer may overrule this with an argument; nobody may overrule 1–4 with one.
 
+## A config item that is never used MUST NOT exist
+
+**Standing order, Terry, 2026-08-06, verbatim: *"a config item that is never used should not
+exist — that's a dangerously unused code path waiting to bite us."*** RFC 2119 sense.
+
+**The sharp version of the argument is not "clutter", it is *when* the path runs.** An option
+nobody selects is code that executes for the first time on the night someone is desperate enough
+to start trying flags — which is the worst possible moment for its first execution, and the least
+likely moment for anyone to notice it behaving oddly. **Unused configuration is not inert; it is
+deferred, and it defers to the worst hour.**
+
+**Three questions before any flag, and a "no" to the first MUST mean it is not written:**
+
+1. **Would Terry ever pass a value other than the default?** If the honest answer is no, it is not
+   configuration — it is a constant with extra steps and an untested branch.
+2. **Does a wrong value do harm?** `--eject-prepare every-attempt` was *known* to hang unwinnably,
+   and `never` dropped decision 2's flush guarantee. **Shipping a selectable known-bad mode is
+   worse than shipping no option at all.**
+3. **Is a diagnostic the real motive?** Then it belongs in `examples/`, not on the product's
+   command line. `examples/eject-one.rs` drives every arm of `eject::Prepare` directly, which is
+   why removing the flag cost the experiment nothing.
+
+**A flag added to compare two candidates MUST be removed when the comparison settles.** That is
+the shape this came from: `--eject-prepare` was right for one evening of A/B work and became a
+liability the moment a winner existed. **Deleting it is finishing the experiment**, not
+discarding a capability — and the losing arm stays in the library with its tests, where it is
+exercised rather than merely available.
+
 ## A measured run is a clean build
 
 **`cargo clean`, then `cargo build --release`, before any run whose result will be quoted.**

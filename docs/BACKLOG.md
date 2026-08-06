@@ -34,18 +34,21 @@ than inferred. `OPEN` / `IN PROGRESS` / closed-and-moved-below.
 
 ## 1. Eject vetoes — OPEN — fix is now the default, evidence still thin
 
-> **The default moved on 2026-08-06**, on Terry's call: *"apply the fix to --eject-prepare by
-> flipping the default to what makes the world happy."* An ordinary run now gets
-> `first-attempt-only` rather than the mode known to hang.
+> **Shipped 2026-08-06, and `--eject-prepare` was deleted the same evening.** Terry first asked
+> for the default to flip — *"apply the fix by flipping the default to what makes the world
+> happy"* — then asked the better question: *"should we keep a mode that puts us in an unwinnable
+> war? Is there even value to making that a cmdline arg?"* **No.** `FirstAttemptOnly` is now the
+> only behavior the tool has.
 >
-> **That closes the shipping gap, not the question.** `first-attempt-only` has **one** clean run
-> behind it, against a phenomenon that fired **twice out of two**. The flag stays so `A` is still
-> reachable, and [`EJECT-SERIES.md`](EJECT-SERIES.md) still wants the alternating series.
+> **This item stays open on evidence, not on work.** `FirstAttemptOnly` has one clean run behind
+> it against a fault that fired twice out of two. **But B now accrues for free** — every ordinary
+> run is a B run — so there is nothing to schedule. Watch for the first B hang; it would be
+> immediately informative, since A hangs *unwinnably* while a B run that takes several attempts
+> and then succeeds is a different animal.
 >
-> **Flipping it was still right on the evidence available**, and the asymmetry is the argument:
-> `every-attempt` is *known* to hang unwinnably, `first-attempt-only` is *unproven*. Defaulting to
-> the mode with two recorded failures because the alternative has only one success would be
-> preferring the devil we have measured.
+> **A needs no further runs.** Its failure rate is established, and each one costs 19+ minutes and
+> five cable replugs to re-prove a known result. It stays runnable via
+> `examples/eject-one.rs` if it is ever wanted.
 
 **Status: the most advanced and the least finished.** Full account in
 [`DESIGN.md`](DESIGN.md) decision 22; the run tally is in [`EJECT-SERIES.md`](EJECT-SERIES.md).
@@ -69,8 +72,38 @@ Card arrived 2026-08-06. Bar is the fleet range, **205–247 MB/s**; the known d
 | Low-level format in the R5, before anything else touched it | **done** — Terry, 2026-08-06 |
 | Card identity and capacity | **done** — `EOS_DIGITAL`, exFAT, 511,898,025,984 bytes ≈ 512 GB |
 | PnP parent chain shows SuperSpeed | **done — passes**, see the topology below |
-| Frames on the card | **BLOCKED — needs Terry to shoot.** The card reads **0 files**, so there is nothing to measure. The tool MUST NOT write to a camera card (constraint 2), so this cannot be manufactured |
-| Read the **second** sustained pass | blocked on the row above |
+| Frames on the card | **done** — 748 real CR3s, 40 GiB, copied on the bench. Legitimate because no trip is in progress; see `CONOPS.md` on the two scopes |
+| Sustained read | **PASSES, decisively — 281 MB/s** |
+| A confirming second pass | **still wanted**, see the caveats below |
+
+### The result
+
+| | |
+|---|---|
+| **Sustained read** | **281 MB/s**, over 150 s, decaying to 273 — **97 %**, a mild and normal thermal droop |
+| **Write** | **122 MB/s** average over 40 GiB, and flat: nine 4 GiB windows spanning 119.7–125.8 |
+| **The bar** | fleet range 205–247. The known dud did 73 |
+
+**This is the fleet's fastest SD by a wide margin**, displacing the Lexar Silver Pro 512 GB's 247.
+Nothing else was touching the bus during the read.
+
+> **It refutes a number this project had recorded.** The planned confound was that *"the SDDR-409's
+> own ceiling is 247, so a ~247 result cannot separate card from reader."* **281 MB/s through that
+> same reader retires the claim** — 247 was the *Lexar's* limit, never the reader's, and it had
+> been written down as a property of the reader. **The confound dissolves rather than being
+> controlled for**, and the Lexar cross-check is no longer needed to interpret this number.
+>
+> **How the error happened is the reusable part:** one card was measured through one reader, and
+> the resulting figure was attributed to *the reader*. Nothing distinguished the two until a
+> faster card arrived. Same shape as `REVIEWING.md`'s *when two runs agree, change the other
+> variable*.
+
+**Two caveats before it joins the travel case**, and neither is a reason to doubt the figure:
+
+- **Measured on a Windows-written layout**, not a camera-written one — the same caveat the Lexar
+  512 carries. The acceptance measurement that matters most is on frames the R5 wrote.
+- **Read immediately after a bulk write**, so the card's SLC cache may still have been folding.
+  `REVIEWING.md` — *read the second pass* — asks for a re-read cold.
 
 **The chain, walked 2026-08-06** — every hop SuperSpeed, no USB 2 fallback:
 

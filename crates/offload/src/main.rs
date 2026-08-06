@@ -112,24 +112,6 @@ struct Offload {
     #[arg(long)]
     no_eject: bool,
 
-    /// When to lock and dismount before asking PnP to remove a device.
-    //
-    // **`first-attempt-only` is the default from 2026-08-06**, on Terry's call: *"apply the fix
-    // to --eject-prepare by flipping the default to what makes the world happy."*
-    //
-    // It locks and dismounts once — so decision 2's flush guarantee is unchanged — then asks
-    // bare on every retry. `every-attempt` re-dismounted before each ask, so it never once
-    // enquired about a *settled* volume, and exFAT answers a freshly remounted one with
-    // `PNP_VETO_TYPE(6)`, which never yields. That produced 23 consecutive unwinnable refusals
-    // over 19 minutes, twice out of two runs.
-    //
-    // **The flag stays because the comparison is not finished** — `EJECT-SERIES.md` wants
-    // alternating A/B runs, and `first-attempt-only` has one clean run behind it, not a series.
-    // Flipping the default means an ordinary run now gets the candidate rather than the mode
-    // known to hang; it does not mean the question is closed.
-    #[arg(long, value_enum, default_value_t = PrepareArg::FirstAttemptOnly)]
-    eject_prepare: PrepareArg,
-
     /// Ask this often during eject, instead of the 2s-doubling-to-60s backoff.
     //
     // Diagnostic, and it exists for one question: attempts and elapsed time are inseparable in
@@ -616,7 +598,7 @@ fn eject_phase(
         let running: Vec<_> = targets
             .iter()
             .map(|resolved| {
-                scope.spawn(move || release(resolved, deadline, cadence(args), prepare(args)))
+                scope.spawn(move || release(resolved, deadline, cadence(args), PREPARE))
             })
             .collect();
 
@@ -815,25 +797,21 @@ fn cadence(args: &Offload) -> eject::Cadence {
     }
 }
 
-/// `--eject-prepare`, kept separate from [`eject::Prepare`] so the library owes clap nothing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-enum PrepareArg {
-    /// Lock and dismount before every attempt — the behavior before 2026-08-06.
-    EveryAttempt,
-    /// Lock and dismount once, then ask bare. Keeps the flush, stops re-disturbing the volume.
-    FirstAttemptOnly,
-    /// Never lock or dismount. Drops the flush guarantee; defensible only for cards.
-    Never,
-}
-
-/// Whether this run prepares the volume before asking PnP — see [`eject::Prepare`].
-fn prepare(args: &Offload) -> eject::Prepare {
-    match args.eject_prepare {
-        PrepareArg::EveryAttempt => eject::Prepare::EveryAttempt,
-        PrepareArg::FirstAttemptOnly => eject::Prepare::FirstAttemptOnly,
-        PrepareArg::Never => eject::Prepare::Never,
-    }
-}
+/// How a run prepares a volume before asking PnP to remove it. **Not configurable, deliberately.**
+///
+/// Lock and dismount once — so decision 2's flush guarantee holds — then ask bare on every retry.
+///
+/// **There was a `--eject-prepare` flag for one evening and it was removed on 2026-08-06.** Terry:
+/// *"a config item that is never used should not exist — that's a dangerously unused code path
+/// waiting to bite us."* Two of its three values were things nobody should ever select:
+/// `every-attempt` re-dismounts before each ask and is **known** to hang unwinnably — 23 refusals
+/// over 19 minutes, twice out of two runs — and `never` drops the flush decision 2 depends on.
+///
+/// **A flag whose only correct value is the default is not configuration, it is a live path that
+/// runs exclusively when someone is already having a bad night.** The other two arms of
+/// [`eject::Prepare`] remain in the library with their tests, and `examples/eject-one.rs` drives
+/// them directly — so the experiment is still runnable without the shipped tool offering it.
+const PREPARE: eject::Prepare = eject::Prepare::FirstAttemptOnly;
 
 /// One timestamped line per eject attempt, printed as it happens.
 ///
@@ -989,7 +967,7 @@ fn release_card(
             &device,
             deadline,
             cadence(args),
-            prepare(args),
+            PREPARE,
             watch_attempt(role),
         )
         .unwrap_or_else(|error| eject::Effort {

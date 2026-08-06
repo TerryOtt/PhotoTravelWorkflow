@@ -10,25 +10,46 @@ only the running tally, so a session that has to add a row does not need to re-r
 
 ## The two modes
 
-| | `--eject-prepare` | What it does |
+| | `eject::Prepare` | What it does |
 |---|---|---|
-| **A** | `every-attempt` | Locks and dismounts before **every** attempt. The behavior every run before 2026-08-06 used, and the one that produced 23 consecutive unwinnable refusals. |
-| **B** | `first-attempt-only` | Locks and dismounts **once** — so the flush still happens — then asks bare on every retry, so the volume is never re-disturbed. |
+| **A** | `EveryAttempt` | Locks and dismounts before **every** attempt. The behavior every run before 2026-08-06 used, and the one that produced 23 consecutive unwinnable refusals. |
+| **B** | `FirstAttemptOnly` | Locks and dismounts **once** — so the flush still happens — then asks bare on every retry, so the volume is never re-disturbed. |
 
-A third mode, `never`, drops the flush entirely. **It is a reference point and MUST NOT be run
+A third mode, `Never`, drops the flush entirely. **It is a reference point and MUST NOT be run
 as a candidate**: the archives are NTFS and journal their metadata, but giving up a guarantee
-this project already has, to fix something `first-attempt-only` also fixes, is a bad trade.
+this project already has, to fix something `FirstAttemptOnly` also fixes, is a bad trade.
 
-## Why alternate rather than repeat
+> **`--eject-prepare` no longer exists.** B is the built-in behavior as of 2026-08-06 and A is
+> **not reachable from `offload`** — see `CLAUDE.md`, *a config item that is never used MUST NOT
+> exist*. To run A, use `cargo run --release --example eject-one`, which drives
+> [`eject::Prepare`] directly. **The experiment did not lose anything; the product stopped
+> offering a mode known to hang.**
 
-**The pathological case fires roughly once in six runs.** So a string of clean runs at B proves
-very little on its own — a 1-in-6 event skipping four trials is unremarkable. **Runs MUST
-alternate A and B** so the baseline's failure rate and the candidate's are measured under the
-same conditions on the same evening.
+## How the evidence accumulates now
 
-**And compare attempts per device, not just whether anything hung.** Attempt counts are
-continuous and say something after four runs; waiting for another 23-attempt event could take
-all night and still prove nothing.
+**The original plan was to alternate A and B**, on the reasoning that the pathological case fired
+"roughly once in six runs", so a clean B streak would prove little. **That estimate is retired and
+this section replaced it on 2026-08-06.** The tally below shows **A failing two times out of
+two** — a reproducible fault, not a 1-in-6 lottery.
+
+> **The 1-in-6 figure sat in this file beside the 2-for-2 tally that refuted it**, and the
+> alternation rule was still resting on it. Superseding a number MUST include deleting the
+> arguments built on it; see [`WRITING.md`](WRITING.md).
+
+**So the design changes, and it gets cheaper:**
+
+- **A needs no more runs.** Its failure rate is established and each further run costs 19+ minutes
+  and five cable replugs to re-prove a known result.
+- **B accumulates for free.** Every ordinary run is now a B run, so the sample grows without
+  anyone scheduling anything. **Add a row for any run whose eject behaved unusually**, and for
+  every full run.
+- **The first B hang is the interesting event**, and it would be immediately informative rather
+  than ambiguous — A hangs *unwinnably*, so a B run that merely takes several attempts and then
+  succeeds is a different animal and worth recording as such.
+
+**Compare attempts per device, not just whether anything hung.** Attempt counts are continuous and
+say something after four runs; waiting for another 23-attempt event could take all night and still
+prove nothing.
 
 ## The tally
 
