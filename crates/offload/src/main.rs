@@ -1886,26 +1886,35 @@ fn geotag_phase(
     .map(Some)
 }
 
+/// A phase heading with the blank lines it is owed, or just the gap when the live heading is
+/// still on screen and only the record follows.
+///
+/// **Two blank lines above a phase, one above a pass** — `progress.rs` states that convention
+/// and `Corroborating` and `Geotagging` were getting one. Spotted by Terry on 2026-08-06,
+/// reading a real terminal rather than a log.
+///
+/// **The blanks belong to the heading, not to the record.** When the live heading survives —
+/// a captured log, where nothing is cleared — reprinting it would stutter, and giving the
+/// record two blank lines would open a gap between a heading and the rows it belongs to.
+fn phase_heading(name: &str, erased: bool) {
+    println!();
+    if erased {
+        println!();
+        println!("{name}");
+    }
+}
+
 /// Decision 4: **say "this card looks like it is failing" in those words.** A photographer
 /// reading a bare count should not have to know what normal looks like.
 fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: bool) {
-    println!();
     let Some(report) = report else {
         // Always headed: the waived path never drew bars, so nothing put the word on screen.
-        println!("Corroborating");
+        phase_heading("Corroborating", true);
         println!("    waived — only one card was present (--allow-single-source)");
         return;
     };
 
-    // **The heading is reprinted only when the live one was erased.**
-    // At a terminal `progress.clear()` takes the bars *and* their heading with them, so the
-    // record that follows must restate it or arrive unlabelled. In a captured log nothing is
-    // cleared, the heading is still above the rows, and restating it printed `Corroborating`
-    // twice — a stutter in exactly the mode the operator reads, since the shooting-day
-    // contract has him running this through Claude whenever there is internet.
-    if heading_was_erased {
-        println!("Corroborating");
-    }
+    phase_heading("Corroborating", heading_was_erased);
     print!("    {} matched", count(report.matched));
     if report.transient > 0 {
         // Not a data problem — the re-read agreed. It is a *reader* problem, and worth
@@ -1942,17 +1951,12 @@ fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: boo
 fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool, destinations: usize) {
     let Some(report) = report else {
         // Always headed: the skipped path never drew bars, so nothing put the word on screen.
-        println!();
-        println!("Geotagging");
+        phase_heading("Geotagging", true);
         println!("    not run — no tracks (--no-gpx)");
         return;
     };
 
-    println!();
-    // Only when the live heading was erased — see `report_corroboration`.
-    if heading_was_erased {
-        println!("Geotagging");
-    }
+    phase_heading("Geotagging", heading_was_erased);
     print!(
         "    {} tagged · {} outside track",
         count(report.tagged),

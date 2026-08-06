@@ -122,6 +122,11 @@ looking around. **This gate exists because the constraint used to live in the co
 and a reboot destroys conversations while leaving every drive exactly where it was.**
 Delete the file once the run is recorded.
 
+**[`docs/BACKLOG.md`](docs/BACKLOG.md) is what is in flight and what state it is in.** A
+session's task list dies with the session, and on 2026-08-06 that list was briefly the only
+record of four open items. **Claude MUST update that file when an item opens, closes or
+materially changes — in the same turn, not at the end of a session.**
+
 **Before answering anything, read these two, in this order:**
 
 1. **[`docs/DESIGN.md`](docs/DESIGN.md) — *Where this stands***. What is built, what is
