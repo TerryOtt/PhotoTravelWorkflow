@@ -29,10 +29,29 @@ is the scope of the product; this is what is in flight right now and what state 
 
 ---
 
-**Each item carries its CLI status in its heading**, so a drift between the two is visible rather
-than inferred. `OPEN` / `IN PROGRESS` / closed-and-moved-below.
+**This file is the permanent record. The CLI checklist is a *working set*, and the two are not
+the same list.** Standing order, Terry, 2026-08-06: *"as soon as something is blocked or complete,
+remove it from the CLI UI checklist. BACKLOG is permanent memory, UI checklist is only stuff
+that's both a) eligible to be worked, and b) not complete."*
 
-## 1. SanDisk 512 GB SD acceptance test — IN PROGRESS — passed, one cold pass left
+| | Appears in the CLI checklist |
+|---|---|
+| Eligible to be worked, not complete | **yes** |
+| **Blocked** — waiting on Terry, on hardware, on a shoot | **no.** It lives here until it unblocks |
+| Complete | **no.** It moves to the closed list below |
+
+**So a short checklist is the intended state, and an empty one is a real answer** — it means
+everything left needs Terry rather than Claude. **The reason is that a list padded with things
+nobody can act on is a list you stop reading**, which is the same argument this project makes
+about warnings that fire when you cannot act (decisions 9 and 12, and the build-chain banner).
+
+**Each item carries its status in its heading** — `OPEN`, `IN PROGRESS`, `BLOCKED`, or moved to
+the closed list — so what is *missing* from the checklist is explained here rather than simply
+absent.
+
+## 1. SanDisk 512 GB SD acceptance test — BLOCKED ON TERRY — passed, one cold pass left
+
+*Not in the CLI checklist: nothing here can proceed until the card is reformatted and shot on.*
 
 **It passed the bar decisively. One step remains and it needs Terry:**
 
@@ -107,11 +126,18 @@ Hub". Seeing SuperSpeed hubs the whole way up means the reader came up at SuperS
 > characterized through an untested variable, which is the mistake `REVIEWING.md`'s
 > *when two runs agree, change the other variable* records.
 
-## 2. Characterize all three UHS-II USB SD readers — OPEN
+## 2. Characterize all three UHS-II USB SD readers — BLOCKED ON TERRY
+
+*Not in the CLI checklist: it needs a card physically moved between three readers.*
 
 One known-good card through all three, so Terry knows every reader in the bag is safe to travel
 with. A slow reader is silent in the field — the card mounts, every file reads, nothing errors,
 and you lose 5.8×. Combines with the acceptance test above into a 2 cards × 3 readers matrix.
+
+**Unblocks when** a card with frames on it is available and Terry can swap readers. **The
+SDDR-409 has already produced a number worth beating: 281 MB/s** — which retired the belief that
+247 was that reader's ceiling, so the other two readers now have a real bar rather than an
+assumed one.
 
 ## 3. Zoom out over the badge and verdict work — IN PROGRESS, roughly half done
 

@@ -148,8 +148,28 @@ items changed state in the CLI and none of it reached the file. A rule that depe
 to look is a rule that fails exactly when a session is moving fast, which is when the list changes
 most.
 
-**Each `BACKLOG.md` item carries its status in its own heading** — `OPEN`, `IN PROGRESS`, or moved
-to the closed list — so drift is *visible* rather than inferred. Checking costs one glance.
+**The two lists hold different things, and that is not a drift.** Standing order, 2026-08-06:
+*"BACKLOG is permanent memory, UI checklist is only stuff that's both a) eligible to be worked,
+and b) not complete."*
+
+| | In the CLI checklist | In `BACKLOG.md` |
+|---|---|---|
+| Eligible to be worked, not complete | **yes** | yes |
+| **Blocked** — on Terry, on hardware, on a shoot | **no, remove it** | yes, marked `BLOCKED` with what unblocks it |
+| Complete | **no, remove it** | yes, in the closed list |
+
+**So "in sync" means the *working set* matches, not that the lists are identical.** An item
+leaving the checklist MUST be explained in `BACKLOG.md` in the same turn — `BLOCKED ON TERRY`,
+or moved below — never simply deleted from both.
+
+**A short checklist is the intended state and an empty one is a real answer**: it means everything
+left needs him rather than Claude. **A list padded with things nobody can act on is a list you
+stop reading**, which is the same argument decisions 9 and 12 make about warnings that fire when
+you cannot act.
+
+**Each `BACKLOG.md` item carries its status in its own heading** — `OPEN`, `IN PROGRESS`,
+`BLOCKED`, or moved to the closed list — so drift is *visible* rather than inferred, and so what
+is *missing* from the checklist is explained rather than merely absent.
 
 **And "in sync" includes the STATUS, not just the words.** This failed within the hour: two items
 landed, both had their text rewritten in `BACKLOG.md` *and* their task descriptions updated in the
