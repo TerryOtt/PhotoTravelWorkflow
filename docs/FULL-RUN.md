@@ -391,6 +391,34 @@ on its own — record it with the conditions that make it comparable:
 - **anything that touched the bus that should not have**, including metadata walks — say it
   rather than hoping it was too small to matter
 
+### Hands off the rig once a run has started
+
+**RFC 2119 keywords, and the capitals are load-bearing.**
+
+**The operator MUST NOT touch the rig between launch and the run being declared finished** — no
+pulls, no reseats, no tray icon, no cable moved to a better port. **Claude MUST state this
+explicitly at launch** rather than assuming it is understood, and **MUST say when the run is
+over** so the rule visibly expires.
+
+**If something physical is needed mid-run, Claude MUST ask for it by name and wait.** A device
+that needs attention gets a request; a device the tool is still working on gets silence.
+
+**Claude MUST NOT write a status line containing a verb that could read as an instruction.**
+Not *waiting on the cards*, not *needs the reader*, not *the SD is outstanding*. Say what the
+**tool** is doing — *"the tool is still retrying the cards; nothing for you to do"* — and keep
+every genuine ask in its own labeled block.
+
+> **This exists because it has cost three eject experiments**, and the most recent one was
+> caused by exactly the sentence above. Mid-run, the report said *"Waiting on the cards — that's
+> the measurement."* The operator scanned it, read a request, and reseated a card while the
+> retry loop was running — which is the one variable that run existed to isolate. **He was
+> right to act on what he read.** A message that only works when read carefully is the same
+> defect as a checklist step that only works when remembered, and this document exists because
+> the second kind does not survive night three of a trip.
+>
+> The earlier two were lost to the tray icon being used before the tool's own retry had been
+> given a chance. Same shape: a human near a long-running experiment, and no stated protocol.
+
 ## Why the list is this shape
 
 Each entry is here because its absence has already produced a wrong number in this project,
