@@ -907,16 +907,16 @@ fn report_ssd_release(
         .iter()
         .filter(|r| r.effort.outcome.is_ejected())
         .count();
-    // **Indented under `Travel SSDs` rather than flush left, and it no longer repeats the
-    // group's name.** Terry, 2026-08-06: *"the final line should be indented to h2 ... no need
-    // to write Travel SSDs again as indenting to h2 will put them under Travel SSDs section."*
-    // Position carries the scope, so saying it again is the same stutter the `Corroborating`
-    // heading had.
+    // **Indented as content of the `Travel SSDs` sub-heading, and no longer repeating its
+    // name.** Terry, 2026-08-06: the summary *"falls within the Travel SSDs subsection"*, so it
+    // sits at the same depth as the rows it closes rather than level with the heading — group
+    // at 4, everything belonging to it at 8. Position carries the scope, which is why saying
+    // "Travel SSDs" again would be the same stutter the `Corroborating` heading had.
     writeln!(out)?;
     if down == ssds.len() {
         writeln!(
             out,
-            "    All SSDs put to bed in {}. Safe to store.",
+            "        All SSDs put to bed in {}. Safe to store.",
             duration(elapsed)
         )?;
     } else {
@@ -927,7 +927,7 @@ fn report_ssd_release(
         let stuck = labels(ssds, |o| !o.is_ejected());
         writeln!(
             out,
-            "    {} of {} SSDs put to bed in {}. {} still needs you; see above.",
+            "        {} of {} SSDs put to bed in {}. {} still needs you; see above.",
             count(down),
             count(ssds.len()),
             duration(elapsed),
@@ -1005,7 +1005,11 @@ fn report_card_release(
     // Indented under `Cards`, same as the SSD half — see the note there.
     writeln!(out)?;
     if down == cards.len() {
-        writeln!(out, "    All cards put to bed in {}.", duration(elapsed))?;
+        writeln!(
+            out,
+            "        All cards put to bed in {}.",
+            duration(elapsed)
+        )?;
     } else {
         let stuck: Vec<&str> = cards
             .iter()
@@ -1027,7 +1031,7 @@ fn report_card_release(
 
         writeln!(
             out,
-            "    {} of {} cards put to bed in {}. {} never released ({}). \
+            "        {} of {} cards put to bed in {}. {} never released ({}). \
              Safe to pull anyway: nothing was written to them.",
             count(down),
             count(cards.len()),
@@ -1995,7 +1999,7 @@ mod tests {
         // Indented under the `Travel SSDs` heading and not repeating it — position carries
         // the scope.
         assert!(
-            text.contains("\n    All SSDs put to bed in 0m 13s. Safe to store."),
+            text.contains("\n        All SSDs put to bed in 0m 13s. Safe to store."),
             "{text}"
         );
         assert!(!text.contains("Travel SSDs —"), "{text}");
@@ -2034,7 +2038,7 @@ mod tests {
         );
 
         assert!(
-            text.contains("\n    1 of 3 SSDs put to bed in 90m 0s."),
+            text.contains("\n        1 of 3 SSDs put to bed in 90m 0s."),
             "{text}"
         );
         assert!(text.contains("OWC, WD still needs you"), "{text}");
@@ -2068,7 +2072,7 @@ mod tests {
         );
 
         assert!(
-            text.contains("\n    1 of 2 cards put to bed in 90m 0s."),
+            text.contains("\n        1 of 2 cards put to bed in 90m 0s."),
             "{text}"
         );
         assert!(
