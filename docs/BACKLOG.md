@@ -32,40 +32,20 @@ is the scope of the product; this is what is in flight right now and what state 
 **Each item carries its CLI status in its heading**, so a drift between the two is visible rather
 than inferred. `OPEN` / `IN PROGRESS` / closed-and-moved-below.
 
-## 1. Eject vetoes — OPEN — fix is now the default, evidence still thin
+## 1. SanDisk 512 GB SD acceptance test — IN PROGRESS — passed, one cold pass left
 
-> **Shipped 2026-08-06, and `--eject-prepare` was deleted the same evening.** Terry first asked
-> for the default to flip — *"apply the fix by flipping the default to what makes the world
-> happy"* — then asked the better question: *"should we keep a mode that puts us in an unwinnable
-> war? Is there even value to making that a cmdline arg?"* **No.** `FirstAttemptOnly` is now the
-> only behavior the tool has.
->
-> **This item stays open on evidence, not on work.** `FirstAttemptOnly` has one clean run behind
-> it against a fault that fired twice out of two. **But B now accrues for free** — every ordinary
-> run is a B run — so there is nothing to schedule. Watch for the first B hang; it would be
-> immediately informative, since A hangs *unwinnably* while a B run that takes several attempts
-> and then succeeds is a different animal.
->
-> **A needs no further runs.** Its failure rate is established, and each one costs 19+ minutes and
-> five cable replugs to re-prove a known result. It stays runnable via
-> `examples/eject-one.rs` if it is ever wanted.
+**It passed the bar decisively. One step remains and it needs Terry:**
 
-**Status: the most advanced and the least finished.** Full account in
-[`DESIGN.md`](DESIGN.md) decision 22; the run tally is in [`EJECT-SERIES.md`](EJECT-SERIES.md).
+1. **Reformat the card in the R5** — it currently holds 40 GiB of bench data.
+2. Shoot frames onto it.
+3. `cargo run --release --example sustained -- E:\DCIM\<folder> 150`
 
-- **Cause** — the retry re-dismounted before *every* attempt, so it never asked about a settled
-  volume. exFAT refuses a freshly remounted one with `PNP_VETO_TYPE(6)`, which never yields.
-- **Base rate** — established. **2 hangs from 2 runs** at `every-attempt`.
-- **Fix** — `Prepare::FirstAttemptOnly`, **the default since 2026-08-06.** Flushes once, then
-  stops disturbing the volume.
-- **Missing** — repeat runs. **One B run, zero hangs**, against a phenomenon that fires
-  reliably. **The default MUST NOT move on that.**
+**Why that is not ceremony:** the 281 figure was taken on a **Windows-written layout immediately
+after a bulk write**, so the card's SLC cache may still have been folding, and camera-written
+geometry is what the card will actually carry. `REVIEWING.md` — *read the second pass*. **Nothing
+is expected to change the verdict**; the card is 34 MB/s clear of the previous best.
 
-**Next action:** more B runs, alternating with A. Each costs five cable replugs.
-
-## 2. SanDisk 512 GB SD acceptance test — IN PROGRESS
-
-Card arrived 2026-08-06. Bar is the fleet range, **205–247 MB/s**; the known dud did 73.
+Bar was the fleet range, **205–247 MB/s**; the known dud did 73.
 
 | Step | State |
 |---|---|
@@ -127,16 +107,13 @@ Hub". Seeing SuperSpeed hubs the whole way up means the reader came up at SuperS
 > characterized through an untested variable, which is the mistake `REVIEWING.md`'s
 > *when two runs agree, change the other variable* records.
 
-**Planned confound:** the SDDR-409's own ceiling is 247, so a ~247 result cannot separate card
-from reader. Read it in the Lexar LRWM04U as well.
-
-## 3. Characterize all three UHS-II USB SD readers — OPEN
+## 2. Characterize all three UHS-II USB SD readers — OPEN
 
 One known-good card through all three, so Terry knows every reader in the bag is safe to travel
 with. A slow reader is silent in the field — the card mounts, every file reads, nothing errors,
 and you lose 5.8×. Combines with the acceptance test above into a 2 cards × 3 readers matrix.
 
-## 4. Zoom out over the badge and verdict work — IN PROGRESS, roughly half done
+## 3. Zoom out over the badge and verdict work — IN PROGRESS, roughly half done
 
 **Started 2026-08-06. What has actually been swept, so nobody assumes the rest was:**
 
@@ -169,13 +146,12 @@ substantive changes that need a zoom out, but not yet."*
 
 **The risk this item exists to catch:** each change was argued in its own commit and its own doc
 comment, and several of them *supersede* text elsewhere rather than adding to it. **Nobody has
-read the result end to end.** That is exactly how decision 14's layout rules came to contradict
-`progress.rs`, which item 2 is still carrying.
+read the result end to end.**
 
 **Do this after the CLI signoff closes**, and treat it as a documentation review rather than a
 code one — the code is tested; the prose is not.
 
-## 5. Put the docs and tests on a diet — IN PROGRESS
+## 4. Put the docs and tests on a diet — IN PROGRESS
 
 **Terry raised the priority on 2026-08-06** and set the framing: *"pretty aggressive... this is a
 hobby project, we aren't launching nuclear missiles, nobody's gonna die. Use a fresh pair of
@@ -191,13 +167,9 @@ redundant tests removed. **Remaining and larger:** `main.rs` (997 comment lines)
 (429), `progress.rs` (270), and `DESIGN.md`'s run records, which should move out to their own
 file the way `EJECT-SERIES.md` already did.
 
-186 tests and a 3,600-line `DESIGN.md`. **The count is not the metric**; most of those tests are
-regressions for defects that actually shipped, and the "considered and rejected" material exists
-to stop re-proposals. The real fat is the same argument restated in three places, and the likely
-answer is structure rather than deletion — splitting run records out of `DESIGN.md` the way
-`EJECT-SERIES.md` already was.
-
-**Do this when the eject work is settled**, not during it.
+**The count is not the metric.** Most tests are regressions for defects that actually shipped, and
+the "considered and rejected" material exists to stop re-proposals. **The real fat is the same
+argument restated in three places**, so the likely answer is structure rather than deletion.
 
 ---
 
@@ -212,6 +184,15 @@ Kept briefly so a resumed session does not re-open them.
 - Cards ejected sequentially, so Primary could starve Secondary
 - A card already ejected reported as `still mounted`
 - **OBE** — concurrency as the veto cause, overtaken by the settle-time explanation
+- **Eject vetoes — closed 2026-08-06.** Cause found (the retry re-dismounted before every
+  attempt, so it never once asked about a *settled* volume; exFAT answers a freshly remounted one
+  with `PNP_VETO_TYPE(6)`, which never yields). `Prepare::FirstAttemptOnly` shipped as the tool's
+  **only** behavior, and `--eject-prepare` was deleted rather than left as a selectable
+  known-hanging mode. **Closed on work, watched on evidence**: A's failure rate is established at
+  2-for-2 and needs no more runs, and B now accrues on every ordinary run, so there is nothing
+  left to schedule. Add a row to [`EJECT-SERIES.md`](EJECT-SERIES.md) if an eject ever behaves
+  unusually — **a B run that takes several attempts and then succeeds is a different animal from
+  A's unwinnable hang**, and would be worth knowing about
 - **Terry's signoff on the CLI output — explicitly given 2026-08-06.** The badge column, the
   colours, the `Eject` restructure, the `SAFE TO STORE` defect and the verdict badge all landed
   and were reviewed on both the 4K monitor and the laptop. **The one leftover is prose and moved

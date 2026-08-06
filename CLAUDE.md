@@ -151,6 +151,17 @@ most.
 **Each `BACKLOG.md` item carries its status in its own heading** — `OPEN`, `IN PROGRESS`, or moved
 to the closed list — so drift is *visible* rather than inferred. Checking costs one glance.
 
+**And "in sync" includes the STATUS, not just the words.** This failed within the hour: two items
+landed, both had their text rewritten in `BACKLOG.md` *and* their task descriptions updated in the
+same turn — and neither had its **status** moved, so the checklist still read `pending` for a fix
+that had already shipped. Terry, spotting it: *"what checklist/BACKLOG changes are needed if two
+tasks just landed?"*
+
+> **When work lands, the status field is the whole point.** He reads a one-line summary and a
+> state; a beautifully updated description under a stale `pending` tells him nothing has happened.
+> **Ask on every landing: does this item change state?** Completed, newly blocked, newly started —
+> and if it does, move it in *both* places before the commit.
+
 **Why he relies on this absolutely, and why the two failure directions are not symmetric:**
 
 | Drift | Consequence |
