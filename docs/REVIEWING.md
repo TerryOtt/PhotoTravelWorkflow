@@ -278,7 +278,7 @@ in a hurry, at the keyboard, while chasing something else — and they are belie
 > **Before trusting a check, ask what it would print if the thing it looks for were absent.
 > If the answer is "the same thing", it is decoration.**
 
-**Five instances in this project, all of them confident and all of them wrong:**
+**Six instances in this project, all of them confident and all of them wrong:**
 
 | The check | What it reported | Why it could not work |
 |---|---|---|
@@ -287,7 +287,7 @@ in a hurry, at the keyboard, while chasing something else — and they are belie
 | Element 5 topology probe | the OWC "on a laptop port" | matched chain names against `Element 5`; a PCIe-tunnelled device enumerates through anonymous `PCI Express Switch Port` entries that never name the hub |
 | dependency currency check | `indicatif 0.18 <-- BEHIND 0.18.6` | compared a *requirement* against a *version*. `"0.18"` reaches 0.18.6 — for a `0.x` crate the **minor** is the breaking position |
 | `eject-check.ps1` readers | "none found" about a reader sitting there healthy | filtered `-Class DiskDrive`, and a reader only presents a DiskDrive while a card is *in* it |
-| **`offload verify` — in the product, not a script** | **`CLEAN — every recorded file is present and matches`, on a disk holding zero manifests** | `clean()` is three `== 0` tests, and **all three are vacuously true when nothing was found.** An empty archive and a fully verified one are spelled identically ([`DESIGN.md`](DESIGN.md) decision 20) |
+| **`offload verify` — in the product, not a script.** **Fixed 2026-08-06, `8118a7b`** | **`CLEAN — every recorded file is present and matches`, on a disk holding zero manifests** | `clean()` **was** three `== 0` tests, and **all three are vacuously true when nothing was found** — an empty archive and a fully verified one were spelled identically. It is now a four-variant `Verdict` enum, so a caller **cannot** fail to handle the empty case without a compile error ([`DESIGN.md`](DESIGN.md) decision 20) |
 
 **Five of the six reported the reassuring answer**, which is the part that makes this
 dangerous rather than merely annoying: a broken check that cries wolf gets fixed within

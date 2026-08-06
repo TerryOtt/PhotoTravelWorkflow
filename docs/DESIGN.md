@@ -1875,6 +1875,42 @@ rather than missing.
 > whether a dropped drive had lost data, on a disk that turned out to hold none — the tool was
 > asked a question it had no material to answer, and said `CLEAN`. *Confirm the check has
 > something to check before quoting its verdict.*
+>
+> ### ✔ Fixed 2026-08-06 in `8118a7b` — and the type is what does the work
+>
+> **`Report::clean() -> bool` is gone**, replaced by `Report::verdict() -> Verdict` with the
+> four states this note called for:
+>
+> | Verdict | What the last line says | Exit |
+> |---|---|---|
+> | `Clean` | `CLEAN — every recorded file is present and matches` | 0 |
+> | **`NothingToVerify`** | **`NOTHING TO VERIFY — no manifest found under <root>. Either this is not an archive root, or this disk has been cleared. Nothing was checked, and nothing here says the photographs are fine.`** | **2** |
+> | `Incomplete` | `CANNOT FULLY VERIFY — a manifest could not be read...` | 2 |
+> | `Damaged` | `NOT CLEAN — N damaged, N missing` | 2 |
+>
+> **An enum rather than a fourth `if`, and that is the point rather than the styling.** A `bool`
+> leaves every caller free to keep asking the old question; a non-exhaustive `match` is a
+> compile error. That is binding constraint 5 — prefer a mistake the compiler catches over one
+> that surprises at runtime — spent on the one command whose wrong answer has no backstop
+> anywhere.
+>
+> **The wording names both causes**, because the operator cannot distinguish them from where he
+> is standing: a disk cleared since its last run and a path that was never an archive root
+> produce the identical empty walk.
+>
+> **`NothingToVerify` exits 2, not 0.** The command ran exactly as designed, so this is not a
+> failure — and it is emphatically not a pass, so a script keying on the status must not be able
+> to read it as one (decision 18).
+>
+> **Four tests came with it, and `folders.is_empty()` rather than `checked() == 0` is the
+> discriminator they exist to pin.** `a_folder_of_tombstones_is_clean_rather_than_empty` is the
+> one that keeps the fix honest: phase 4 deleting every frame of a day leaves manifests that
+> verify perfectly and check **zero** files, and that disk is *clean* rather than absent
+> (decision 12's tombstones). An implementation keyed on files-checked would pass the empty-disk
+> test and quietly break that one. **Mutation-checked** per
+> [`REVIEWING.md`](REVIEWING.md): restoring the old three-`== 0` body returns `Clean` on the
+> empty root and fails that test by name, and **nothing else in the suite notices** — which is
+> precisely the measure of how invisible this defect was.
 
 **Sidecar drift should not exist on any destination**, and after decision 11's correction
 `verify` says so about all four rather than excusing one. Nothing edits these copies, so
