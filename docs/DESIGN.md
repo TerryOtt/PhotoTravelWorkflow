@@ -3782,12 +3782,76 @@ heavy unbuffered I/O rather than an idle stick; **five devices are removed concu
 mass-storage node. The ordinary "safely remove one idle USB stick" path probably never gets
 there.
 
-> **⚠ `n` = 1 each way, and this MUST NOT become a default on it.** The `LockAndDismount`
-> baseline is a single run, the `Bare` result is a single run, and this card has been erratic
-> all day. **What is already settled is the risk asymmetry, not the fix**: the flush guarantee
-> protects data this tool *wrote*, it has never written to a card (binding constraint 2), and
-> `CONOPS.md` formats both cards in-body next session. So the landing place to test next is
-> `Prepare` **per device class** — archives keep the full sequence, cards go bare.
+> **⚠ `n` = 1 each way, and this MUST NOT become a default on it.** The baseline is a single
+> run, the bare result is a single run, and this card has been erratic all day.
+
+#### ⇒ THE CAUSE: the retry re-dismounts before every attempt
+
+**Found by the operator, and it is the first explanation that covers everything.** Each attempt
+does lock → dismount → close handle → ask inside a few hundred milliseconds, so **the retry
+never once asked about a settled volume** — it re-created the fresh-mount condition and
+immediately asked about it, twenty-three times. The sixty-second gaps were spent waiting, not
+settling, because the settling was destroyed at the start of the next attempt. **The tray
+succeeded because it asked about a volume that had been mounted 41 seconds.**
+
+| Observation | Volume state when asked |
+|---|---|
+| 23 refusals, prepared | freshly remounted, milliseconds old |
+| tray, first try | settled 41 s |
+| bare eject, first ask | never disturbed |
+| cold harness 1 s · after-run harness 2 s | untouched |
+
+**`Prepare::FirstAttemptOnly` follows directly**: lock and dismount on attempt one so the flush
+still happens, then ask bare on every retry so the volume is never re-disturbed. **No
+per-device-class branching is needed**, which the filesystem check below makes safe.
+
+| Device | `EveryAttempt` | `Never` | `FirstAttemptOnly` |
+|---|---|---|---|
+| SanDisk | 5 s · 1 | 7 s · 1 | 3 s · 1 |
+| WD | 7 s · 1 | 14 s · 1 | **29 s · 5** |
+| OWC | 13 s · 2 | 16 s · 2 | 5 s · 1 |
+| **Primary** | **NEVER · 23 · 19 min** | 9 s · 1 | 6 s · 1 |
+| Secondary | 2 s · 2 | 9 s · 1 | 3 s · 2 |
+| **Stage** | **19 m 20 s** | 16 s | 29 s |
+
+#### ✗ Two results that undercut the story, recorded rather than smoothed
+
+- **Primary released on a *prepared* attempt in the third run.** Attempt one under
+  `FirstAttemptOnly` is byte-identical to the old behavior, and the call that failed 23
+  consecutive times an hour earlier succeeded in six seconds. **The CFexpress is not reliably
+  poisoned by preparation.**
+- **The device that struggles changes run to run** — Primary once, WD once, neither twice, and
+  WD had never fought before. That reads as per-night luck rather than any device being special.
+
+**So the fix is plausible, costs nothing, and rests on `n` = 1 per mode against a phenomenon
+firing roughly once in six runs. A base rate MUST be established before any default moves.**
+
+#### The veto descends the stack, and its bottom rung is winnable
+
+**Observed twice, both ending in release.** WD, third run:
+
+```text
+#1  type 6  SCSI\Disk&Ven_WD&Prod_My_Passport_264F   the disk object
+#3  type 6  STORAGE\Volume\{0d6e2e37-...}            the volume object
+#4  type 5  STORAGE\Volume\{0d6e2e37-...}            outstanding open → 250 ms retry
+#5  RELEASED
+```
+
+**`PNP_VETO_TYPE(5)` has been the last stop before success both times it has appeared.** Visible
+only because the reason prints *on change* — printing the last one shows no story, printing every
+one buries it.
+
+#### Filesystem check: the archives are NTFS, only the cards are exFAT
+
+| | |
+|---|---|
+| `C:`, SanDisk, OWC, WD | **NTFS** |
+| both cards | **exFAT** |
+
+**So the flush guarantee is belt-and-braces on the archives and pointless on the cards.** NTFS
+journals its metadata, so a surprise removal is recoverable; exFAT has no journal, and exFAT is
+only where this tool never writes. **This removes the argument for treating the two device
+classes differently** — which is why the fix can be one uniform rule.
 
 #### Two things worth carrying
 
