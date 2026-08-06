@@ -275,7 +275,12 @@ pub fn power_down_disk(disk_number: u32) -> Result<()> {
 #[derive(Debug, Clone)]
 pub struct Effort {
     pub outcome: Outcome,
-    /// Full lock → dismount → power-down passes made, always at least one.
+    /// Full lock → dismount → power-down passes made.
+    ///
+    /// At least one from [`eject`], which always tries once even past the deadline. A caller
+    /// that could not resolve a device to attempt against at all reports **zero**, and the
+    /// distinction matters: *asked once and refused* and *never asked* look identical in a
+    /// report that collapses them.
     pub attempts: u32,
     /// Wall clock across all of them.
     pub waited: Duration,

@@ -653,7 +653,7 @@ fn release_cards(
     plan: &preflight::Preflight,
     args: &Offload,
     deadline: Instant,
-) -> Vec<(String, eject::Outcome)> {
+) -> Vec<(String, eject::Effort)> {
     if args.no_eject {
         return Vec::new();
     }
@@ -673,17 +673,34 @@ fn release_cards(
                 .map(|(card, _)| (SECONDARY_LABEL, card)),
         )
         .map(|(role, card)| {
-            let outcome = match storage::device_of(&card.volume) {
-                Ok(device) => eject::eject(&card.volume, &device, deadline)
-                    .map(|effort| effort.outcome)
-                    .unwrap_or_else(|error| eject::Outcome::Held {
-                        reason: format!("{error:#}"),
-                    }),
-                Err(error) => eject::Outcome::Held {
-                    reason: format!("the card reports no device to release: {error:#}"),
+            // **The whole `Effort` is kept, not just its outcome.** Discarding `attempts` and
+            // `waited` here is what made *how reliably does a held card recover* unanswerable
+            // on 2026-08-06: the one multi-minute release this project has seen — 11 m 17 s —
+            // has no attempt count beside it, so nobody can say whether that was sixteen asks
+            // or one lucky late one. Every run now contributes that data point for free, which
+            // is the only way a sample larger than one is ever going to exist.
+            let effort = match storage::device_of(&card.volume) {
+                Ok(device) => {
+                    eject::eject(&card.volume, &device, deadline).unwrap_or_else(|error| {
+                        eject::Effort {
+                            outcome: eject::Outcome::Held {
+                                reason: format!("{error:#}"),
+                            },
+                            attempts: 1,
+                            waited: Duration::ZERO,
+                        }
+                    })
+                }
+                // Zero attempts, because none was possible — see `Effort::attempts`.
+                Err(error) => eject::Effort {
+                    outcome: eject::Outcome::Held {
+                        reason: format!("the card reports no device to release: {error:#}"),
+                    },
+                    attempts: 0,
+                    waited: Duration::ZERO,
                 },
             };
-            (role.to_string(), outcome)
+            (role.to_string(), effort)
         })
         .collect()
 }
@@ -826,7 +843,7 @@ fn report_ssd_release(
 /// inferred from a large number.
 fn report_card_release(
     out: &mut impl Write,
-    cards: &[(String, eject::Outcome)],
+    cards: &[(String, eject::Effort)],
     elapsed: Duration,
     budget_spent: bool,
 ) -> io::Result<()> {
@@ -836,22 +853,40 @@ fn report_card_release(
 
     writeln!(out)?;
     writeln!(out, "    Cards")?;
-    for (label, outcome) in cards {
-        match outcome {
+    for (label, effort) in cards {
+        // **The same effort suffix the SSD rows carry, and it is here to build a sample.**
+        // A card that took sixteen asks over eleven minutes and one that got lucky on its
+        // second look identical without it — which is exactly the question this project could
+        // not answer about its only long release. Printed on the card rows for evidence
+        // rather than for the operator, who has nothing to do with the number either way.
+        let asked = if effort.attempts > 1 {
+            format!(
+                " after {} attempts over {}",
+                effort.attempts,
+                duration(effort.waited)
+            )
+        } else {
+            String::new()
+        };
+
+        match &effort.outcome {
             // A card comes *out*; an SSD gets *unplugged*. Same event, different next action.
             eject::Outcome::Ejected => {
-                writeln!(out, "        {label:<10} ejected; remove card from reader")?;
+                writeln!(
+                    out,
+                    "        {label:<10} ejected; remove card from reader{asked}"
+                )?;
             }
             // Neither remaining branch is phrased as a failure. The tool never wrote to a card,
             // so it was safe to pull before any of this ran; what was lost is tidiness, and an
             // operator reading "failed" here would worry about data that was never at risk.
             eject::Outcome::Dismounted { reason } => writeln!(
                 out,
-                "        {label:<10} dismounted, still listed — safe to pull anyway\n            {reason}",
+                "        {label:<10} dismounted, still listed — safe to pull anyway{asked}\n            {reason}",
             )?,
             eject::Outcome::Held { reason } => writeln!(
                 out,
-                "        {label:<10} still mounted — safe to pull anyway, nothing was written to it\n            {reason}",
+                "        {label:<10} still mounted — safe to pull anyway, nothing was written to it{asked}\n            {reason}",
             )?,
         }
     }
@@ -860,7 +895,7 @@ fn report_card_release(
     // origin with the SSD line above, so the larger of the two is the answer to "how long to
     // put all five to bed" — which Terry asked to keep, just not at the cost of the number
     // that matters.
-    let down = cards.iter().filter(|(_, o)| o.is_ejected()).count();
+    let down = cards.iter().filter(|(_, e)| e.outcome.is_ejected()).count();
     writeln!(out)?;
     writeln!(out)?;
     if down == cards.len() {
@@ -873,7 +908,7 @@ fn report_card_release(
     } else {
         let stuck: Vec<&str> = cards
             .iter()
-            .filter(|(_, o)| !o.is_ejected())
+            .filter(|(_, e)| !e.outcome.is_ejected())
             .map(|(label, _)| label.as_str())
             .collect();
 
@@ -908,7 +943,7 @@ fn report_card_release(
     // than the reader itself. Naming the consequence here is what turns a mystery at the next
     // offload into an expected chore — and pre-flight refuses anyway, so a forgotten replug
     // costs ten seconds rather than a night.
-    if cards.iter().any(|(_, outcome)| outcome.is_ejected()) {
+    if cards.iter().any(|(_, e)| e.outcome.is_ejected()) {
         writeln!(out)?;
         writeln!(
             out,
@@ -1767,8 +1802,20 @@ mod tests {
         String::from_utf8(out).expect("the report is UTF-8")
     }
 
+    /// 677 s is 11 m 17 s — the one long card release this project has actually observed.
+    fn card(label: &str, outcome: eject::Outcome, attempts: u32) -> (String, eject::Effort) {
+        (
+            label.to_owned(),
+            eject::Effort {
+                outcome,
+                attempts,
+                waited: Duration::from_secs(677),
+            },
+        )
+    }
+
     fn render_cards(
-        items: &[(String, eject::Outcome)],
+        items: &[(String, eject::Effort)],
         elapsed: Duration,
         budget_spent: bool,
     ) -> String {
@@ -1851,8 +1898,8 @@ mod tests {
     fn cards_that_never_release_declare_the_budget() {
         let text = render_cards(
             &[
-                ("Primary".to_owned(), held("held by STORAGE\\Volume{...}")),
-                ("Secondary".to_owned(), eject::Outcome::Ejected),
+                card("Primary", held("held by STORAGE\\Volume{...}"), 90),
+                card("Secondary", eject::Outcome::Ejected, 1),
             ],
             Duration::from_secs(90 * 60),
             true,
@@ -1881,7 +1928,7 @@ mod tests {
     #[test]
     fn cards_that_gave_up_early_do_not_claim_the_budget() {
         let text = render_cards(
-            &[("Primary".to_owned(), held("something else went wrong"))],
+            &[card("Primary", held("something else went wrong"), 1)],
             Duration::from_secs(42),
             false,
         );
@@ -1890,20 +1937,50 @@ mod tests {
         assert!(!text.contains("budget"), "{text}");
     }
 
+    /// **The attempt count on a card row exists to build a sample, not to inform the operator.**
+    /// Discarding it is what made *how reliably does a held card recover* unanswerable about the
+    /// only long release this project has seen — 11 m 17 s, with no record of whether that was
+    /// sixteen asks or one lucky late one. A card that recovers late and one that recovers on
+    /// its second look MUST NOT render identically.
+    #[test]
+    fn a_card_that_took_many_attempts_says_how_many() {
+        let late = render_cards(
+            &[card("Primary", eject::Outcome::Ejected, 16)],
+            Duration::from_secs(677),
+            false,
+        );
+        assert!(
+            late.contains("ejected; remove card from reader after 16 attempts over 11m 17s"),
+            "{late}"
+        );
+
+        // First-ask success stays clean, exactly as the SSD rows do.
+        let prompt = render_cards(
+            &[card("Primary", eject::Outcome::Ejected, 1)],
+            Duration::from_secs(1),
+            false,
+        );
+        assert!(
+            prompt.contains("ejected; remove card from reader\n"),
+            "{prompt}"
+        );
+        assert!(!prompt.contains("attempts"), "{prompt}");
+    }
+
     /// A card that never released MUST NOT trigger the replug warning: the reader only powers
     /// down with a card it actually ejected, so warning here would send the operator to fix
     /// something that did not happen.
     #[test]
     fn the_replug_warning_follows_an_actual_eject() {
         let stuck = render_cards(
-            &[("Primary".to_owned(), held("still mounted"))],
+            &[card("Primary", held("still mounted"), 90)],
             Duration::from_secs(42),
             false,
         );
         assert!(!stuck.contains("needs a replug"), "{stuck}");
 
         let clean = render_cards(
-            &[("Primary".to_owned(), eject::Outcome::Ejected)],
+            &[card("Primary", eject::Outcome::Ejected, 1)],
             Duration::from_secs(9),
             false,
         );
