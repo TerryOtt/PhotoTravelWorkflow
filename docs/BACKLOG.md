@@ -46,10 +46,37 @@ is the scope of the product; this is what is in flight right now and what state 
 
 ## 2. SanDisk 512 GB SD acceptance test
 
-Card arrived 2026-08-06; **step 1 done** — Terry low-level formatted it in the R5 before
-anything else touched it. Remaining: confirm the PnP parent chain shows SuperSpeed, get frames
-on it, read the **second** sustained pass. Bar is the fleet range, 205–247 MB/s; the known dud
-did 73.
+Card arrived 2026-08-06. Bar is the fleet range, **205–247 MB/s**; the known dud did 73.
+
+| Step | State |
+|---|---|
+| Low-level format in the R5, before anything else touched it | **done** — Terry, 2026-08-06 |
+| Card identity and capacity | **done** — `EOS_DIGITAL`, exFAT, 511,898,025,984 bytes ≈ 512 GB |
+| PnP parent chain shows SuperSpeed | **done — passes**, see the topology below |
+| Frames on the card | **BLOCKED — needs Terry to shoot.** The card reads **0 files**, so there is nothing to measure. The tool MUST NOT write to a camera card (constraint 2), so this cannot be manufactured |
+| Read the **second** sustained pass | blocked on the row above |
+
+**The chain, walked 2026-08-06** — every hop SuperSpeed, no USB 2 fallback:
+
+```
+SANDISK SDDR-409 USB Device            [DiskDrive]
+  USB Mass Storage Device              Port_#0003.Hub_#0005
+    Generic SuperSpeed USB Hub         Port_#0004.Hub_#0003
+      Generic SuperSpeed USB Hub       Port_#0002.Hub_#0001
+        USB Root Hub (USB 3.0)
+          Intel(R) USB 3.20 eXtensible Host Controller
+```
+
+**A SuperSpeed hub in the path is real evidence rather than a hopeful reading**: a device that
+negotiated USB 2.0 attaches to the *companion* hub, which enumerates as a plain "Generic USB
+Hub". Seeing SuperSpeed hubs the whole way up means the reader came up at SuperSpeed.
+
+> **New fact, and it matters more for the reader characterization than for this card: the SD
+> reader sits behind TWO chained SuperSpeed hubs**, not directly on the laptop. That is shared
+> bandwidth and a potential confound for any throughput number taken through it. **Establish
+> whether it changes the figure before running the 2 × 3 matrix** — otherwise three readers get
+> characterized through an untested variable, which is the mistake `REVIEWING.md`'s
+> *when two runs agree, change the other variable* records.
 
 **Planned confound:** the SDDR-409's own ceiling is 247, so a ~247 result cannot separate card
 from reader. Read it in the Lexar LRWM04U as well.
