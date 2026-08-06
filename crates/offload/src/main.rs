@@ -1601,12 +1601,32 @@ fn estimate(bytes: u64, corroboration_bytes_per_second: Option<f64>) -> String {
         .map_or(0.0, |rate| bytes / (rate * CORROBORATION_EFFICIENCY) / 60.0);
 
     format!(
-        "{}-{} min to LANDED, {}-{} min to done",
-        landed_fast.ceil() as u64,
-        landed_slow.ceil() as u64,
-        (landed_fast + corroboration + TAIL_MINUTES).ceil() as u64,
-        (landed_slow + corroboration + TAIL_MINUTES).ceil() as u64,
+        "{} to LANDED, {} to done",
+        span(landed_fast, landed_slow),
+        span(
+            landed_fast + corroboration + TAIL_MINUTES,
+            landed_slow + corroboration + TAIL_MINUTES,
+        ),
     )
+}
+
+/// A minute range, collapsed when both ends round to the same number.
+///
+/// **`1-1 min` is not a range, it is a number wearing a hyphen**, and on a small day both ends
+/// of both spans landed there — `est. 1-1 min to LANDED, 2-2 min to done`. A reader who has to
+/// notice that the two halves are identical before concluding *one minute* is being charged for
+/// precision the estimate does not have.
+///
+/// The wide case is untouched, because there the range is the honest part: the two ends come
+/// from the fastest and slowest destination, and a 415 GB night genuinely spans them.
+fn span(fast: f64, slow: f64) -> String {
+    let (fast, slow) = (fast.ceil() as u64, slow.ceil() as u64);
+
+    if fast == slow {
+        format!("{fast} min")
+    } else {
+        format!("{fast}-{slow} min")
+    }
 }
 
 /// `offload verify <DEST>` — decision 20.
@@ -2061,6 +2081,17 @@ mod tests {
             "{prompt}"
         );
         assert!(!prompt.contains("attempts"), "{prompt}");
+    }
+
+    /// A range whose ends agree is a number, and a small day put both spans there.
+    #[test]
+    fn an_estimate_range_collapses_when_both_ends_agree() {
+        assert_eq!(span(0.2, 0.9), "1 min");
+        assert_eq!(span(1.0, 1.0), "1 min");
+
+        // The wide case is the honest one and must survive: the ends are the fastest and the
+        // slowest destination, and a big night genuinely spans them.
+        assert_eq!(span(17.2, 30.1), "18-31 min");
     }
 
     /// A card that never released MUST NOT trigger the replug warning: the reader only powers
