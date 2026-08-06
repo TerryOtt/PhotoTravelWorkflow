@@ -3596,6 +3596,46 @@ produced an event at all** across eleven minutes. That is consistent with `PNP_V
 naming an instance path rather than a process, and it means **the SSD veto and the card veto are
 not the same fault and MUST NOT be reasoned about together.**
 
+#### ✔ The backoff is right, measured — and asking LESS is 83× worse
+
+**The operator asked whether the retry was self-defeating:** *"any chance the request to eject
+compounds the problem and makes windows think the drive is under more contention than it is?"*
+A good question with a real mechanism — every attempt dismounts and must close its handle, and
+this module's own note says Windows remounts eagerly — so `--eject-gap-seconds` was added to
+settle it. **The answer is no, and it is wrong in the opposite direction.**
+
+| Cadence | SanDisk Extreme Pro released after |
+|---|---|
+| **2 s doubling to 60 s** — the default | **11 s**, attempt 2 |
+| **300 s flat** | **15 m 12 s**, attempt 4 |
+
+Same device, same machine, same afternoon. **The obstruction opens and closes on a short cycle,
+so rapid retries catch a window a patient one sails past.** This decision's backoff had never
+been compared against anything; it is now measured, and it stays. **A shorter first pause is the
+only change worth considering; flattening or lengthening it MUST NOT be.**
+
+**The veto type also changes mid-fight, which no completed run could show.** On that same
+device, hands off the rig:
+
+```text
+#1  PNP_VETO_TYPE(6)       the device stack refused
+#2  identical, unprinted   unchanged
+#3  PNP_VETO_TYPE(5)       OUTSTANDING OPEN on the volume
+#4  RELEASED
+```
+
+**Type 5 is `PNP_VetoOutstandingOpen`; type 6 is `PNP_VetoDevice`. Two different faults under
+one `dismounted` label**, and `eject.rs` predicted the first of them in a comment written as
+*reasoning* rather than observation — anything that reopens the volume between the dismount and
+the power-down turns the refusal into exactly that. **Type 5 is a race this tool loses and can
+therefore narrow.** Type 6 remains unexplained.
+
+**And the device worth investigating is the SSD, not the cards.** The 11 m 17 s card hold has
+not reproduced across four subsequent runs — 1 s, 2 s, 9 s, 10 s — while the SanDisk SSD vetoed
+twice, logged Kernel-PnP event 225 both times against the same volume GUID, and is the class
+that reaches the exit code. The cards produced the more spectacular single failure and have been
+the wrong thing to chase.
+
 #### Two things worth carrying
 
 - **The gap rule on a clean track costs 1.0 %.** 76 of 7,395 frames refused, all inside one
