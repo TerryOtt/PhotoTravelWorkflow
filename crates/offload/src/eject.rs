@@ -320,7 +320,14 @@ pub fn eject(volume: &Volume, device: &Device, deadline: Instant) -> Result<Effo
 }
 
 /// One pass: open, lock, dismount, release the handle, ask the enclosure to leave.
-fn attempt(volume: &Volume, device: &Device) -> Result<Outcome> {
+///
+/// **Public so a diagnostic can time the veto without reimplementing the sequence.**
+/// [`eject`] reports only its *last* attempt, which is the right thing for a report and
+/// useless for the open question of what holds a camera card for eleven minutes — whether the
+/// veto changes over that window or the same one is simply eventually won.
+/// `examples/card-veto-watch.rs` is the caller, and it exists because a harness that
+/// approximated this sequence would be measuring itself rather than the tool.
+pub fn attempt(volume: &Volume, device: &Device) -> Result<Outcome> {
     let file = open_for_control(volume.device_path())
         .with_context(|| format!("opening {} for eject", volume.guid_path))?;
 
