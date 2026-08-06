@@ -1298,6 +1298,9 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
 
     report_passes(outcome);
 
+    // **Two blank lines, because LANDED is the top-level heading of the whole run.** Every
+    // phase gets two and this outranks all of them; it had one until 2026-08-06.
+    println!();
     println!();
     // **No phase number.** "phase 3" is this repository's word, not the operator's, and the
     // reader of this line is six months out of practice at 11pm in a hotel — CONOPS measures
@@ -1309,12 +1312,17 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     // media and compared (decisions 2, 14) — so *the data is safe* is the guarantee, not
     // encouragement. Everything after this line is corroboration, geotags and tidying, and
     // decision 14 exists to keep those from ever being confused with this.
-    println!(
+    // **Kept, so the closing rule can be drawn to the same width.** A bar that does not line up
+    // with the banner it closes reads as a different element rather than as the other end of
+    // the same one — and the banner's width moves with the elapsed time, so it cannot be a
+    // literal.
+    let banner = format!(
         "═══ LANDED in {minutes}m {seconds:02}s · you can breathe, Terry, your data is safe ═══"
     );
+    println!("{banner}");
     println!();
     println!(
-        "  {} files · {} GiB · read once from the source card",
+        "    {} files · {} GiB · read once from the source card",
         count(outcome.files),
         offload::human::gib_up(outcome.bytes)
     );
@@ -1340,7 +1348,7 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
             // it. `Gbps` stays decimal because it is a *bits* unit whose only purpose is
             // comparison against a link — 10 Gbps is 10^10 bits by definition, and a figure
             // in GiB/s cannot be held up against the number printed on the cable.
-            "  {} GiB moved · {:.1} GiB/s · {:.1} Gbps",
+            "    {} GiB moved · {:.1} GiB/s · {:.1} Gbps",
             offload::human::gib_up(moved),
             moved as f64 / GIB / seconds,
             moved as f64 * 8.0 / 1e9 / seconds
@@ -1369,7 +1377,7 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
                 .on_red()
         };
         println!(
-            "  {:<8} {} written · {} skipped · {} verified   {verdict}",
+            "    {:<8} {} written · {} skipped · {} verified   {verdict}",
             destination.label,
             count(destination.written),
             count(destination.skipped),
@@ -1380,10 +1388,17 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     if !outcome.unfiled.is_empty() {
         println!();
         println!(
-            "  !  {} frame(s) had no readable capture time and are in _unfiled",
+            "    !  {} frame(s) had no readable capture time and are in _unfiled",
             count(outcome.unfiled.len())
         );
     }
+
+    // **Closed with a rule of its own width**, so the block reads as a bounded thing rather
+    // than as a heading followed by text that trails off into the next phase. Terry asked for
+    // it on 2026-08-06; `chars()` rather than `len()` because `═` is three bytes and a
+    // byte-length rule would come out three times too long.
+    println!();
+    println!("{}", "═".repeat(banner.chars().count()));
 
     // **No run-log path here.** It was the only line in this block that was not about the
     // data being safe, and `CONOPS.md` says this block is what earns walking away — a file
@@ -1936,15 +1951,26 @@ fn report_passes(outcome: &pipeline::Outcome) {
         }
     };
 
+    // **Heading at 4, status at 8 — the shape every other section uses**, rather than a label
+    // and its value sharing a line. Terry, 2026-08-06, reading it on a real terminal: the
+    // one-line form matched neither `Camera Cards` above it nor `Travel SSDs` below, and a
+    // layout outlier reads as an outlier fact.
+    //
+    // **One blank line above `Verifying`, not two.** These are the two *passes of* offloading
+    // rather than phases in their own right, and `progress.rs` sets that convention — two for a
+    // phase, one for a pass — which the live bars already follow.
     println!();
+    println!("    Writing");
     println!(
-        "    Writing     {} · {}/{}",
+        "        {} · {}/{}",
         tally(written_through),
         count(files),
         count(files)
     );
+    println!();
+    println!("    Verifying");
     println!(
-        "    Verifying   {} · {}/{}",
+        "        {} · {}/{}",
         tally(verified_through),
         count(files),
         count(files)
