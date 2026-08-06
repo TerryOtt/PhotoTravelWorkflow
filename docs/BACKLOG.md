@@ -29,7 +29,15 @@ is the scope of the product; this is what is in flight right now and what state 
 
 ---
 
-## 1. Eject vetoes — cause found, fix built, not yet proven
+**Each item carries its CLI status in its heading**, so a drift between the two is visible rather
+than inferred. `OPEN` / `IN PROGRESS` / closed-and-moved-below.
+
+## 1. Eject vetoes — OPEN — cause found, fix built, not yet proven
+
+> **Not closed, and here is the checkable reason.** `--eject-prepare` still defaults to
+> `EveryAttempt` (`main.rs`, the `#[arg]` on `eject_prepare`) — **the behavior that hung twice out
+> of two runs.** `FirstAttemptOnly` is built and tested but must be passed by hand, so no ordinary
+> run has changed. Closing this means flipping the default *and* having runs behind it.
 
 **Status: the most advanced and the least finished.** Full account in
 [`DESIGN.md`](DESIGN.md) decision 22; the run tally is in [`EJECT-SERIES.md`](EJECT-SERIES.md).
@@ -44,7 +52,7 @@ is the scope of the product; this is what is in flight right now and what state 
 
 **Next action:** more B runs, alternating with A. Each costs five cable replugs.
 
-## 2. SanDisk 512 GB SD acceptance test
+## 2. SanDisk 512 GB SD acceptance test — IN PROGRESS
 
 Card arrived 2026-08-06. Bar is the fleet range, **205–247 MB/s**; the known dud did 73.
 
@@ -81,13 +89,28 @@ Hub". Seeing SuperSpeed hubs the whole way up means the reader came up at SuperS
 **Planned confound:** the SDDR-409's own ceiling is 247, so a ~247 result cannot separate card
 from reader. Read it in the Lexar LRWM04U as well.
 
-## 3. Characterize all three UHS-II USB SD readers
+## 3. Characterize all three UHS-II USB SD readers — OPEN
 
 One known-good card through all three, so Terry knows every reader in the bag is safe to travel
 with. A slow reader is silent in the field — the card mounts, every file reads, nothing errors,
 and you lose 5.8×. Combines with the acceptance test above into a 2 cards × 3 readers matrix.
 
-## 4. Zoom out over the badge and verdict work — NOT YET
+## 4. Zoom out over the badge and verdict work — IN PROGRESS, roughly half done
+
+**Started 2026-08-06. What has actually been swept, so nobody assumes the rest was:**
+
+| Swept | Not yet swept |
+|---|---|
+| `CONOPS.md` verdict table — was naming phrases the tool no longer prints | `FULL-RUN.md` |
+| `DESIGN.md` decision 14 — verdict table, layout rules, badge section | `TRIP-HYGIENE.md` |
+| `progress.rs` — orphaned `clear()` doc | `REVIEWING.md` (grepped only, not read) |
+| `main.rs` — `step_badge`, `phase_heading`, `verdict()` | the rest of `main.rs`'s 997 comment lines |
+| `WRITING.md` — gained the prose bar | `eject.rs` (429 comment lines), `human.rs`, `winio.rs` |
+
+**Four defects found so far, none of them cosmetic:** `CONOPS.md` citing dead verdict phrases;
+four rows of `DESIGN.md`'s verdict table describing output that never existed; two orphaned doc
+comments; and a false mechanism written into `verdict()`'s own doc the same evening it was
+corrected elsewhere.
 
 **Opened 2026-08-06, deliberately deferred by Terry while the CLI work is still moving:** *"we're
 gonna have some GOOD doc comments and doc changes flowing out of this. We've made a LOT of
@@ -111,7 +134,21 @@ read the result end to end.** That is exactly how decision 14's layout rules cam
 **Do this after the CLI signoff closes**, and treat it as a documentation review rather than a
 code one — the code is tested; the prose is not.
 
-## 5. Put the docs and tests on a diet — LOW PRIORITY
+## 5. Put the docs and tests on a diet — IN PROGRESS
+
+**Terry raised the priority on 2026-08-06** and set the framing: *"pretty aggressive... this is a
+hobby project, we aren't launching nuclear missiles, nobody's gonna die. Use a fresh pair of
+skeptical eyes on what REALLY is justified."* **RawGeotag's tests are out of scope** — they passed
+muster; this is about what this project grew.
+
+**Measured before cutting:** 3,278 of 10,549 source lines are comments (**31 %**), plus a
+4,593-line `DESIGN.md`. The bar now lives in [`WRITING.md`](WRITING.md) — *prose earns its place
+or goes*.
+
+**First pass done:** `step_badge`'s 60-line doc cut to 12; `phase_heading`'s doc restored; four
+redundant tests removed. **Remaining and larger:** `main.rs` (997 comment lines), `eject.rs`
+(429), `progress.rs` (270), and `DESIGN.md`'s run records, which should move out to their own
+file the way `EJECT-SERIES.md` already did.
 
 186 tests and a 3,600-line `DESIGN.md`. **The count is not the metric**; most of those tests are
 regressions for defects that actually shipped, and the "considered and rejected" material exists
