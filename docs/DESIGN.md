@@ -3733,6 +3733,62 @@ test is small. **If it succeeds where the full sequence fails, steps 1 and 2 are
 > any of this was measured, and it is exactly the kind of asserted mechanism this project has
 > spent a day disproving.
 
+#### ✔ TESTED — `--eject-bare` released every device, including the card that never yielded
+
+**Same corpus, same rig, same cadence, one hour apart. Only `Prepare` differs.**
+
+| Device | `LockAndDismount` | **`Bare`** |
+|---|---|---|
+| SanDisk | 5 s · 1 ask | 7 s · 1 ask |
+| WD | 7 s · 1 ask | 14 s · 1 ask |
+| OWC | 13 s · 2 asks | 16 s · 2 asks |
+| **Primary (CFexpress)** | **NEVER · 23 asks · 19 min** | **9 s · 1 ask** |
+| Secondary | 2 s · 2 asks | 9 s · 1 ask |
+
+**Whole eject stage: 16 seconds, against a run that could not finish it in nineteen minutes.**
+The CFexpress has produced every long hold this project has recorded — 22 minutes never
+released, 11 m 17 s, 23 attempts — and released on the first ask.
+
+**The mechanism, and it is not that exFAT is more tolerant of the bare call.** It is that the
+preparation puts exFAT into a state it will not release from:
+
+| | What Windows is asked | What comes back |
+|---|---|---|
+| **Prepared** | remove a volume we dismounted, whose handle we had to close, and which Windows **remounted** | `PNP_VETO_TYPE(6)` `PNP_VetoDevice` on `\FileSystem\exfat`, refused in 184 ms, **never yields** |
+| **Bare** | remove a normally-mounted volume | exFAT does its own flush and detach — or briefly `PNP_VETO_TYPE(5)` `PNP_VetoOutstandingOpen`, which **cleared on the 250 ms retry** |
+
+**The remount is documented behavior, not a theory.** `FSCTL_DISMOUNT_VOLUME`'s own reference:
+*"the operating system does not detect unmounted volumes, and if an attempt is made to access
+an unmounted volume, the operating system then tries to mount the volume."*
+
+**The type-5 fast retry fired in the wild for the first time here**, on OWC — built hours
+earlier for precisely the veto that only appears when you do *not* prepare.
+
+#### What the literature says: nothing, and that is worth recording
+
+**Searched, and found no source describing this.** Not Microsoft's documentation, not Stack
+Overflow. Two things did turn up, and both matter:
+
+- **Microsoft cannot say whether `CM_Request_Device_Eject` flushes.** A Q&A asks exactly that
+  and the staff answer is that the documentation is *vague*. **So forcing a dismount first was
+  a reasonable defensive choice rather than a blunder** — given an undocumented flush and a
+  guaranteed one, this project's posture has always been to force it.
+- **The remount is documented; the consequence is not.** Nobody appears to have written up that
+  the dismount-then-remount cycle produces a `PNP_VetoDevice` the retry cannot win.
+
+**Why this rig may hit what others do not.** Three unusual things at once: the eject follows
+heavy unbuffered I/O rather than an idle stick; **five devices are removed concurrently**; and
+`CM_Get_Parent` walks up to a **PCIe-tunnelled reader's bridge** rather than a plain USB
+mass-storage node. The ordinary "safely remove one idle USB stick" path probably never gets
+there.
+
+> **⚠ `n` = 1 each way, and this MUST NOT become a default on it.** The `LockAndDismount`
+> baseline is a single run, the `Bare` result is a single run, and this card has been erratic
+> all day. **What is already settled is the risk asymmetry, not the fix**: the flush guarantee
+> protects data this tool *wrote*, it has never written to a card (binding constraint 2), and
+> `CONOPS.md` formats both cards in-body next session. So the landing place to test next is
+> `Prepare` **per device class** — archives keep the full sequence, cards go bare.
+
 #### Two things worth carrying
 
 - **The gap rule on a clean track costs 1.0 %.** 76 of 7,395 frames refused, all inside one
