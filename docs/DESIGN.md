@@ -1508,8 +1508,12 @@ untouched, and a test asserting a rounded value MUST NOT be written against them
 ### The opposite of green is never red
 
 **Standing order, Terry, 2026-08-06. RFC 2119 sense: a status badge MUST NOT be red.** Clean is
-green; anything else is **yellow**, a bold white `!` on dark yellow, meaning *this needs your
+green; anything else is **yellow — a bold black `!` on yellow**, meaning *this needs your
 attention*.
+
+**Black on yellow rather than white on yellow**, which is the higher-contrast pairing in the
+standard palette and the reason road signs and hazard tape use it. The green badge keeps white,
+because white on green is the strong pairing there.
 
 **His reasoning, and it is about the moment the badge is read rather than about the fact it
 reports:** *"let's be gentle with 11pm Terry and just flag it as 'hey this needs your attention,

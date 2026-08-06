@@ -2062,14 +2062,18 @@ fn report_passes(outcome: &pipeline::Outcome) {
 /// **And a badge that could only come out green would be worthless** — the whole point is that
 /// the eye is allowed to stop on it, which requires that it sometimes does not.
 ///
-/// A bold white `!` rather than `⚠`: U+26A0 frequently renders with emoji presentation, and
-/// this console has already cost this project time over a codepage. Dark yellow rather than
-/// bright, for contrast against the white glyph.
+/// A bold `!` rather than `⚠`: U+26A0 frequently renders with emoji presentation, and this
+/// console has already cost this project time over a codepage.
+///
+/// **Black on yellow, not white on yellow.** Terry's call, and it is the objectively higher
+/// contrast pairing rather than only the conventional one — which is why road signs and hazard
+/// tape use it. The green badge keeps white, because white on green *is* the strong pairing
+/// there.
 fn step_badge(clean: bool) -> String {
     if clean {
         style(" \u{2713} ").white().bold().on_green().to_string()
     } else {
-        style(" ! ").white().bold().on_yellow().to_string()
+        style(" ! ").black().bold().on_yellow().to_string()
     }
 }
 
