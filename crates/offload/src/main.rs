@@ -325,7 +325,11 @@ fn offload(args: &Offload) -> Result<ExitCode> {
 
     let geotag = geotag_phase(&plan, &targets, &outcome, args, &progress)?;
     progress.clear();
-    report_geotag(geotag.as_ref(), progress.heading_was_erased());
+    report_geotag(
+        geotag.as_ref(),
+        progress.heading_was_erased(),
+        targets.len(),
+    );
 
     // Decision 22: last, because phases 4 and 5 still write to the archives. The volumes
     // must be released only once nothing remains to put on them.
@@ -1838,7 +1842,7 @@ fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: boo
     }
 }
 
-fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool) {
+fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool, destinations: usize) {
     let Some(report) = report else {
         // Always headed: the skipped path never drew bars, so nothing put the word on screen.
         println!();
@@ -1885,8 +1889,20 @@ fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool) {
         );
     }
 
+    // **The arithmetic is printed rather than left to the reader.** Terry, 2026-08-06: *"Do the
+    // math for 11pm Terry."* A bare `196 left alone` beside `49 tagged` invites him to work out
+    // where 196 came from on a night when he shot 50 frames — and the answer is one sidecar per
+    // tagged frame on each destination, which the tool knows and he should not have to derive.
+    //
+    // **The product explains the total, so it goes first.** On a fresh run those 196 are
+    // *written* and none are left alone; on a convergence run it is the reverse. Attaching the
+    // multiplication to either half would make it wrong half the time.
     println!(
-        "    {} sidecars written · {} left alone (already tagged)",
+        "    {} frames × {} destinations = {} sidecars · {} written · {} left alone \
+         (already tagged)",
+        count(report.tagged),
+        count(destinations),
+        count(report.tagged * destinations),
         count(report.written),
         count(report.skipped)
     );
