@@ -26,6 +26,24 @@
 //! **It writes nothing to any card** — binding constraint 2 is untouched, and every call here
 //! is one a normal run already makes.
 //!
+//! # Run it AFTER something that reads the cards, or it measures an empty room
+//!
+//! **Measured 2026-08-06, first use: run cold, with no offload beforehand, both cards released
+//! on the first attempt in ONE SECOND.** So the veto is not a property of the cards, the
+//! readers, the bus or the idle machine — all of which were unchanged from the runs that took
+//! 11 m 17 s and 22 m 16 s. **What differs is that a run had just read every file on the card.**
+//!
+//! The intended sequence is therefore:
+//!
+//! ```text
+//! offload --no-eject          # reads every file, ejects nothing
+//! cargo run --release --example card-veto-watch
+//! ```
+//!
+//! A cold run of this harness is still worth something — it is what exonerated
+//! `scripts/watch-rig.ps1` — but it MUST NOT be read as evidence that a veto has stopped
+//! happening.
+//!
 //! **What it costs the operator: one cable.** Releasing a card ejects its device, and for the
 //! USB SD reader that device *is* the reader, so it powers down and needs a replug. The
 //! Thunderbolt CFexpress reader is untouched. **The three archive SSDs are never touched at
