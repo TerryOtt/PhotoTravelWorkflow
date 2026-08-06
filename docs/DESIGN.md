@@ -3644,6 +3644,53 @@ twice, logged Kernel-PnP event 225 both times against the same volume GUID, and 
 that reaches the exit code. The cards produced the more spectacular single failure and have been
 the wrong thing to chase.
 
+#### ✔ THE VETOER IS THE exFAT DRIVER — named 2026-08-06 by an elevated ETW trace
+
+**This closes three days of "the storage/PnP stack, cause unknown".** Verbose
+`Microsoft-Windows-Kernel-PnP` tracing, captured while a CFexpress was mid-refusal:
+
+```text
+Device PCI\VEN_27D1&DEV_5216&... could not be query removed as the removal was vetoed.
+Veto Type: 6
+Veto Name: STORAGE\Volume\{3d2ab0c2-...}#0000000000040000\FileSystem\exfat
+```
+
+**The exFAT file system driver refuses the query-remove.** Not an application, not the search
+indexer, not Defender, and not "the kernel" in the diffuse sense Kernel-PnP event 225's `PID 4`
+suggested — a named driver attached to that volume.
+
+**Why it took three days: this decision has been reasoning from a shorter name than Windows
+has.** `CM_Request_Device_EjectW` returns a veto name ending at the volume; ETW's continues four
+segments further, to the driver. Every earlier note here concluded *type 6 says **where**, never
+**who*** — which was true of what the tool could see and false of what the OS knew.
+**Whether that difference is truncation, a different field, or a different API contract is
+UNTESTED and MUST NOT be recorded as any of them until it is checked** — the name is ~85
+characters against a 260-wide buffer, so it is not a size limit.
+
+**The method, which needs an elevated shell, takes ~90 seconds and touches no drive:**
+
+```text
+logman create trace pnpveto -p "Microsoft-Windows-Kernel-PnP" 0xffffffffffffffff 5 -o C:\Temp\pnpveto.etl -ets
+   (wait for at least one attempt)
+logman stop pnpveto -ets
+tracerpt C:\Temp\pnpveto.etl -o C:\Temp\pnpveto.xml -of XML -y
+```
+
+**Keep the keyword mask wide.** PnP is low-volume — 752 events in 70 seconds on a quiet machine
+— and narrowing risks filtering out the only event worth having.
+
+**Two further facts from the same capture.** The device being ejected is `PCI\VEN_27D1&DEV_5216`,
+the ProGrade Thunderbolt reader's bridge, so `CM_Get_Parent` walks up to the *reader* and what
+exFAT refuses is the reader's removal rather than the card's. And **nothing hangs**: every
+attempt logs `Begin attempting to eject` → `End attempting`, status `0x80000028`, cleanly. The
+60-second rhythm is entirely this tool's.
+
+**What it points at.** A *file system* driver vetoing means what is being protected is
+filesystem state rather than device state, which puts this back inside what a run does to that
+volume — reachable, unlike the storage stack. **The next capture to take is of the attempt that
+finally succeeds**; the difference between a refused query-remove and an accepted one is the
+whole remaining question.
+
 #### Two things worth carrying
 
 - **The gap rule on a clean track costs 1.0 %.** 76 of 7,395 frames refused, all inside one
