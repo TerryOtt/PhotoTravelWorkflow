@@ -2416,6 +2416,24 @@ junk drawer for formats the operator never shoots. A backup tool that quietly ho
 up whatever it finds would be building machinery for a contract violation instead of
 naming it.
 
+> ⚠ **The check is unbuilt, and when it is built it MUST NOT report the camera's own
+> housekeeping.** Found 2026-08-06 on a live card: `DCIM\CANONMSC\M3100.CTG`, 62 KB, written
+> by the R5 itself. Canon puts a management catalog there on every card it shoots to — the
+> file is not a photograph, was never going to be backed up, and needs no decision from
+> anybody.
+>
+> **A stray check that fires on it fires on every run forever**, which is the failure this
+> project keeps naming: a warning that always appears is a warning that stops being read, and
+> it would be sitting directly beside the ones that matter. The rule to implement is
+> **"an image file that is not a CR3"** — a JPG, HEIF or video the operator did not intend to
+> shoot — rather than **"any file that is not a CR3."**
+>
+> The wording above is already right about the *intent* — it names JPG, HEIF and video — but
+> the sentence a future implementer will read is *"a non-CR3 file on a card is a contract
+> violation,"* and that is the one that would ship the false alarm. Known camera housekeeping
+> is out of scope: `DCIM\CANONMSC\`, and `MISC\` at the volume root, both of which the format
+> itself creates.
+
 ### 25. A destination missing at offload is declared, not configured around
 
 The destination mirror of decision 7, and it closes a real gap: decision 9 refuses to
