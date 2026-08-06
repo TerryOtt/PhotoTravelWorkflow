@@ -531,11 +531,28 @@ pub fn attempt(volume: &Volume, device: &Device, prepare: Prepare) -> Result<Out
 /// must close the handle, Windows remounts the volume eagerly, and then we ask PnP to remove a
 /// volume that mounted milliseconds ago.
 ///
-/// **A faster bare eject would NOT automatically be the fix**, and that is the part to hold on
-/// to. Lock-and-dismount is what *guarantees* the filesystem is flushed before the device
-/// leaves. Dropping it means trusting exFAT's own teardown inside the query-remove — probably
-/// sound, and it is the documented path, but it is a data-safety property this project does not
-/// hand over on one measurement.
+/// **A faster bare eject would NOT automatically be the fix for an archive SSD**, and that is
+/// the part to hold on to. Lock-and-dismount is what *guarantees* the filesystem is flushed
+/// before the device leaves. Dropping it means trusting exFAT's own teardown inside the
+/// query-remove — probably sound, and it is the documented path, but it is a data-safety
+/// property this project does not hand over on one measurement.
+///
+/// # The risk is not symmetric, and cards are the cheap side
+///
+/// **Terry, 2026-08-06:** *"I'm fine with some potential data risk on cards as the minute they
+/// come out of the reader they are getting formatted in body. With no writes to them, it's even
+/// lower risk."*
+///
+/// **He is right, and it is worth being precise about why.** The flush guarantee protects data
+/// this tool *wrote*. It wrote four verified copies to the SSDs, so the guarantee is the whole
+/// point there. **It has never written a byte to a card** — binding constraint 2 — and
+/// `CONOPS.md` has both cards low-level formatted in the body at the start of the next session.
+/// So there is no state on a card at eject time that anything could lose.
+///
+/// **So the likely landing place is [`Prepare`] chosen per device class rather than per run**:
+/// SSDs keep the full sequence, cards go bare. That also happens to point it at the class that
+/// does all of the fighting — every multi-minute hold this project has recorded has been a
+/// card, and the CFexpress specifically.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Prepare {
     /// Lock, dismount, close the handle, then ask. The behavior every recorded run used.
