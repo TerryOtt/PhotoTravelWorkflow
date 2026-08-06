@@ -2314,6 +2314,32 @@ spent, since refusing to try at all would turn a slow night into a manual one fo
 > They are recorded so the prediction is on the record *before* the run rather than fitted to
 > it afterwards — this project has a standing problem with plausible stories arriving after
 > the fact.
+>
+> ### ✗ Measured 2026-08-06, and the table above was wrong in the direction that matters
+>
+> **The run happened. Every row predicting the clock was optimistic**, and the mechanism this
+> table rests on — scale the last run by the ratio of the data — does not hold at this size:
+>
+> | 415 GB day | Predicted (246 MB/s card) | **Measured** |
+> |---|---|---|
+> | LANDED | ~22 m 30 s | **35 m 29 s** |
+> | Corroboration | ~29 min | ~31.5 min ✔ |
+> | Total before eject | ~52 min | **~67.7 min** |
+> | Retry window left, 90 min budget | ~38 min | **22 m 16 s, all of it consumed** |
+>
+> **Corroboration was predicted well and LANDED was not**, which is the useful half. Phase 4 is
+> a pure sequential read and scaled linearly; phase 3 scaled **3.25× against 2.06× of data**.
+> *The 415 GB run* above carries the candidates, none of them adopted.
+>
+> **So the scaling assumption is the thing to retire, not the arithmetic.** Anyone re-deriving
+> this table for a future size MUST NOT scale LANDED linearly from a smaller run — the write
+> path does not behave that way, and this is now the second time a number in this project has
+> been produced by extrapolating a measurement instead of taking one.
+>
+> **And the retry window did not buy what this section assumed it would.** It was spent
+> entirely on a CFexpress that never released, while all three SSDs — the devices the budget
+> exists for — succeeded on their first attempt. See *The 415 GB run* for the withdrawn claim
+> that this run justified the 60 → 90 change.
 
 **The devices are ejected concurrently**, which is not about speed — nothing waits on eject.
 It is because they share one deadline: done in sequence, a drive that retried to the end of
@@ -3404,6 +3430,104 @@ in 201 GB and name the file.
 > ✔ **Closed 2026-08-05 by the run below.** The progress reporting (`e54623e`) and the
 > interleaved verify read (`693f321`) had never been through a full run when they were
 > written; both have now, and both did what the bench said they would.
+
+### The 415 GB run, 2026-08-06 — LANDED 35 m 29 s, and the first eject that never recovered
+
+**The largest day on record, run end to end under [`FULL-RUN.md`](FULL-RUN.md).** Cold boot,
+24.7-minute settle, all four destinations empty, exit 0,
+`EJECTED — SAFE TO STORE. every file from both cards is accounted for.` Whole run **89 m 59 s**,
+which is one second inside the 90-minute budget.
+
+| | |
+|---|---|
+| Corpus | 2024-10-02 — 7,395 frames, 386.6 GiB, both cards holding one identical listing |
+| **LANDED** | **35 m 29 s** |
+| I/O | 3,479.6 GiB at 1.63 GiB/s, 14.0 Gbps — **9N to within rounding** (9 × 386.6 = 3,479.4) |
+| Every destination | `7,395 written · 0 skipped · 7,395 verified` — **29,580 pairs** |
+| Corroboration | **7,395 matched · 0 mismatched**, and zero transient read errors |
+| Geotag | 7,319 tagged · **0 outside track** · 76 in a gap · 29,276 sidecars |
+| Eject | three SSDs first attempt in ~15 s; **the CFexpress never released** |
+
+#### It scaled super-linearly, and that overturns the prediction this document recorded
+
+**Decision 22's table predicted LANDED at ~22 m 30 s and eject opening at ~52 min. Both were
+wrong, and they were recorded before the run precisely so this could be checked.**
+
+| | 2026-08-05 baseline | This run | Ratio |
+|---|---|---|---|
+| Data | 187.5 GiB | 386.6 GiB | **2.06×** |
+| LANDED | 10 m 55 s | **35 m 29 s** | **3.25×** |
+
+**Time grew 58 % faster than data.** The tool's own estimator was wrong in the same direction
+— it offered 18–31 min — so this is not one bad extrapolation, it is a real property of the
+workload that nothing had measured, because no run at this size had ever happened.
+
+**Three candidates, and this document deliberately records none of them as the cause:**
+
+1. **Destination SLC exhaustion.** 386.6 GiB certainly exhausts caches that 187.5 GiB may sit
+   inside, and *Throughput history* already records destination writes degrading 431 → 311 MB/s
+   under exactly that pressure.
+2. **The OWC holds a drive that has never been benchmarked.** The baseline ran on the FireCuda
+   530; this ran on its replacement, a WD_BLACK SN850X. The session that produced the ~22 m 30 s
+   figure scaled from a run containing a drive that no longer exists — a methodological error,
+   not a hardware surprise.
+3. **1.9× the file count** at a similar size each, and per-file pipeline drain scales with
+   count rather than bytes (decision 17's remaining quarter).
+
+**One candidate *was* eliminated, by a phase that behaved.** Corroboration — a pure sequential
+read of all 386.6 GiB off the SD card — took ~31.5 minutes and scaled **linearly**. Had the
+machine simply been slow today, that phase would have been slow too. **The super-linearity
+lives on the write/verify path, not in the machine.**
+
+#### The eject retried for 22 minutes and never recovered — a first
+
+```text
+    Cards
+        Primary    dismounted, still listed — safe to pull anyway
+            Windows declined to power the device down (CONFIGRET(23), PNP_VETO_TYPE(6),
+            held by STORAGE\Volume\{3d2ab0c2-...})
+        Secondary  ejected; remove card from reader
+```
+
+**Every prior veto in this project cleared on a second attempt within ~15 seconds. This one
+consumed the entire remaining budget and still failed.** The veto names the volume device
+object, which is the same signature decision 22 already documents and still says **where** the
+obstruction is and never **who**.
+
+**And it reverses the asymmetry measured on 2026-08-05.** That day the CFexpress released
+cleanly through its Thunderbolt reader while the SD took its reader down with it. This day the
+SD released fine and the **CFexpress** was the holdout. **Whichever card holds out looks like
+luck rather than a property of the bus type**, which weakens the reasoning decision 22 currently
+rests on.
+
+**Nothing was lost and the verdict is correct**: the tool never wrote to that card, so it was
+safe to pull before the attempt and after, and decision 22 forbids the result from touching the
+verdict or the exit code. Both held.
+
+> **✗ A claim made at LANDED and withdrawn an hour later, recorded because the reasoning was
+> the error.** The session said raising the budget 60 → 90 that morning "was load-bearing, and
+> this run proves it," reasoning that eject opened at ~68 min and would have had no window at
+> 60. **The premise was right and the conclusion did not follow.** All three SSDs released on
+> their *first* attempt, and decision 22 guarantees one attempt even when the budget is already
+> spent — so at 60 minutes the outcome would have been identical. **The entire extra 22 minutes
+> went to the one device whose eject result is declared meaningless.** The wider budget remains
+> defensible; this run is not evidence for it.
+
+#### Two things worth carrying
+
+- **The gap rule on a clean track costs 1.0 %.** 76 of 7,395 frames refused, all inside one
+  recording, **widest gap 27 s** — under the 60-second limit, so these were rejected on
+  *distance*: fast movement opening 100 m inside half a minute. Against 38 % lost on the holey
+  2022 track, this is the clearest evidence yet that keeping both corpora tests different things.
+- **A new high for the CFexpress at pre-flight: 1,156 MB/s**, against a recorded burst range of
+  913 / 842 / 975 for that card. The quietest machine this project has measured on is the obvious
+  candidate and is **not** recorded as the cause.
+
+**Declared, per this document's own standard:** `iSCSIAgent` (SYSTEM, 9.8 CPU-s) ran throughout
+and could not be stopped unelevated; `AdobeIPCBroker` respawned once and was killed again;
+`watch-rig.ps1` polled at 2 s throughout, metadata only. All five rig drives measured
+**0.00 MB/s** at launch. The binary was built clean at `aacef77` and HEAD was `16057fb` — the
+commits between are docs-only, so `cargo build --release` correctly had nothing to do.
 
 ### The interleaved verify run, 2026-08-05 — LANDED 10 m 55 s
 
