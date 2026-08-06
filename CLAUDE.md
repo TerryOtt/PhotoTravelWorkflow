@@ -154,18 +154,29 @@ and b) not complete."*
 
 | | In the CLI checklist | In `BACKLOG.md` |
 |---|---|---|
-| Eligible to be worked, not complete | **yes** | yes |
-| **Blocked** — on Terry, on hardware, on a shoot | **no, remove it** | yes, marked `BLOCKED` with what unblocks it |
+| Eligible to be worked, not complete — **by either of them** | **yes** | yes |
+| **Waiting on Terry** — a format, a shoot, a cable swap | **yes**, and say so in the subject | yes, `TERRY'S MOVE` |
+| **BLOCKED** — outside both their control: hardware undelivered, a vendor, an unreleased fix | **no, remove it** | yes, marked `BLOCKED` with what unblocks it |
 | Complete | **no, remove it** | yes, in the closed list |
 
-**So "in sync" means the *working set* matches, not that the lists are identical.** An item
-leaving the checklist MUST be explained in `BACKLOG.md` in the same turn — `BLOCKED ON TERRY`,
-or moved below — never simply deleted from both.
+**`BLOCKED` is reserved and narrow, and Claude got this wrong once already.** Terry, 2026-08-06:
+*"blocked on Terry is not blocked. Blocked means blocked on some factor outside either of our
+control — e.g. hardware not arrived yet."* **A task neither of them can advance is blocked; a task
+one of them has simply not done yet is open.**
 
-**A short checklist is the intended state and an empty one is a real answer**: it means everything
-left needs him rather than Claude. **A list padded with things nobody can act on is a list you
-stop reading**, which is the same argument decisions 9 and 12 make about warnings that fire when
-you cannot act.
+**The checklist is a working set for the pair, not a queue for Claude.** An item needing a card
+reformatted or a reader swapped is precisely what Terry opens the list to find — filing it as
+"blocked" takes the thing he most needs to see and hides it in a file he does not have open.
+**When an item's next step is his, say so in the subject** so it reads as a request rather than as
+something being worked on.
+
+**So "in sync" means the *working set* matches, not that the lists are identical.** An item
+leaving the checklist MUST be explained in `BACKLOG.md` in the same turn — `BLOCKED`, or moved to
+the closed list — never simply deleted from both.
+
+**A short checklist is still the intended state**, and the reason stands: **a list padded with
+things *nobody* can act on is a list you stop reading**, which is the same argument decisions 9
+and 12 make about warnings that fire when you cannot act.
 
 **Each `BACKLOG.md` item carries its status in its own heading** — `OPEN`, `IN PROGRESS`,
 `BLOCKED`, or moved to the closed list — so drift is *visible* rather than inferred, and so what

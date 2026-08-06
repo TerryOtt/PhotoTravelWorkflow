@@ -36,22 +36,30 @@ that's both a) eligible to be worked, and b) not complete."*
 
 | | Appears in the CLI checklist |
 |---|---|
-| Eligible to be worked, not complete | **yes** |
-| **Blocked** — waiting on Terry, on hardware, on a shoot | **no.** It lives here until it unblocks |
+| Eligible to be worked, not complete — **by either of them** | **yes** |
+| **Waiting on Terry** — a format, a shoot, a cable swap | **yes.** This is *not* blocked; it is his move, and the checklist is how he sees it |
+| **BLOCKED** — outside both their control: hardware not delivered, a vendor, a release not shipped | **no.** It lives here until the world changes |
 | Complete | **no.** It moves to the closed list below |
 
-**So a short checklist is the intended state, and an empty one is a real answer** — it means
-everything left needs Terry rather than Claude. **The reason is that a list padded with things
-nobody can act on is a list you stop reading**, which is the same argument this project makes
-about warnings that fire when you cannot act (decisions 9 and 12, and the build-chain banner).
+**"Blocked" is reserved and narrow.** Terry, 2026-08-06, correcting the first version of this
+rule: *"blocked on Terry is not blocked. Blocked means blocked on some factor outside either of
+our control — e.g. hardware not arrived yet."* **A task neither of us can advance is blocked;
+a task one of us simply has not done yet is open.**
+
+**That matters because the checklist is a working set for the pair, not a queue for Claude.** An
+item needing a card reformatted or a reader swapped is exactly what Terry opens the list to find
+— hiding it as "blocked" would take the thing he most needs to see and put it in a file he does
+not have open.
+
+**A short checklist is still the intended state**, and the reason stands: a list padded with
+things *nobody* can act on is a list you stop reading — the same argument decisions 9 and 12 make
+about warnings that fire when you cannot act.
 
 **Each item carries its status in its heading** — `OPEN`, `IN PROGRESS`, `BLOCKED`, or moved to
 the closed list — so what is *missing* from the checklist is explained here rather than simply
 absent.
 
-## 1. SanDisk 512 GB SD acceptance test — BLOCKED ON TERRY — passed, one cold pass left
-
-*Not in the CLI checklist: nothing here can proceed until the card is reformatted and shot on.*
+## 1. SanDisk 512 GB SD acceptance test — OPEN, TERRY'S MOVE — passed, one cold pass left
 
 **It passed the bar decisively. One step remains and it needs Terry:**
 
@@ -126,9 +134,7 @@ Hub". Seeing SuperSpeed hubs the whole way up means the reader came up at SuperS
 > characterized through an untested variable, which is the mistake `REVIEWING.md`'s
 > *when two runs agree, change the other variable* records.
 
-## 2. Characterize all three UHS-II USB SD readers — BLOCKED ON TERRY
-
-*Not in the CLI checklist: it needs a card physically moved between three readers.*
+## 2. Characterize all three UHS-II USB SD readers — OPEN, TERRY'S MOVE
 
 One known-good card through all three, so Terry knows every reader in the bag is safe to travel
 with. A slow reader is silent in the field — the card mounts, every file reads, nothing errors,
