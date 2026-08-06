@@ -128,17 +128,40 @@ was briefly the only record of four open items. **Claude MUST update that file w
 opens, closes or materially changes — in the same turn, not at the end of a session**, because
 end of session is exactly when a session does not get to finish.
 
-**And the checklist Terry sees in the CLI MUST stay synced with it.** Standing order, 2026-08-06:
-*"make sure the checklist in the CLI is always synced to backlog."* An item added to one MUST be
-added to the other in the same turn; the same for closing one.
+### ⚠ THE CHECKLIST AND `BACKLOG.md` MUST NEVER DRIFT ⚠
 
-**The reason is that the CLI list is the only one he can see.** He reads the checklist in his
-terminal and cannot see `BACKLOG.md` unless he opens it — his words when this first came up:
-*"by the way is our checklist persisted? That's my memory right now and that's dangerous."*
-**So the two failure directions are not symmetric.** An item in the file but not on his list is
-invisible to him and gets forgotten *by him*; an item on his list but not in the file dies with
-the session and gets forgotten *by Claude*. The first is the one that wastes his evening, and it
-is the one that happened — `BACKLOG.md` gained the zoom-out item while the CLI list did not.
+**Standing order, Terry, 2026-08-06, twice in one evening. The second time, after it had already
+drifted:** *"should we promote that standing order to CLAUDE? I am relying on those never ever
+ever drifting. Make that real loud."*
+
+> **THE RULE, AND IT IS MECHANICAL RATHER THAN ASPIRATIONAL:**
+>
+> **Claude MUST NOT call `TaskCreate` or `TaskUpdate` without editing
+> [`docs/BACKLOG.md`](docs/BACKLOG.md) in the same turn. Claude MUST NOT edit `BACKLOG.md`'s item
+> list without a matching task call in the same turn.** Not the next turn, not before the commit,
+> not at the end of the session — **the same turn.** If one of them is not worth updating, then
+> neither was worth updating.
+
+**This is written as a coupling between two tool calls on purpose**, because the aspirational
+version — *"keep them in sync"* — was already in this file and **failed on its second day.** Three
+items changed state in the CLI and none of it reached the file. A rule that depends on remembering
+to look is a rule that fails exactly when a session is moving fast, which is when the list changes
+most.
+
+**Each `BACKLOG.md` item carries its status in its own heading** — `OPEN`, `IN PROGRESS`, or moved
+to the closed list — so drift is *visible* rather than inferred. Checking costs one glance.
+
+**Why he relies on this absolutely, and why the two failure directions are not symmetric:**
+
+| Drift | Consequence |
+|---|---|
+| In `BACKLOG.md`, not on his list | **He never sees it.** The CLI shows at most five items and is the only view he has |
+| On his list, not in `BACKLOG.md` | **It dies with the session.** A task list does not survive; the file does |
+
+His words when this first came up: *"by the way is our checklist persisted? That's my memory
+right now and that's dangerous."* **He is treating the checklist as his memory, and that is the
+arrangement — so a drift is not an untidiness, it is a fact quietly disappearing from the only
+place he looks.**
 
 **The precedence is absolute and the order is not cosmetic:**
 
