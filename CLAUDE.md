@@ -305,6 +305,27 @@ that trusts a memory is not a freshness check.
 be spelled like *current* — the same rule [`docs/REVIEWING.md`](docs/REVIEWING.md) applies to
 `offload verify`, and the reason a flight with no wi-fi MUST NOT manufacture an alarm.
 
+**And it is deliberately *quiet*, which is the part a future session will try to "improve".**
+Volume tracks **actionability, not importance.** Terry, 2026-08-06: *"we need to never train
+my brain to treat warnings as something to ignore. A warning that fires when I don't care —
+e.g. on a plane and I can't fix the versions — is a warning that loses its teeth. It needs to
+be a confirmed positive that I have learned to care about and be highly motivated to act
+upon."*
+
+**The banner is a conditioned response and every firing spends a little of it.** Fire it where
+he cannot act and it buys nothing while costing some of the reflex; spend that often enough
+and it becomes scenery, and then the evening it means *your linker is a release behind and
+this measured run is worthless* he reads straight past it. **The loud shape is therefore
+reserved for a confirmed positive** — proven by the network, fixed by one command, now.
+*Could not confirm* may be the more worrying state and stays quiet anyway, because it is not
+one he can act on.
+
+**This project already makes that argument three times** — decision 12 (a verification tool
+whose warnings you learn to ignore is worse than one that checks less and means it), decision
+9 (a warning that fires regardless of the truth is the one you learn to read past), and
+decision 34 (a repeating fact is INFO however much it matters). **Claude MUST NOT make the
+unreachable case louder.**
+
 **The cadence is deliberately two rules.** A clean result is suppressed for 24 hours; a
 **behind** result re-fires once per session until it is fixed. A stale chain is actionable and
 one command from repaired, so repeating it is correct — the opposite of decision 34's rented

@@ -419,6 +419,13 @@ informational note covers **could not** confirm, and an unmissable banner covers
 behind. **Offline is not stale**, and the middle outcome exists so a flight cannot manufacture
 an alarm — nor a missing tool report a clean bill of health.
 
+**The unreachable case is quiet on purpose, and the reason is the banner rather than the
+outage.** Volume tracks **actionability, not importance**: a warning that fires where you
+cannot act — on a plane, on hotel wi-fi — spends the reflex that makes the loud case work and
+buys nothing, and a warning you learn to ignore is worse than no warning at all. The loud
+shape is reserved for a **confirmed positive**, fixed by one command. Full reasoning, in the
+operator's words, is in [`../CLAUDE.md`](../CLAUDE.md); it MUST NOT be made louder.
+
 **Two improvements it carries over the manual snippet above**, both verified on this machine
 on 2026-08-06:
 
