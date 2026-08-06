@@ -402,7 +402,7 @@ pub fn eject(
 
     loop {
         attempts += 1;
-        let outcome = attempt(volume, device, prepare)?;
+        let outcome = attempt(volume, device, prepare.before(attempts))?;
 
         let (pause, still_racing) = pause_after(&outcome, races, backoff);
         races = still_racing;
@@ -479,8 +479,8 @@ fn pause_after(outcome: &Outcome, races: u32, backoff: Duration) -> (Duration, u
 /// veto changes over that window or the same one is simply eventually won.
 /// `examples/card-veto-watch.rs` is the caller, and it exists because a harness that
 /// approximated this sequence would be measuring itself rather than the tool.
-pub fn attempt(volume: &Volume, device: &Device, prepare: Prepare) -> Result<Outcome> {
-    if prepare == Prepare::LockAndDismount {
+pub fn attempt(volume: &Volume, device: &Device, prepare: bool) -> Result<Outcome> {
+    if prepare {
         let file = open_for_control(volume.device_path())
             .with_context(|| format!("opening {} for eject", volume.guid_path))?;
 
@@ -553,13 +553,42 @@ pub fn attempt(volume: &Volume, device: &Device, prepare: Prepare) -> Result<Out
 /// SSDs keep the full sequence, cards go bare. That also happens to point it at the class that
 /// does all of the fighting — every multi-minute hold this project has recorded has been a
 /// card, and the CFexpress specifically.
+/// **The names say *when*, because when is the whole finding.** The original variant was called
+/// `LockAndDismount`, which hid the fact that it happens before *every* attempt — and that is
+/// exactly what went unnoticed for three days.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Prepare {
-    /// Lock, dismount, close the handle, then ask. The behavior every recorded run used.
-    LockAndDismount,
-    /// Ask PnP directly and let the file system do its own teardown, the way the tray icon
-    /// appears to. **Diagnostic** — see the type note before making it a default.
-    Bare,
+    /// Lock, dismount and close the handle before **every** attempt. What every run before
+    /// 2026-08-06 did, and what produced 23 consecutive unwinnable refusals.
+    EveryAttempt,
+    /// Lock and dismount on the **first** attempt only; ask bare from then on.
+    ///
+    /// **Terry's idea, 2026-08-06, and it dominates both alternatives.** The first dismount is
+    /// what flushes the filesystem, so the data guarantee is paid for once and kept. Every
+    /// attempt after it asks about a volume nobody has disturbed — which is the only state any
+    /// eject has ever succeeded from on this rig.
+    ///
+    /// **The alternative considered and rejected: dismount, sleep a few seconds, ask.** It
+    /// would test the same idea but buys the settling with wall clock, and it would still
+    /// re-dismount on the next retry. This costs nothing and re-disturbs nothing.
+    FirstAttemptOnly,
+    /// Never prepare — ask PnP directly and let the file system do its own teardown.
+    ///
+    /// **Diagnostic**, and it drops the flush guarantee entirely. Defensible for cards, which
+    /// this tool never writes to and which are formatted in-body next session; **not** for an
+    /// archive SSD that just received four verified copies.
+    Never,
+}
+
+impl Prepare {
+    /// Whether attempt number `n` (1-based) locks and dismounts first.
+    fn before(self, n: u32) -> bool {
+        match self {
+            Prepare::EveryAttempt => true,
+            Prepare::FirstAttemptOnly => n == 1,
+            Prepare::Never => false,
+        }
+    }
 }
 
 /// `FSCTL_LOCK_VOLUME`, retried until [`LOCK_WINDOW`] is spent.

@@ -124,7 +124,7 @@ fn main() -> ExitCode {
         watching.retain(|(label, volume, device)| {
             // The production preparation, so this measures the tool rather than an alternative
             // to it. `Prepare::Bare` is the other arm of that experiment and belongs to a run.
-            let outcome = eject::attempt(volume, device, eject::Prepare::LockAndDismount);
+            let outcome = eject::attempt(volume, device, true);
             let at = started.elapsed();
 
             let line = match &outcome {

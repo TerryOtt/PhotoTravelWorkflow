@@ -112,17 +112,13 @@ struct Offload {
     #[arg(long)]
     no_eject: bool,
 
-    /// Skip the lock and dismount during eject; ask PnP directly, as the tray icon appears to.
+    /// When to lock and dismount before asking PnP to remove a device.
     //
-    // Diagnostic. See `eject::Prepare`: a vetoed query-remove and an accepted one are the same
-    // PnP events on the same device, but Kernel-PnP cannot see what happens BEFORE the call,
-    // and the tray — which succeeds — almost certainly does no preparation at all.
-    //
-    // **MUST NOT become the default on one measurement.** Lock-and-dismount is what guarantees
-    // the filesystem is flushed before the device leaves; dropping it means trusting exFAT's
-    // own teardown inside the query-remove.
-    #[arg(long)]
-    eject_bare: bool,
+    // Diagnostic while the three are being compared. See `eject::Prepare` for what each means
+    // and what it costs. `first-attempt-only` is the candidate: it keeps the flush guarantee
+    // and stops re-disturbing a volume that has to settle before Windows will let it go.
+    #[arg(long, value_enum, default_value_t = PrepareArg::EveryAttempt)]
+    eject_prepare: PrepareArg,
 
     /// Ask this often during eject, instead of the 2s-doubling-to-60s backoff.
     //
@@ -692,12 +688,23 @@ fn cadence(args: &Offload) -> eject::Cadence {
     }
 }
 
+/// `--eject-prepare`, kept separate from [`eject::Prepare`] so the library owes clap nothing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum PrepareArg {
+    /// Lock and dismount before every attempt — the behavior before 2026-08-06.
+    EveryAttempt,
+    /// Lock and dismount once, then ask bare. Keeps the flush, stops re-disturbing the volume.
+    FirstAttemptOnly,
+    /// Never lock or dismount. Drops the flush guarantee; defensible only for cards.
+    Never,
+}
+
 /// Whether this run prepares the volume before asking PnP — see [`eject::Prepare`].
 fn prepare(args: &Offload) -> eject::Prepare {
-    if args.eject_bare {
-        eject::Prepare::Bare
-    } else {
-        eject::Prepare::LockAndDismount
+    match args.eject_prepare {
+        PrepareArg::EveryAttempt => eject::Prepare::EveryAttempt,
+        PrepareArg::FirstAttemptOnly => eject::Prepare::FirstAttemptOnly,
+        PrepareArg::Never => eject::Prepare::Never,
     }
 }
 
