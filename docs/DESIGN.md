@@ -1505,6 +1505,36 @@ untouched, and a test asserting a rounded value MUST NOT be written against them
 > them would mean rendering one figure from another rather than from the measurement, which is
 > how a display bug becomes a wrong number.
 
+### The opposite of green is never red
+
+**Standing order, Terry, 2026-08-06. RFC 2119 sense: a status badge MUST NOT be red.** Clean is
+green; anything else is **yellow**, a bold white `!` on dark yellow, meaning *this needs your
+attention*.
+
+**His reasoning, and it is about the moment the badge is read rather than about the fact it
+reports:** *"let's be gentle with 11pm Terry and just flag it as 'hey this needs your attention,
+don't freak out, we're gonna be fine, you shoot dual card for a reason, no data is lost, just
+need some help'."*
+
+**Red is not softer information, it is a different instruction.** Red says *something is
+broken*; yellow says *come and look*. Almost everything this report can flag is the second: a
+card that would not release, a frame outside the track, a destination that needs a second look.
+**The data is on four verified copies before any of it prints** — decision 2 — so a red badge
+would be reporting a crisis the run has already made impossible.
+
+**And the cost of getting it wrong is asymmetric in the same way decision 12 describes for
+warnings.** A red badge at 11pm on night three produces a jolt of adrenaline and a bad half
+hour; it does not produce a faster fix. Spend that often enough and the operator either stops
+reading badges or starts dreading the run — and this tool exists so he can walk away and sleep.
+
+**`⚠` (U+26A0) is deliberately not used.** It frequently renders with emoji presentation, and a
+glyph that might come out as a coloured picture is not a glyph you can rely on at a glance. A
+bold white `!` is ASCII and cannot surprise anyone.
+
+> **The one place red survives is the per-destination badge in the LANDED block**, which reports
+> unverified files and is the difference between `LANDED` and `NOT SAFE`. **Revisit that against
+> this order** — it predates it, and the argument above may well apply there too.
+
 ### The report's layout rules, settled 2026-08-06
 
 **RFC 2119 keywords, and the capitals are load-bearing.** These came out of an evening of the

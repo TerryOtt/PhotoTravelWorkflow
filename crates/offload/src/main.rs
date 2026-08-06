@@ -943,8 +943,17 @@ fn report_ssd_release(
     };
 
     if !ssds.is_empty() {
+        let down = ssds
+            .iter()
+            .filter(|r| r.effort.outcome.is_ejected())
+            .count();
         writeln!(out)?;
-        writeln!(out, "    Travel SSDs")?;
+        writeln!(
+            out,
+            "    {:<STEP_LABEL$}{}",
+            "Travel SSDs",
+            step_badge(down == ssds.len())
+        )?;
     }
     for r in ssds {
         // What it cost, but only when it cost anything — a device that powered down on the
@@ -1044,8 +1053,19 @@ fn report_card_release(
         return Ok(());
     }
 
+    // **The card badge can come out red, and that is not a downgrade.** Decision 22 keeps cards
+    // away from the verdict and the exit code, and this does not touch either — it says *this
+    // one needs a hand*, which is true, while the line beneath still says nothing was ever
+    // written to it. A badge that could only ever be green would be the check-that-cannot-fail
+    // `REVIEWING.md` warns about.
+    let released = cards.iter().filter(|(_, e)| e.outcome.is_ejected()).count();
     writeln!(out)?;
-    writeln!(out, "    Cards")?;
+    writeln!(
+        out,
+        "    {:<STEP_LABEL$}{}",
+        "Cards",
+        step_badge(released == cards.len())
+    )?;
     for (label, effort) in cards {
         // **The same effort suffix the SSD rows carry, and it is here to build a sample.**
         // A card that took sixteen asks over eleven minutes and one that got lucky on its
@@ -1416,8 +1436,13 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     // byte-length rule would come out three times too long.
     // Trimmed before counting, then re-indented, so the rule is the width of the *banner* and
     // not of the banner plus its indent.
+    //
+    // **Two blank lines below, matching the two above the banner.** The block is framed
+    // symmetrically or it reads as top-heavy — Terry's note, and the second one here means
+    // `Corroborating` supplies only one of the two it needs.
     println!();
     println!("    {}", "═".repeat(banner.trim_start().chars().count()));
+    println!();
 
     // **No run-log path here.** It was the only line in this block that was not about the
     // data being safe, and `CONOPS.md` says this block is what earns walking away — a file
@@ -1953,10 +1978,13 @@ fn report_passes(outcome: &pipeline::Outcome) {
     // bare numbers in a format string is exactly where an off-by-one hides.
     let wrote = |d: &pipeline::DestinationOutcome| d.written + d.skipped == files;
     let written_through = outcome.destinations.iter().filter(|d| wrote(d)).count();
+    // **`failed` as well as the count**, or a destination that read back a mismatch would still
+    // be counted as having verified every file and the badge would come out green on a run the
+    // verdict calls NOT SAFE.
     let verified_through = outcome
         .destinations
         .iter()
-        .filter(|d| d.verified == files)
+        .filter(|d| d.verified == files && d.failed.is_empty())
         .count();
 
     // **Says "all N" only when it is all of them.** A pass that finished on three of four
@@ -1980,7 +2008,11 @@ fn report_passes(outcome: &pipeline::Outcome) {
     // rather than phases in their own right, and `progress.rs` sets that convention — two for a
     // phase, one for a pass — which the live bars already follow.
     println!();
-    println!("    Writing");
+    println!(
+        "    {:<STEP_LABEL$}{}",
+        "Writing",
+        step_badge(written_through == all)
+    );
     println!(
         "        {} · {}/{}",
         titled(written_through),
@@ -1988,7 +2020,11 @@ fn report_passes(outcome: &pipeline::Outcome) {
         count(files)
     );
     println!();
-    println!("    Verifying");
+    println!(
+        "    {:<STEP_LABEL$}{}",
+        "Verifying",
+        step_badge(verified_through == all)
+    );
     println!(
         "        {} · {}/{}",
         titled(verified_through),
@@ -2007,6 +2043,67 @@ fn report_passes(outcome: &pipeline::Outcome) {
 /// **The blanks belong to the heading, not to the record.** When the live heading survives —
 /// a captured log, where nothing is cleared — reprinting it would stutter, and giving the
 /// record two blank lines would open a gap between a heading and the rows it belongs to.
+/// The badge beside a critical step's heading — **an 11pm signal, not a statistic.**
+///
+/// Terry, 2026-08-06, asking for it on `Writing`, `Verifying` and `Corroborating`: *"It's a
+/// strong visual clue that these absolutely critical steps went perfect, the stats under them
+/// can be skimmed over safely."*
+///
+/// **So the badge answers a different question from the numbers below it.** Those say what
+/// happened; this says whether reading them is necessary. On night three of a trip that is the
+/// more valuable of the two.
+///
+/// **Not clean is YELLOW, never red.** Standing order, Terry, 2026-08-06 — see
+/// [`docs/DESIGN.md`](../../../docs/DESIGN.md), *the opposite of green is never red*. In his
+/// words: *"let's be gentle with 11pm Terry and just flag it as 'hey this needs your attention,
+/// don't freak out, we're gonna be fine, you shoot dual card for a reason, no data is lost,
+/// just need some help'."*
+///
+/// **And a badge that could only come out green would be worthless** — the whole point is that
+/// the eye is allowed to stop on it, which requires that it sometimes does not.
+///
+/// A bold white `!` rather than `⚠`: U+26A0 frequently renders with emoji presentation, and
+/// this console has already cost this project time over a codepage. Dark yellow rather than
+/// bright, for contrast against the white glyph.
+fn step_badge(clean: bool) -> String {
+    if clean {
+        style(" \u{2713} ").white().bold().on_green().to_string()
+    } else {
+        style(" ! ").white().bold().on_yellow().to_string()
+    }
+}
+
+/// How wide the badged headings are padded to, so the ticks line up as a set.
+const STEP_LABEL: usize = 15;
+
+/// A phase heading carrying its badge — and **the badge reaches a captured log too**.
+///
+/// **The problem this solves.** At a terminal `progress.clear()` erases the live heading, so
+/// the record reprints it and the badge goes there. In a log nothing is cleared, the heading is
+/// still on screen, and reprinting it would stutter — which would have left `Corroborating` and
+/// `Geotagging` with no badge at all in **exactly the mode Terry gets when running the offload
+/// through Claude**, which `CONOPS.md`'s shooting-day contract says is most nights with
+/// internet.
+///
+/// So it returns a suffix instead: empty when the heading carried the badge, and the badge
+/// itself when the caller must put it on the status line. **One signal, two placements, never
+/// absent.**
+#[must_use]
+fn badged_heading(name: &str, indent: usize, erased: bool, clean: bool) -> String {
+    let badge = step_badge(clean);
+    println!();
+
+    if !erased {
+        return format!("   {badge}");
+    }
+
+    if indent == offload::progress::PHASE {
+        println!();
+    }
+    println!("{:indent$}{:<STEP_LABEL$}{badge}", "", name);
+    String::new()
+}
+
 fn phase_heading(name: &str, indent: usize, erased: bool) {
     println!();
     if erased {
@@ -2030,7 +2127,15 @@ fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: boo
         return;
     };
 
-    phase_heading("Corroborating", offload::progress::PASS, heading_was_erased);
+    // **Clean means nothing disagreed.** A transient read error is deliberately not counted
+    // against it — the re-read agreed, so the data is fine and the badge is about the data.
+    // `suspect_card` gets its own loud paragraph below and does not need to dim this.
+    let badge = badged_heading(
+        "Corroborating",
+        offload::progress::PASS,
+        heading_was_erased,
+        report.mismatched.is_empty(),
+    );
     print!("        {} matched", count(report.matched));
     if report.transient > 0 {
         // Not a data problem — the re-read agreed. It is a *reader* problem, and worth
@@ -2040,7 +2145,7 @@ fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: boo
             count(report.transient)
         );
     }
-    println!(" · {} mismatched", count(report.mismatched.len()));
+    println!(" · {} mismatched{badge}", count(report.mismatched.len()));
 
     for (name, source, other) in &report.mismatched {
         println!(
@@ -2073,7 +2178,17 @@ fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool, dest
         return;
     };
 
-    phase_heading("Geotagging", offload::progress::PHASE, heading_was_erased);
+    // **Green on `outside_track == 0`, not on "every frame tagged".** Frames in a gap are the
+    // gap rule working — decision 16 refuses to invent a coordinate — so a run with a few is
+    // correct and must not go red. Frames *outside* the track mean the logger was not running
+    // during the shoot, which `DESIGN.md` records as this workflow's standing operator risk,
+    // and is the one thing here worth walking over to look at.
+    let badge = badged_heading(
+        "Geotagging",
+        offload::progress::PHASE,
+        heading_was_erased,
+        report.outside_track == 0,
+    );
     print!(
         "    {} tagged · {} outside track",
         count(report.tagged),
@@ -2082,7 +2197,7 @@ fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool, dest
     if report.in_gap > 0 {
         print!(" · {} in a gap too wide to bridge", count(report.in_gap));
     }
-    println!();
+    println!("{badge}");
 
     // The pattern, not the count. A bare "1,383 outside track" could be a dead logger, a
     // late start or a day of dropouts, and the response differs for each — so when every
