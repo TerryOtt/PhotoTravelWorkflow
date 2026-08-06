@@ -423,13 +423,19 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     });
 
     let _ = report_card_release(&mut io::stdout(), &cards, cards_took, budget_spent);
-    let _ = report_unhook_gate(
-        &mut io::stdout(),
+
+    // One fact, two renderings — see [`everything_released`]. The gate badge and the verdict's
+    // colour MUST NOT be able to disagree, and computing it here is what makes that structural
+    // rather than a rule a later edit has to remember.
+    let clean = everything_released(released.as_deref(), &cards);
+    let _ = report_unhook_gate(&mut io::stdout(), clean, args.no_eject, released.is_none());
+    verdict(
+        &outcome,
         released.as_deref(),
-        &cards,
-        args.no_eject,
+        corroboration.as_ref(),
+        args,
+        clean,
     );
-    verdict(&outcome, released.as_deref(), corroboration.as_ref(), args);
 
     Ok(exit_code(
         &outcome,
@@ -653,17 +659,57 @@ fn release(
     }
 }
 
+/// Whether every removable device came down — **the single fact the gate badge and the verdict's
+/// colour both key on**.
+///
+/// **Computed once and handed to both, so they cannot disagree.** Deriving it twice would leave
+/// the report able to print a green verdict under a yellow badge, which is the exact class of
+/// contradiction Terry caught in `SAFE TO STORE` — and the kind that survives review because each
+/// half is individually correct.
+fn everything_released(released: Option<&[Released]>, cards: &[(String, eject::Effort)]) -> bool {
+    released.is_some_and(|ssds| ssds.iter().all(|r| r.effort.outcome.is_ejected()))
+        && cards.iter().all(|(_, e)| e.outcome.is_ejected())
+}
+
+/// The verdict's headline, worn as a badge in the same two colours as the rest of the report.
+///
+/// **Green in exactly one case and yellow in every other**, which is Terry's rule stated in his
+/// own terms (2026-08-06): *"that final card status should be black-on-yellow if anything but
+/// 'REMOVE AND PUT IN SAFE', and white on green if 'Yank all cards'."*
+///
+/// **`clean` comes from [`everything_released`] rather than from anything local**, so this badge
+/// and `Safe to Unhook` are the same signal rendered twice rather than two opinions.
+fn verdict_badge(clean: bool, text: &str) -> String {
+    let headline = format!(" {text} ");
+    if clean {
+        style(headline).white().bold().on_green().to_string()
+    } else {
+        style(headline)
+            .black()
+            .on_true_color(255, 255, 0)
+            .to_string()
+    }
+}
+
 /// Decision 14's verdict: the last line, and its phrases appear nowhere else in the report.
+///
+/// **`clean` decides the colour and the words together.** A yellow badge whose text said
+/// `SAFE TO STORE` would be worse than either alone, so the branches below are arranged so that
+/// phrase is unreachable unless `clean` holds.
 fn verdict(
     outcome: &pipeline::Outcome,
     released: Option<&[Released]>,
     corroborated: Option<&phase4::Report>,
     args: &Offload,
+    clean: bool,
 ) {
     println!();
 
     if !outcome.landed() {
-        println!("►  NOT SAFE — see the unverified counts above");
+        println!(
+            "►  {}  See the unverified counts above.",
+            verdict_badge(false, "NOT SAFE")
+        );
         return;
     }
 
@@ -687,11 +733,15 @@ fn verdict(
     // So the phrase is now reserved. Landing safely and being safe to disconnect are two
     // different facts, and the verdict has to say which one it is asserting.
     let Some(released) = released else {
-        if args.no_eject {
-            println!("►  STILL MOUNTED — nothing was ejected; {claim}");
+        let why = if args.no_eject {
+            "Nothing was ejected"
         } else {
-            println!("►  SAFE TO STORE — nothing to eject; {claim}");
-        }
+            "The eject stage never ran"
+        };
+        println!(
+            "►  {}  {why}; {claim}.",
+            verdict_badge(clean, "STILL MOUNTED")
+        );
         return;
     };
 
@@ -711,17 +761,30 @@ fn verdict(
         actions.push(format!("UNPLUG {}", unplug.join(", ")));
     }
 
-    // **Three states, and the middle one is the reason this is not two.** Everything down is
-    // safe to store. A device that *dismounted* but would not power down is flushed and
-    // detached — unplugging it is the whole of what remains, so storing is still the honest
-    // instruction once that is done. A device still **held** is mounted, and that is the case
-    // where `SAFE TO STORE` would be a lie.
+    // **Three states, and the middle one is the reason this is not two.** A device that
+    // *dismounted* but would not power down is flushed and detached — pulling it out is the whole
+    // of what remains, so it is not mounted and saying so would be wrong. A device still **held**
+    // is mounted, and that is the case where `SAFE TO STORE` would be a lie.
+    //
+    // **Only the first branch can be green**, and it is the only one that reaches `clean` — the
+    // other two are yellow by construction rather than by a flag someone could get wrong. A card
+    // that would not release turns `clean` false without changing a word here, which keeps
+    // decision 22 intact: the cards touch the *come and look* signal, never the wording and never
+    // `exit_code`, which is not even given them.
     if actions.is_empty() {
-        println!("►  EJECTED — SAFE TO STORE. {claim}.");
+        println!("►  {}  {claim}.", verdict_badge(clean, "SAFE TO STORE"));
     } else if held.is_empty() {
-        println!("►  SAFE TO STORE — {}. {claim}.", actions.join(" AND "));
+        println!(
+            "►  {}  {}. {claim}.",
+            verdict_badge(false, "UNPLUG FIRST"),
+            actions.join(" AND ")
+        );
     } else {
-        println!("►  STILL MOUNTED — {}. {claim}.", actions.join(" AND "));
+        println!(
+            "►  {}  {}. {claim}.",
+            verdict_badge(false, "STILL MOUNTED"),
+            actions.join(" AND ")
+        );
     }
 }
 
@@ -1233,23 +1296,20 @@ fn report_card_release(
 /// the badge two lines below it, which read as two unrelated facts.
 fn report_unhook_gate(
     out: &mut impl Write,
-    released: Option<&[Released]>,
-    cards: &[(String, eject::Effort)],
+    clean: bool,
     no_eject: bool,
+    never_ran: bool,
 ) -> io::Result<()> {
-    let ssds_down = released.is_some_and(|s| s.iter().all(|r| r.effort.outcome.is_ejected()));
-    let cards_down = cards.iter().all(|(_, e)| e.outcome.is_ejected());
-
     writeln!(out)?;
     writeln!(
         out,
         "    {:<pad$}{}",
         "Safe to Unhook",
-        step_badge(ssds_down && cards_down),
+        step_badge(clean),
         pad = badge_pad(4)
     )?;
 
-    if released.is_none() {
+    if never_ran {
         // **Says why, and MUST NOT say what the verdict says.** Decision 14 reserves the
         // verdict's phrases to the verdict, and this line briefly read *"— every drive is still
         // mounted"* two lines above a verdict of `STILL MOUNTED`. The badge already carries the
@@ -2645,9 +2705,12 @@ mod tests {
     const CLEAN: &str = "\u{2713}";
     const ATTENTION: &str = "!!!";
 
+    /// Goes through [`everything_released`] rather than asserting on a hand-built flag, so these
+    /// exercise the rule the report actually uses.
     fn render_gate(released: Option<&[Released]>, cards: &[(String, eject::Effort)]) -> String {
         let mut out = Vec::new();
-        report_unhook_gate(&mut out, released, cards, released.is_none())
+        let clean = everything_released(released, cards);
+        report_unhook_gate(&mut out, clean, released.is_none(), released.is_none())
             .expect("writing to a Vec");
         String::from_utf8(out).expect("the report is UTF-8")
     }
@@ -2711,9 +2774,7 @@ mod tests {
     /// direction that damages hardware. This is the regression test for that.
     #[test]
     fn a_mounted_drive_is_never_called_safe_to_store() {
-        let mut out = Vec::new();
-        report_unhook_gate(&mut out, None, &[], true).expect("writing to a Vec");
-        let gate = String::from_utf8(out).expect("the report is UTF-8");
+        let gate = render_gate(None, &[]);
 
         assert!(gate.contains(ATTENTION), "{gate}");
         assert!(gate.contains("Withheld by --no-eject"), "{gate}");
@@ -2723,6 +2784,39 @@ mod tests {
         let shouted = gate.to_ascii_uppercase();
         assert!(!shouted.contains("SAFE TO STORE"), "{gate}");
         assert!(!shouted.contains("STILL MOUNTED"), "{gate}");
+    }
+
+    /// **The gate badge and the verdict colour are the same fact, so they cannot disagree.**
+    /// This walks every shape a night can end in and asserts `everything_released` is green only
+    /// for the one that earns it. It is the invariant `SAFE TO STORE` violated by being derived
+    /// separately — each half individually correct, the pair contradictory.
+    #[test]
+    fn only_a_wholly_released_rig_is_clean() {
+        let up = || released("SanDisk", eject::Outcome::Ejected, 1);
+        let stuck = || released("OWC", held("still mounted"), 40);
+        let card_up = || card("Primary", eject::Outcome::Ejected, 1);
+        let card_stuck = || card("Primary", held("still mounted"), 90);
+
+        assert!(everything_released(Some(&[up()]), &[card_up()]));
+
+        // Nothing ejected at all — `--no-eject`, and the case that started this.
+        assert!(!everything_released(None, &[]));
+        // A card alone is enough to withhold green, by Terry's rule and without touching
+        // `exit_code`, which is never given the cards.
+        assert!(!everything_released(Some(&[up()]), &[card_stuck()]));
+        assert!(!everything_released(Some(&[stuck()]), &[card_up()]));
+        assert!(!everything_released(Some(&[up(), stuck()]), &[card_up()]));
+
+        // A dismounted device did not power down, so it is not released either.
+        let limp = released(
+            "WD",
+            eject::Outcome::Dismounted {
+                veto: offload::eject::Veto::Device,
+                reason: "would not power down".into(),
+            },
+            3,
+        );
+        assert!(!everything_released(Some(&[limp]), &[card_up()]));
     }
 
     /// Every badge lands on the same column whatever its heading's indent — the property the
