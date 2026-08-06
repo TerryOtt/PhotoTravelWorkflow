@@ -1538,9 +1538,22 @@ it on this machine's console on 2026-08-06 and it renders as text. **The risk th
 makes load-bearing. It MUST be compared against the `!` form side by side on any new terminal
 before being trusted there.
 
-> **The one place red survives is the per-destination badge in the LANDED block**, which reports
-> unverified files and is the difference between `LANDED` and `NOT SAFE`. **Revisit that against
-> this order** — it predates it, and the argument above may well apply there too.
+**The ban is total, and the last exception was closed on 2026-08-06.** The per-destination badge
+in the `LANDED` block — ` N UNVERIFIED ` — was red, and had an argument for it: it reports a
+comparison made moments ago against every file on the destination, and a failure there is the
+difference between `LANDED` and `NOT SAFE`. Terry's ruling, the same day: *"red is hard banned,
+downgrade failed to verify as yellow."*
+
+**That argument is worth recording because it is the one to expect again.** It says *this case is
+serious enough to earn red* — and seriousness is not what the colour encodes. **The colour
+encodes the action.** Red sends a tired operator hunting for damage; yellow sends him to read the
+line underneath, which is the true instruction in every case this report can produce. The frames
+are still on the cards, which were never written to (constraint 2), and what failed is the run's
+own convergence rather than anything about the data.
+
+**So there is no badge anywhere in this tool that renders red**, and a future session proposing
+one for a sufficiently severe case is re-running an argument that has already been heard and
+refused. Grep enforces it: `\.red\(\)|\.on_red\(\)` MUST return nothing.
 
 ### The badge column is a go/no-go on unplugging things
 

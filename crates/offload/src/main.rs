@@ -1447,19 +1447,29 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     // and the answer; this is where the answer is *earned*, one destination at a time, and it
     // is worth being legible at a glance rather than merely present.
     //
-    // **Unlike the capacity tick in pre-flight, this badge can come out red.** That one is a
-    // receipt for a check that already refused the run; this one reports a comparison made
-    // moments ago against 3,883 files per destination, and a failure here is the difference
-    // between LANDED and NOT SAFE. So the colour carries meaning rather than reassurance,
-    // which is what `REVIEWING.md` asks of anything that looks like a verdict.
+    // **This badge is real** — it reports a comparison made moments ago against every file on
+    // the destination, and a failure here is the difference between LANDED and NOT SAFE. So the
+    // colour carries meaning rather than reassurance, which is what `REVIEWING.md` asks of
+    // anything that looks like a verdict.
+    //
+    // **And it is yellow, not red, which was the last exception standing.** Terry, 2026-08-06:
+    // *"red is hard banned, downgrade failed to verify as yellow."* This one was argued to be
+    // the case that earned red, on the grounds that it is genuinely serious — and that argument
+    // is exactly the one the standing order refuses. **Severity is not what the colour encodes;
+    // the action is.** Red says *something is broken*, which sends a tired operator hunting for
+    // damage. Yellow says *come and look*, which is the true instruction: the frames are on the
+    // cards, which were never written to, and the run's own retry is what did not converge.
+    //
+    // See `DESIGN.md` — *the opposite of green is never red*, and *the badge column is a go/no-go
+    // on unplugging things*, which this now joins rather than sitting outside as a third state.
     for destination in &outcome.destinations {
         let verdict = if destination.failed.is_empty() {
             style(" OK ".to_string()).white().bold().on_green()
         } else {
             style(format!(" {} UNVERIFIED ", count(destination.failed.len())))
-                .white()
+                .black()
                 .bold()
-                .on_red()
+                .on_yellow()
         };
         println!(
             "        {:<8} {} written · {} skipped · {} verified   {verdict}",
