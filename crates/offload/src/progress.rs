@@ -264,6 +264,22 @@ impl Progress {
     /// destination — and that is the record. The bars exist to show *which drive you are
     /// waiting on while it is happening*, which is a question that stops being asked the
     /// moment the phase ends.
+    /// Whether [`Progress::clear`] actually erased anything — and so whether the report section
+    /// that follows has to reprint its own heading.
+    ///
+    /// **Only [`Progress::Bars`] clears.** At a terminal, `clear` takes the bars *and* the
+    /// heading above them, so the record that follows must restate it or the section arrives
+    /// unlabelled. In a captured log nothing is erased, the heading is still sitting there, and
+    /// restating it printed `Corroborating` twice — a stutter in exactly the mode the operator
+    /// actually reads, since he runs the offload through Claude whenever he has internet.
+    ///
+    /// **One source of truth rather than a second `is_terminal()` call**, which would be free
+    /// to drift from the one in [`Progress::detect`] and produce a heading that is right in
+    /// neither mode.
+    pub fn heading_was_erased(&self) -> bool {
+        matches!(self, Self::Bars(..))
+    }
+
     pub fn clear(&self) {
         if let Self::Bars(multi, drawn) = self {
             // **Retire, then erase.** Removing each bar from the multi is what stops the next
@@ -476,7 +492,13 @@ impl Bar {
         if let Some(plain) = &self.plain {
             // The log gets a closing line so a captured run and a watched one end the same
             // way. Position is forced to `len` for the case where a pass ends early.
+            let repeat = closing_line_would_repeat(plain.reported.get(), plain.len);
             plain.position.set(plain.len);
+            plain.reported.set(plain.len);
+            if repeat {
+                return;
+            }
+
             let indent = plain.indent;
             println!(
                 "{:indent$}{:<8} {:>6}/{:<6} {:>6} {}",
@@ -491,9 +513,35 @@ impl Bar {
     }
 }
 
+/// Whether [`Bar::finish`]'s closing line would just repeat the one [`Bar::inc`] already wrote.
+///
+/// **A completed pass printed `100.0%` twice**, because `inc` always emits on the final step
+/// and `finish` then emitted the same line again. Invisible at a terminal, where both are the
+/// same redrawn bar; plainly duplicated in a captured log, which is every run Claude drives.
+///
+/// **A pass that ended early still gets its closing line**, which is the case `finish` forces
+/// the position for — there `reported` sits below `len` and nothing has said the pass is over.
+/// So does a zero-length pass, where nothing was ever reported and the guard would otherwise
+/// swallow the only line.
+fn closing_line_would_repeat(reported: usize, len: usize) -> bool {
+    len > 0 && reported == len
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_completed_pass_does_not_print_its_last_line_twice() {
+        assert!(closing_line_would_repeat(3_883, 3_883));
+    }
+
+    /// The two cases the guard must NOT swallow.
+    #[test]
+    fn an_early_end_and_an_empty_pass_still_get_a_closing_line() {
+        assert!(!closing_line_would_repeat(2_000, 3_883));
+        assert!(!closing_line_would_repeat(0, 0));
+    }
 
     /// **The templates are parsed at runtime and a bad one fails silently.** `Progress::bar`
     /// and `Progress::section` both do `if let Ok(style)`, deliberately — a rendering fault

@@ -1487,6 +1487,14 @@ space rounds **down**, so a printed pair always straddles the truth outward — 
 and `human::gib_down` carry the argument, and `preflight`'s `NOT ENOUGH ROOM` is the line that
 would otherwise print two equal numbers while refusing the run.
 
+**Below 10 GiB the decimal comes back, and the threshold is a fact about the operator rather
+than a compromise.** He shoots ~30 frames of each scene and comes home with 300–500 even
+messing about locally ([`CONOPS.md`](CONOPS.md), shooting-day contract), so **a sub-10 GiB
+payload is never a shooting day — it is a staged test slice.** On a real night he sees whole
+gibibytes as asked; on the 50-frame development corpus a plain ceiling turned 2.6 into `3`, a
+15 % overstatement that cannot be checked against the source by eye. The threshold gives each
+case the rendering it needs without either borrowing the other's.
+
 **This is a rendering rule and nothing more. Every stored, compared, asserted and serialized
 figure stays at full precision** — manifests, checksums, the capacity check and the run log are
 untouched, and a test asserting a rounded value MUST NOT be written against them.

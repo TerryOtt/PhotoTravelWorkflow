@@ -321,11 +321,11 @@ fn offload(args: &Offload) -> Result<ExitCode> {
         corroboration_phase(&plan, &targets, &outcome, &runs_root, args, &progress)?;
     record_corroboration(&targets, &outcome, corroboration.as_ref())?;
     progress.clear();
-    report_corroboration(corroboration.as_ref());
+    report_corroboration(corroboration.as_ref(), progress.heading_was_erased());
 
     let geotag = geotag_phase(&plan, &targets, &outcome, args, &progress)?;
     progress.clear();
-    report_geotag(geotag.as_ref());
+    report_geotag(geotag.as_ref(), progress.heading_was_erased());
 
     // Decision 22: last, because phases 4 and 5 still write to the archives. The volumes
     // must be released only once nothing remains to put on them.
@@ -1787,20 +1787,24 @@ fn geotag_phase(
 
 /// Decision 4: **say "this card looks like it is failing" in those words.** A photographer
 /// reading a bare count should not have to know what normal looks like.
-fn report_corroboration(report: Option<&phase4::Report>) {
+fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: bool) {
     println!();
     let Some(report) = report else {
+        // Always headed: the waived path never drew bars, so nothing put the word on screen.
         println!("Corroborating");
         println!("    waived — only one card was present (--allow-single-source)");
         return;
     };
 
-    // **The heading is reprinted here rather than surviving from the live display.**
-    // `progress.clear()` hands the terminal back before this runs, which takes the bars
-    // *and* their heading with it. The live block answers "how far along is it"; this
-    // one is the record - the same relationship the phase 3 bars have with the LANDED
-    // table.
-    println!("Corroborating");
+    // **The heading is reprinted only when the live one was erased.**
+    // At a terminal `progress.clear()` takes the bars *and* their heading with them, so the
+    // record that follows must restate it or arrive unlabelled. In a captured log nothing is
+    // cleared, the heading is still above the rows, and restating it printed `Corroborating`
+    // twice — a stutter in exactly the mode the operator reads, since the shooting-day
+    // contract has him running this through Claude whenever there is internet.
+    if heading_was_erased {
+        println!("Corroborating");
+    }
     print!("    {} matched", count(report.matched));
     if report.transient > 0 {
         // Not a data problem — the re-read agreed. It is a *reader* problem, and worth
@@ -1834,8 +1838,9 @@ fn report_corroboration(report: Option<&phase4::Report>) {
     }
 }
 
-fn report_geotag(report: Option<&phase5::Report>) {
+fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool) {
     let Some(report) = report else {
+        // Always headed: the skipped path never drew bars, so nothing put the word on screen.
         println!();
         println!("Geotagging");
         println!("    not run — no tracks (--no-gpx)");
@@ -1843,7 +1848,10 @@ fn report_geotag(report: Option<&phase5::Report>) {
     };
 
     println!();
-    println!("Geotagging");
+    // Only when the live heading was erased — see `report_corroboration`.
+    if heading_was_erased {
+        println!("Geotagging");
+    }
     print!(
         "    {} tagged · {} outside track",
         count(report.tagged),

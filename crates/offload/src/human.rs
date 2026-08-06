@@ -53,7 +53,33 @@ pub fn count(n: usize) -> String {
 /// the number printed on the cable. So sizes are GiB, rates are GB, and each is the unit its
 /// own question is asked in.
 pub fn gib_up(bytes: u64) -> String {
-    count(bytes.div_ceil(1u64 << 30) as usize)
+    if bytes < DECIMAL_BELOW {
+        return tenths((bytes * 10).div_ceil(GIB));
+    }
+    count(bytes.div_ceil(GIB) as usize)
+}
+
+/// One gibibyte.
+const GIB: u64 = 1 << 30;
+
+/// Below this, sizes keep one decimal place.
+///
+/// **Ten gibibytes is far below any real night, and that is the whole point.** Terry shoots
+/// roughly thirty frames of each scene across a spread of settings, so even messing about
+/// locally he comes home with 300–500 frames — `docs/CONOPS.md` has the shooting contract.
+/// **A sub-10 GiB payload is therefore never a shooting day; it is a staged test slice**, and
+/// that is exactly where the tenth earns its place: the 50-frame corpus is 2.6 GiB, renders as
+/// `3` under a plain ceiling, and a 15 % overstatement cannot be checked against the source by
+/// eye.
+///
+/// So the threshold is not a compromise between two preferences. **Whole GiB is what the
+/// operator sees on every real run**, and the decimal exists for the development case he asked
+/// it to keep working for.
+const DECIMAL_BELOW: u64 = 10 * GIB;
+
+/// Tenths of a GiB as `2.6`, with separators on the whole part.
+fn tenths(n: u64) -> String {
+    format!("{}.{}", count((n / 10) as usize), n % 10)
 }
 
 /// Bytes as **whole GiB, rounded down**, for anything answering *how much room is there*.
@@ -62,7 +88,10 @@ pub fn gib_up(bytes: u64) -> String {
 /// overstates what you need. Together they guarantee the pre-flight line can never read as
 /// though tonight fits when it does not.
 pub fn gib_down(bytes: u64) -> String {
-    count((bytes / (1u64 << 30)) as usize)
+    if bytes < DECIMAL_BELOW {
+        return tenths(bytes * 10 / GIB);
+    }
+    count((bytes / GIB) as usize)
 }
 
 /// `done` of `total` as a percentage, one decimal place.
@@ -107,10 +136,29 @@ mod tests {
     /// figure shipped without a separator until the operator spotted it in real output.
     #[test]
     fn gib_carries_separators_and_no_fraction() {
-        assert_eq!(gib_up(0), "0");
         assert_eq!(gib_up(201_252_000_000), "188");
         assert_eq!(gib_up(1_811_700_000_000), "1,688");
         assert_eq!(gib_down(1_620_000_000_000), "1,508");
+    }
+
+    /// **The staged 50-frame slice, which is the case the threshold exists for.** 2,796,966,092
+    /// bytes is 2.605 GiB; a plain ceiling renders it `3` and overstates by 15 %, which cannot
+    /// be checked against the source by eye. Terry, 2026-08-06, on why no real night lands here:
+    /// *"at 30 shots per potential keeper and the very least I shoot ~300-500 shots even just
+    /// messing around locally."*
+    #[test]
+    fn a_small_payload_keeps_one_decimal() {
+        assert_eq!(gib_up(2_796_966_092), "2.7");
+        assert_eq!(gib_down(2_796_966_092), "2.6");
+        assert_eq!(gib_up(0), "0.0");
+    }
+
+    /// The threshold itself, from both sides — ten GiB exactly is already whole.
+    #[test]
+    fn ten_gibibytes_is_where_the_decimal_stops() {
+        assert_eq!(gib_up(10 * (1u64 << 30) - 1), "10.0");
+        assert_eq!(gib_up(10 * (1u64 << 30)), "10");
+        assert_eq!(gib_down(10 * (1u64 << 30)), "10");
     }
 
     /// An exact multiple must not be inflated — `div_ceil`'s boundary, asserted from both
@@ -130,22 +178,36 @@ mod tests {
     /// is what keeps the overstatement honest rather than merely safe.
     #[test]
     fn up_and_down_straddle_the_true_value_and_never_cross() {
-        let plain = |text: String| text.replace(',', "").parse::<u64>().unwrap();
+        let plain = |text: String| text.replace(',', "").parse::<f64>().unwrap();
+
         for bytes in [
             0,
             1,
             (1u64 << 30) - 1,
             1u64 << 30,
             (1u64 << 30) + 1,
+            2_796_966_092,
+            10 * (1u64 << 30) - 1,
+            10 * (1u64 << 30),
             386_600_000_000,
             415_137_034_818,
             u64::MAX / 4,
         ] {
             let (up, down) = (plain(gib_up(bytes)), plain(gib_down(bytes)));
+            let truth = bytes as f64 / (1u64 << 30) as f64;
+
+            // The granularity of whichever side of the threshold this landed on, which is the
+            // most the two may ever differ by.
+            let step = if bytes < 10 * (1u64 << 30) { 0.1 } else { 1.0 };
+
             assert!(up >= down, "{bytes}: up {up} below down {down}");
             assert!(
-                up - down <= 1,
-                "{bytes}: up {up} and down {down} differ by more than 1"
+                up + 1e-9 >= truth && down <= truth + 1e-9,
+                "{bytes}: {down} and {up} do not straddle {truth}"
+            );
+            assert!(
+                up - down <= step + 1e-9,
+                "{bytes}: up {up} and down {down} differ by more than {step}"
             );
         }
     }

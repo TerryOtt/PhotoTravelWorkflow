@@ -321,6 +321,21 @@ the deal:
   authoritative copies of every frame, corroboration would have nothing to compare, and
   every night would run under `--allow-single-source` with the verdict permanently scarred.
   **Check the slot count before the shortlist, not after the purchase.**
+- **The shooting style is spray-and-pray, and it sets the floor on a day's size.** The
+  operator's own description, 2026-08-06: *"I'm a pray and spray shooter. Take 30-ish shots of
+  each scene on a variety of settings. At 30 shots per potential keeper and the very least I
+  shoot ~300-500 shots even just messing around locally."*
+
+  **So a real night is hundreds of frames and tens of gigabytes at minimum**, and the recorded
+  days bear that out — 3,883 frames at 187.5 GiB and 7,395 at 386.6 GiB. **A payload under
+  10 GiB is therefore never a shooting day; it is a staged test slice.** `human::gib_up` uses
+  exactly that threshold to decide whether to keep a decimal place, which is why the operator
+  sees whole gibibytes on every real run and the tenth survives for development.
+
+  **This also bounds what "one card fills up" means.** At ~56 MB a frame, a 512 GB card is
+  thousands of frames rather than hundreds, so the card is not the constraint on a normal day
+  — which is the assumption decision 27's equivalency gate and the corroboration pass both
+  quietly rest on.
 - **Only CR3 raw stills are ever shot.** The camera can produce JPG, HEIF and video;
   none of it is used, and this project's scope is exactly what is shot — the raw
   stills. A non-CR3 file on a card is a contract violation: the tool does not back it
