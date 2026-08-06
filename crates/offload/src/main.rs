@@ -414,6 +414,7 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     });
 
     let _ = report_card_release(&mut io::stdout(), &cards, cards_took, budget_spent);
+    let _ = report_unhook_gate(&mut io::stdout(), released.as_deref(), &cards);
     verdict(&outcome, released.as_deref(), corroboration.as_ref(), args);
 
     Ok(exit_code(
@@ -933,11 +934,13 @@ fn report_ssd_release(
     // devices was released. The `Eject` heading is not printed in that case either, so this
     // branch owns its own framing.
     let Some(ssds) = released else {
+        writeln!(out)?;
+        writeln!(out)?;
+        writeln!(out, "Eject")?;
         if no_eject {
-            writeln!(out)?;
-            writeln!(out)?;
-            writeln!(out, "Eject")?;
             writeln!(out, "    Withheld by --no-eject")?;
+        } else {
+            writeln!(out, "    Not reached — the run did not land")?;
         }
         return Ok(());
     };
@@ -950,9 +953,10 @@ fn report_ssd_release(
         writeln!(out)?;
         writeln!(
             out,
-            "    {:<STEP_LABEL$}{}",
+            "    {:<pad$}{}",
             "Travel SSDs",
-            step_badge(down == ssds.len())
+            step_badge(down == ssds.len()),
+            pad = badge_pad(4)
         )?;
     }
     for r in ssds {
@@ -1062,9 +1066,10 @@ fn report_card_release(
     writeln!(out)?;
     writeln!(
         out,
-        "    {:<STEP_LABEL$}{}",
+        "    {:<pad$}{}",
         "Cards",
-        step_badge(released == cards.len())
+        step_badge(released == cards.len()),
+        pad = badge_pad(4)
     )?;
     for (label, effort) in cards {
         // **The same effort suffix the SSD rows carry, and it is here to build a sample.**
@@ -1166,6 +1171,49 @@ fn report_card_release(
     }
 
     Ok(())
+}
+
+/// The `Eject` section's own badge — **a go/no-go on the physical act of unplugging things.**
+///
+/// **Green in exactly one case: every SSD and every card came down.** Terry, 2026-08-06:
+/// *"There's exactly one case it gets green: all cards and SSD ejected. Short of that it's
+/// yellow."* See [`docs/DESIGN.md`](../../../docs/DESIGN.md), *the badge column is a go/no-go on
+/// unplugging things*, for why the whole column is read as one signal and why a section without
+/// a badge would break it.
+///
+/// **Cards can turn this yellow, and that does not contradict decision 22.** That decision keeps
+/// cards away from the *verdict* and the *exit code*, and this touches neither — `exit_code` is
+/// not even given the card results. It says *do not start pulling things yet*, which is true of
+/// a stuck card even though nothing was ever written to one.
+///
+/// **`--no-eject` therefore lands here as a guaranteed yellow, deliberately.** The flag is used
+/// constantly during development, and a run that used it leaves every drive mounted — so a green
+/// column would be the one output actively capable of causing harm. His reason, which is the
+/// whole point of the badge: *"it stops my muscle memory from yanking SSDs that are still
+/// mounted. You say NTFS can survive that. I do not want to TEST that personally with those
+/// drives."*
+///
+/// **It is a closing line rather than a badge on the `Eject` heading** because that heading is
+/// printed before the stage runs — `watch_attempt` starts writing the moment the first device is
+/// asked, so a header that arrived after its own attempt lines would read backwards. Ending the
+/// section with the gate is the better placement anyway: it puts the badge last in the column,
+/// at the point the decision is actually made.
+fn report_unhook_gate(
+    out: &mut impl Write,
+    released: Option<&[Released]>,
+    cards: &[(String, eject::Effort)],
+) -> io::Result<()> {
+    let ssds_down = released.is_some_and(|s| s.iter().all(|r| r.effort.outcome.is_ejected()));
+    let cards_down = cards.iter().all(|(_, e)| e.outcome.is_ejected());
+
+    writeln!(out)?;
+    writeln!(
+        out,
+        "    {:<pad$}{}",
+        "Safe to unhook",
+        step_badge(ssds_down && cards_down),
+        pad = badge_pad(4)
+    )
 }
 
 /// The report's duration format, for **prose**: `5m 0s`, `15m 12s`.
@@ -2009,9 +2057,10 @@ fn report_passes(outcome: &pipeline::Outcome) {
     // phase, one for a pass — which the live bars already follow.
     println!();
     println!(
-        "    {:<STEP_LABEL$}{}",
+        "    {:<pad$}{}",
         "Writing",
-        step_badge(written_through == all)
+        step_badge(written_through == all),
+        pad = badge_pad(4)
     );
     println!(
         "        {} · {}/{}",
@@ -2021,9 +2070,10 @@ fn report_passes(outcome: &pipeline::Outcome) {
     );
     println!();
     println!(
-        "    {:<STEP_LABEL$}{}",
+        "    {:<pad$}{}",
         "Verifying",
-        step_badge(verified_through == all)
+        step_badge(verified_through == all),
+        pad = badge_pad(4)
     );
     println!(
         "        {} · {}/{}",
@@ -2062,8 +2112,11 @@ fn report_passes(outcome: &pipeline::Outcome) {
 /// **And a badge that could only come out green would be worthless** — the whole point is that
 /// the eye is allowed to stop on it, which requires that it sometimes does not.
 ///
-/// A bold `!` rather than `⚠`: U+26A0 frequently renders with emoji presentation, and this
-/// console has already cost this project time over a codepage.
+/// **`⚠` U+26A0, confirmed rendering on this machine's console** — Terry checked on 2026-08-06
+/// after it was first avoided for fear of emoji presentation. **The risk that remains is
+/// width, not glyph**: were it ever drawn double-wide, the badge column would shift and the
+/// alignment this report depends on would break. Verified against the `!` form side by side
+/// before it landed.
 ///
 /// **Black on yellow, not white on yellow.** Terry's call, and it is the objectively higher
 /// contrast pairing rather than only the conventional one — which is why road signs and hazard
@@ -2073,12 +2126,24 @@ fn step_badge(clean: bool) -> String {
     if clean {
         style(" \u{2713} ").white().bold().on_green().to_string()
     } else {
-        style(" ! ").black().bold().on_yellow().to_string()
+        style(" \u{26A0} ").black().bold().on_yellow().to_string()
     }
 }
 
-/// How wide the badged headings are padded to, so the ticks line up as a set.
-const STEP_LABEL: usize = 15;
+/// The **absolute** column every badge starts at, whatever its heading's indent.
+///
+/// **Pinned rather than padded from the heading**, because the badges are read as a column and
+/// a ragged one does not scan. `Geotagging` sits at indent 0 and the rest at 4, so padding each
+/// label to a fixed width put its tick four columns left of the others — which Terry spotted
+/// immediately and then talked himself out of, on the grounds that they were at different
+/// levels. **The hierarchy is carried by the heading's own indent; the badge is a separate
+/// signal and belongs in a straight line.**
+const BADGE_COLUMN: usize = 19;
+
+/// The label width for a heading at `indent`, so its badge lands on [`BADGE_COLUMN`].
+fn badge_pad(indent: usize) -> usize {
+    BADGE_COLUMN.saturating_sub(indent)
+}
 
 /// A phase heading carrying its badge — and **the badge reaches a captured log too**.
 ///
@@ -2104,7 +2169,12 @@ fn badged_heading(name: &str, indent: usize, erased: bool, clean: bool) -> Strin
     if indent == offload::progress::PHASE {
         println!();
     }
-    println!("{:indent$}{:<STEP_LABEL$}{badge}", "", name);
+    println!(
+        "{:indent$}{:<pad$}{badge}",
+        "",
+        name,
+        pad = badge_pad(indent)
+    );
     String::new()
 }
 
@@ -2476,5 +2546,73 @@ mod tests {
             false,
         );
         assert!(clean.contains("needs a replug"), "{clean}");
+    }
+
+    const CLEAN: &str = "\u{2713}";
+    const ATTENTION: &str = "\u{26A0}";
+
+    fn render_gate(released: Option<&[Released]>, cards: &[(String, eject::Effort)]) -> String {
+        let mut out = Vec::new();
+        report_unhook_gate(&mut out, released, cards).expect("writing to a Vec");
+        String::from_utf8(out).expect("the report is UTF-8")
+    }
+
+    /// The one green case, and the only one: every SSD and every card came down.
+    #[test]
+    fn the_unhook_gate_is_green_only_when_everything_released() {
+        let text = render_gate(
+            Some(&[released("SanDisk", eject::Outcome::Ejected, 1)]),
+            &[card("Primary", eject::Outcome::Ejected, 1)],
+        );
+        assert!(text.contains(CLEAN), "{text}");
+        assert!(!text.contains(ATTENTION), "{text}");
+    }
+
+    /// **A stuck card turns the gate yellow**, and that is not decision 22 being violated: that
+    /// decision keeps cards out of the *verdict* and the *exit code*, both of which this leaves
+    /// alone. Terry's rule is about the physical act — *"there's exactly one case it gets green:
+    /// all cards and SSD ejected."*
+    #[test]
+    fn a_stuck_card_turns_the_unhook_gate_yellow() {
+        let text = render_gate(
+            Some(&[released("SanDisk", eject::Outcome::Ejected, 1)]),
+            &[card("Primary", held("still mounted"), 90)],
+        );
+        assert!(text.contains(ATTENTION), "{text}");
+        assert!(!text.contains(CLEAN), "{text}");
+    }
+
+    #[test]
+    fn a_stuck_ssd_turns_the_unhook_gate_yellow() {
+        let text = render_gate(
+            Some(&[
+                released("SanDisk", eject::Outcome::Ejected, 1),
+                released("OWC", held("still mounted"), 40),
+            ]),
+            &[card("Primary", eject::Outcome::Ejected, 1)],
+        );
+        assert!(text.contains(ATTENTION), "{text}");
+        assert!(!text.contains(CLEAN), "{text}");
+    }
+
+    /// **`--no-eject` MUST be yellow**, and this is the test that says so out loud rather than
+    /// leaving it to fall out of the `None`. The flag leaves every drive mounted, so a green
+    /// column here is the single most dangerous thing this report could print — see
+    /// `DESIGN.md`, *the badge column is a go/no-go on unplugging things*.
+    #[test]
+    fn a_withheld_eject_is_yellow_rather_than_absent() {
+        let text = render_gate(None, &[]);
+        assert!(text.contains(ATTENTION), "{text}");
+        assert!(!text.contains(CLEAN), "{text}");
+    }
+
+    /// Every badge lands on the same column whatever its heading's indent — the property the
+    /// operator's *all green* scan depends on. `Geotagging` sits at phase level and the rest at
+    /// subsection level, and this is what caught them being four columns apart.
+    #[test]
+    fn badges_line_up_whatever_the_heading_indent() {
+        for indent in [offload::progress::PHASE, 4] {
+            assert_eq!(indent + badge_pad(indent), BADGE_COLUMN);
+        }
     }
 }

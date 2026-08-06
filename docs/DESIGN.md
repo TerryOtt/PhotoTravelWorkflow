@@ -1531,13 +1531,62 @@ warnings.** A red badge at 11pm on night three produces a jolt of adrenaline and
 hour; it does not produce a faster fix. Spend that often enough and the operator either stops
 reading badges or starts dreading the run — and this tool exists so he can walk away and sleep.
 
-**`⚠` (U+26A0) is deliberately not used.** It frequently renders with emoji presentation, and a
-glyph that might come out as a coloured picture is not a glyph you can rely on at a glance. A
-bold white `!` is ASCII and cannot surprise anyone.
+**`⚠` (U+26A0) was first avoided and is now in use.** The fear was emoji presentation — a glyph
+that might come out as a coloured picture is not one you can rely on at a glance. Terry checked
+it on this machine's console on 2026-08-06 and it renders as text. **The risk that remains is
+*width*, not glyph:** drawn double-wide it would shift the badge column, which the next section
+makes load-bearing. It MUST be compared against the `!` form side by side on any new terminal
+before being trusted there.
 
 > **The one place red survives is the per-destination badge in the LANDED block**, which reports
 > unverified files and is the difference between `LANDED` and `NOT SAFE`. **Revisit that against
 > this order** — it predates it, and the argument above may well apply there too.
+
+### The badge column is a go/no-go on unplugging things
+
+**Standing order, Terry, 2026-08-06, and it is the reason the badges exist at all.** In his
+words:
+
+> *"I want to train my brain that all green = unhook and put in the safe, any yellow anywhere =
+> slow your roll, take a breath, don't touch anything, carefully read everything on screen to
+> understand why it's not 100% green. To be clear I mean green on ALL sections."*
+
+**So the badges are read as a single column and answer a single question**, and the whole set is
+the unit — not any one badge. That has three consequences, all of them RFC 2119 MUSTs:
+
+1. **Every section MUST carry a badge.** A section without one is indistinguishable from a
+   section that is fine, and it breaks the scan — the operator's rule is *all* green, which he
+   cannot evaluate against a gap. This is why `Eject` gained one on 2026-08-06.
+2. **Badges MUST line up in one absolute column** whatever their heading's indent, because a
+   ragged column cannot be scanned in one glance from across the room. `Geotagging` sits at
+   phase level and the rest at subsection level; the hierarchy is carried by the *heading's*
+   indent, and the badge is a separate signal that does not follow it.
+3. **A badge MUST NOT be green unless its section is wholly clean.** A badge that could only
+   come out green is the check that cannot fail — `REVIEWING.md`'s standing objection.
+
+**Yellow is not a severity. It is a stop signal on a physical act.** This is the part that gets
+mis-implemented, because "warning" reads as "something is wrong." Terry, on the same day, giving
+the case that settles it:
+
+> *"It could be as easy as I pointed it at the wrong GPX. And that's great. It does mean stop and
+> don't yank drives."*
+
+**A completely benign cause still gets yellow, and that is correct rather than a false alarm.**
+The badge does not grade how bad the news is; it gates whether the next thing he does is unplug
+five devices in a dark hotel room. Grading belongs in the words underneath, which he reads
+*because* the badge stopped him.
+
+**And that is what makes `--no-eject` a deliberate yellow rather than an exemption.** The flag is
+used constantly in development, and a run that used it has drives that are still mounted — so the
+one output that would be actively dangerous is a green column. Terry: *"the no-eject flag
+guarantees a yellow flag, and for a very damn good reason — it stops my muscle memory from
+yanking SSDs that are still mounted. You say NTFS can survive that. I do not want to TEST that
+personally with those drives."*
+
+**Note what that rules out: a "nothing to report" grey or an omitted badge for a skipped stage.**
+Both would read as *not yellow*, which under the operator's own rule reads as *go*. **A stage
+that did not run MUST be yellow**, because the physical state of the rig after it is exactly the
+state yellow exists to stop him acting on.
 
 ### The report's layout rules, settled 2026-08-06
 
