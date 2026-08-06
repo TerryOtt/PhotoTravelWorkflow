@@ -65,7 +65,31 @@ One known-good card through all three, so Terry knows every reader in the bag is
 with. A slow reader is silent in the field — the card mounts, every file reads, nothing errors,
 and you lose 5.8×. Combines with item 3 into a 2 cards × 3 readers matrix.
 
-## 5. Put the docs and tests on a diet — LOW PRIORITY
+## 5. Zoom out over the badge and verdict work — NOT YET
+
+**Opened 2026-08-06, deliberately deferred by Terry while the CLI work is still moving:** *"we're
+gonna have some GOOD doc comments and doc changes flowing out of this. We've made a LOT of
+substantive changes that need a zoom out, but not yet."*
+
+**What accumulated in one evening**, all of it committed and none of it yet reviewed as a whole:
+
+- The badge column as a single go/no-go on unplugging, and yellow as a stop signal rather than a
+  severity
+- Red banned outright, including the `LANDED` block's last carve-out
+- `#FFFF00` true colour, never bold, and *why* — two causes were dulling the same badge
+- `Eject` reclassified as a container rather than a step, with `Progress Log`, `Travel SSDs`,
+  `Cards` and `Safe to Unhook` as its steps
+- **`SAFE TO STORE` reserved for when nothing is mounted**, which was a real defect
+
+**The risk this item exists to catch:** each change was argued in its own commit and its own doc
+comment, and several of them *supersede* text elsewhere rather than adding to it. **Nobody has
+read the result end to end.** That is exactly how decision 14's layout rules came to contradict
+`progress.rs`, which item 2 is still carrying.
+
+**Do this after the CLI signoff closes**, and treat it as a documentation review rather than a
+code one — the code is tested; the prose is not.
+
+## 6. Put the docs and tests on a diet — LOW PRIORITY
 
 186 tests and a 3,600-line `DESIGN.md`. **The count is not the metric**; most of those tests are
 regressions for defects that actually shipped, and the "considered and rejected" material exists

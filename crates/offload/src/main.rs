@@ -374,16 +374,30 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // the exit code (decision 18); a card can never touch it, and `exit_code` is not even
     // given the card results so that it cannot start.
     //
-    // **The heading is printed here rather than in the report** because `watch_attempt` starts
+    // **The headings are printed here rather than in the report** because `watch_attempt` starts
     // writing the moment the first device is asked, and a header that arrived after its own
     // section would read backwards.
-    // **No blank between the heading and the first attempt line.** Terry, 2026-08-06: a
+    //
+    // **`Eject` is a container, not a step, so it carries no badge** — the same as `Offloading`
+    // and `Pre-Flight Checks`. Terry settled the structure on 2026-08-06 after a version that
+    // hung the section's badge on a closing line and left him asking what it was for. **Badges
+    // belong to steps**, which under here are `Travel SSDs`, `Cards` and `Safe to unhook`.
+    //
+    // **And the live attempt lines get a step of their own.** They were printing straight under
+    // `Eject` at subsection depth, so they read as the section's content rather than as one
+    // thing among several — and once `Travel SSDs` and `Cards` appeared beneath them, as a
+    // preamble belonging to nothing. `Progress Log` names them, and the eight-space indent puts
+    // them where every other step's rows sit.
+    //
+    // **No blank between `Progress Log` and the first attempt line.** Terry, 2026-08-06: a
     // sub-heading earns a blank line above it, a status line does not — and the attempt lines
-    // are status. `Corroborating` and `Geotagging` already read that way; this one did not.
+    // are status.
     if !args.no_eject && outcome.landed() {
         println!();
         println!();
         println!("Eject");
+        println!();
+        println!("    Progress Log");
     }
 
     let (released, (cards, cards_took, budget_spent)) = std::thread::scope(|scope| {
@@ -400,12 +414,7 @@ fn offload(args: &Offload) -> Result<ExitCode> {
         // closed pipe at this moment must not turn a landed, verified, ejected night into a
         // non-zero exit. `println!` would have panicked on the same condition.
         let released = eject_phase(&plan, &outcome, args, deadline);
-        let _ = report_ssd_release(
-            &mut io::stdout(),
-            released.as_deref(),
-            args.no_eject,
-            ejecting.elapsed(),
-        );
+        let _ = report_ssd_release(&mut io::stdout(), released.as_deref(), ejecting.elapsed());
 
         (
             released,
@@ -414,7 +423,12 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     });
 
     let _ = report_card_release(&mut io::stdout(), &cards, cards_took, budget_spent);
-    let _ = report_unhook_gate(&mut io::stdout(), released.as_deref(), &cards);
+    let _ = report_unhook_gate(
+        &mut io::stdout(),
+        released.as_deref(),
+        &cards,
+        args.no_eject,
+    );
     verdict(&outcome, released.as_deref(), corroboration.as_ref(), args);
 
     Ok(exit_code(
@@ -662,9 +676,19 @@ fn verdict(
         "every file from the one card present is accounted for — corroboration was waived"
     };
 
+    // **`SAFE TO STORE` is a physical instruction and MUST NOT be printed while a drive is
+    // mounted.** Terry, 2026-08-06, reading a `--no-eject` run: *"'SAFE TO STORE' seems wildly
+    // counterintuitive there. In my mind that reads as 'safe to pull cables and put SSD in the
+    // safe'."* He is right, and that is exactly how it was meant — but the line was printing on
+    // a run that had deliberately left every drive connected, one line under a badge whose whole
+    // job is to stop him pulling them. **The loudest line in the report was countermanding the
+    // signal directly above it, in the direction that damages hardware.**
+    //
+    // So the phrase is now reserved. Landing safely and being safe to disconnect are two
+    // different facts, and the verdict has to say which one it is asserting.
     let Some(released) = released else {
         if args.no_eject {
-            println!("►  SAFE TO STORE — eject withheld by --no-eject; {claim}");
+            println!("►  STILL MOUNTED — nothing was ejected; {claim}");
         } else {
             println!("►  SAFE TO STORE — nothing to eject; {claim}");
         }
@@ -687,10 +711,17 @@ fn verdict(
         actions.push(format!("UNPLUG {}", unplug.join(", ")));
     }
 
+    // **Three states, and the middle one is the reason this is not two.** Everything down is
+    // safe to store. A device that *dismounted* but would not power down is flushed and
+    // detached — unplugging it is the whole of what remains, so storing is still the honest
+    // instruction once that is done. A device still **held** is mounted, and that is the case
+    // where `SAFE TO STORE` would be a lie.
     if actions.is_empty() {
         println!("►  EJECTED — SAFE TO STORE. {claim}.");
-    } else {
+    } else if held.is_empty() {
         println!("►  SAFE TO STORE — {}. {claim}.", actions.join(" AND "));
+    } else {
+        println!("►  STILL MOUNTED — {}. {claim}.", actions.join(" AND "));
     }
 }
 
@@ -756,7 +787,7 @@ fn watch_attempt(label: &str) -> impl FnMut(eject::Attempt<'_>) + '_ {
         };
 
         let mut line = format!(
-            "    {}  {label:<10} #{:<3} {word:<10} {next}",
+            "        {}  {label:<10} #{:<3} {word:<10} {next}",
             Utc::now().format("%H:%M:%SZ"),
             attempt.number
         );
@@ -765,10 +796,13 @@ fn watch_attempt(label: &str) -> impl FnMut(eject::Attempt<'_>) + '_ {
         // *"indent makes my brain see the indented lines as deeper/more detail."* It sat level
         // with the device column, which read as a second row rather than as detail about the
         // one above. Same relationship geotag's gap explanation has with its own row.
+        //
+        // 23 = the 8-space row indent, plus a 9-character timestamp and its two trailing
+        // spaces, plus the four that make it detail rather than a sibling.
         if let Some(reason) = reason
             && said.as_deref() != Some(reason.as_str())
         {
-            line.push_str("\n                   ");
+            line.push_str("\n                       ");
             line.push_str(reason);
             said = Some(reason.clone());
         }
@@ -920,28 +954,20 @@ fn release_card(
 ///
 /// **Writes to `out` rather than `println!` so the failure branches can be asserted.** They are
 /// the branches a real run will not produce on demand — a device has to actually refuse — and a
-/// suite that only ever sees the clean path cannot prove the others render at all. `no_eject`
-/// rather than the whole `Offload` for the same reason: it is the only field read, and a test
-/// should not have to build a command line to check a sentence.
+/// suite that only ever sees the clean path cannot prove the others render at all.
 fn report_ssd_release(
     out: &mut impl Write,
     released: Option<&[Released]>,
-    no_eject: bool,
     elapsed: Duration,
 ) -> io::Result<()> {
-    // `None` means the stage never ran: either `--no-eject`, or phase 3 did not land so the
-    // gate never opened. The verdict says which; this only avoids claiming an empty list of
-    // devices was released. The `Eject` heading is not printed in that case either, so this
-    // branch owns its own framing.
+    // `None` means the stage never ran — either `--no-eject`, or phase 3 did not land so the
+    // gate never opened. There is then no `Progress Log`, no `Travel SSDs` and no `Cards`, so
+    // this prints the container that `main` skipped and leaves the rest to the gate, which
+    // states the reason itself and so keeps the badge directly above its own cause.
     let Some(ssds) = released else {
         writeln!(out)?;
         writeln!(out)?;
         writeln!(out, "Eject")?;
-        if no_eject {
-            writeln!(out, "    Withheld by --no-eject")?;
-        } else {
-            writeln!(out, "    Not reached — the run did not land")?;
-        }
         return Ok(());
     };
 
@@ -1193,15 +1219,23 @@ fn report_card_release(
 /// mounted. You say NTFS can survive that. I do not want to TEST that personally with those
 /// drives."*
 ///
-/// **It is a closing line rather than a badge on the `Eject` heading** because that heading is
-/// printed before the stage runs — `watch_attempt` starts writing the moment the first device is
-/// asked, so a header that arrived after its own attempt lines would read backwards. Ending the
-/// section with the gate is the better placement anyway: it puts the badge last in the column,
-/// at the point the decision is actually made.
+/// **It is a step of the `Eject` section rather than a badge on the section itself**, alongside
+/// `Travel SSDs` and `Cards`. Terry settled that on 2026-08-06: `Eject` is a container like
+/// `Offloading`, and containers carry no badge. It also could not carry this one without waiting
+/// for the cards, whose retry can run for minutes — and reporting the SSDs the moment they are
+/// down, rather than behind a stuck card, was a deliberate fix.
+///
+/// **Last of the three, because it is the roll-up and the decision.** The badge column is read
+/// top to bottom and this is the line the operator acts on.
+///
+/// **It states its own reason when the stage never ran**, so the badge is never separated from
+/// what caused it. An earlier version put `Withheld by --no-eject` under the `Eject` heading and
+/// the badge two lines below it, which read as two unrelated facts.
 fn report_unhook_gate(
     out: &mut impl Write,
     released: Option<&[Released]>,
     cards: &[(String, eject::Effort)],
+    no_eject: bool,
 ) -> io::Result<()> {
     let ssds_down = released.is_some_and(|s| s.iter().all(|r| r.effort.outcome.is_ejected()));
     let cards_down = cards.iter().all(|(_, e)| e.outcome.is_ejected());
@@ -1210,10 +1244,21 @@ fn report_unhook_gate(
     writeln!(
         out,
         "    {:<pad$}{}",
-        "Safe to unhook",
+        "Safe to Unhook",
         step_badge(ssds_down && cards_down),
         pad = badge_pad(4)
-    )
+    )?;
+
+    if released.is_none() {
+        let why = if no_eject {
+            "Withheld by --no-eject — every drive is still mounted"
+        } else {
+            "Not reached — the run did not land"
+        };
+        writeln!(out, "        {why}")?;
+    }
+
+    Ok(())
 }
 
 /// The report's duration format, for **prose**: `5m 0s`, `15m 12s`.
@@ -2389,7 +2434,7 @@ mod tests {
 
     fn render_ssds(items: &[Released], elapsed: Duration) -> String {
         let mut out = Vec::new();
-        report_ssd_release(&mut out, Some(items), false, elapsed).expect("writing to a Vec");
+        report_ssd_release(&mut out, Some(items), elapsed).expect("writing to a Vec");
         String::from_utf8(out).expect("the report is UTF-8")
     }
 
@@ -2598,7 +2643,8 @@ mod tests {
 
     fn render_gate(released: Option<&[Released]>, cards: &[(String, eject::Effort)]) -> String {
         let mut out = Vec::new();
-        report_unhook_gate(&mut out, released, cards).expect("writing to a Vec");
+        report_unhook_gate(&mut out, released, cards, released.is_none())
+            .expect("writing to a Vec");
         String::from_utf8(out).expect("the report is UTF-8")
     }
 
@@ -2649,6 +2695,27 @@ mod tests {
         let text = render_gate(None, &[]);
         assert!(text.contains(ATTENTION), "{text}");
         assert!(!text.contains(CLEAN), "{text}");
+
+        // **The badge MUST arrive with its reason**, on the line beneath it. Split across a
+        // blank line they read as two unrelated facts, which is how the first version rendered.
+        assert!(text.contains("Withheld by --no-eject"), "{text}");
+    }
+
+    /// **`SAFE TO STORE` is a physical instruction and MUST NOT appear while a drive is mounted.**
+    /// It was printing on `--no-eject` runs one line under a yellow badge telling Terry not to
+    /// touch anything — the loudest line in the report countermanding the signal above it, in the
+    /// direction that damages hardware. This is the regression test for that.
+    #[test]
+    fn a_mounted_drive_is_never_called_safe_to_store() {
+        let mut out = Vec::new();
+        report_unhook_gate(&mut out, None, &[], true).expect("writing to a Vec");
+        let gate = String::from_utf8(out).expect("the report is UTF-8");
+
+        assert!(gate.contains("still mounted"), "{gate}");
+        assert!(
+            !gate.to_ascii_uppercase().contains("SAFE TO STORE"),
+            "the gate must not offer the verdict's phrase: {gate}"
+        );
     }
 
     /// Every badge lands on the same column whatever its heading's indent — the property the
