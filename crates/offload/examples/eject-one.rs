@@ -111,6 +111,7 @@ fn main() -> ExitCode {
         device,
         deadline,
         eject::Cadence::Backoff,
+        eject::Prepare::LockAndDismount,
         watch,
     ) {
         Ok(effort) => {

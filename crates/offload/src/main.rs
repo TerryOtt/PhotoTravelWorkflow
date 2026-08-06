@@ -112,6 +112,18 @@ struct Offload {
     #[arg(long)]
     no_eject: bool,
 
+    /// Skip the lock and dismount during eject; ask PnP directly, as the tray icon appears to.
+    //
+    // Diagnostic. See `eject::Prepare`: a vetoed query-remove and an accepted one are the same
+    // PnP events on the same device, but Kernel-PnP cannot see what happens BEFORE the call,
+    // and the tray — which succeeds — almost certainly does no preparation at all.
+    //
+    // **MUST NOT become the default on one measurement.** Lock-and-dismount is what guarantees
+    // the filesystem is flushed before the device leaves; dropping it means trusting exFAT's
+    // own teardown inside the query-remove.
+    #[arg(long)]
+    eject_bare: bool,
+
     /// Ask this often during eject, instead of the 2s-doubling-to-60s backoff.
     //
     // Diagnostic, and it exists for one question: attempts and elapsed time are inseparable in
@@ -562,7 +574,9 @@ fn eject_phase(
     let released = std::thread::scope(|scope| {
         let running: Vec<_> = targets
             .iter()
-            .map(|resolved| scope.spawn(move || release(resolved, deadline, cadence(args))))
+            .map(|resolved| {
+                scope.spawn(move || release(resolved, deadline, cadence(args), prepare(args)))
+            })
             .collect();
 
         running
@@ -579,6 +593,7 @@ fn release(
     resolved: &destinations::Resolved,
     deadline: Instant,
     cadence: eject::Cadence,
+    prepare: eject::Prepare,
 ) -> Released {
     // A destination resolved by serial always has a device; if it somehow does not, that is
     // a refusal to report rather than a reason to fail the run.
@@ -588,6 +603,7 @@ fn release(
             device,
             deadline,
             cadence,
+            prepare,
             watch_attempt(&resolved.label),
         )
         .unwrap_or_else(|error| eject::Effort {
@@ -673,6 +689,15 @@ fn cadence(args: &Offload) -> eject::Cadence {
     match args.eject_gap_seconds {
         Some(seconds) => eject::Cadence::Every(Duration::from_secs(seconds)),
         None => eject::Cadence::Backoff,
+    }
+}
+
+/// Whether this run prepares the volume before asking PnP — see [`eject::Prepare`].
+fn prepare(args: &Offload) -> eject::Prepare {
+    if args.eject_bare {
+        eject::Prepare::Bare
+    } else {
+        eject::Prepare::LockAndDismount
     }
 }
 
@@ -763,47 +788,77 @@ fn release_cards(
     // USB. What is actually known is which card fed phase 3 and which corroborated it, so
     // that is what the report says. `source_card` in the manifest is the same concept under
     // its durable name (decision 12).
-    std::iter::once((PRIMARY_LABEL, &plan.cards.source))
+    let both: Vec<_> = std::iter::once((PRIMARY_LABEL, &plan.cards.source))
         .chain(
             plan.cards
                 .other
                 .as_ref()
                 .map(|(card, _)| (SECONDARY_LABEL, card)),
         )
-        .map(|(role, card)| {
-            // **The whole `Effort` is kept, not just its outcome.** Discarding `attempts` and
-            // `waited` here is what made *how reliably does a held card recover* unanswerable
-            // on 2026-08-06: the one multi-minute release this project has seen — 11 m 17 s —
-            // has no attempt count beside it, so nobody can say whether that was sixteen asks
-            // or one lucky late one. Every run now contributes that data point for free, which
-            // is the only way a sample larger than one is ever going to exist.
-            let effort = match storage::device_of(&card.volume) {
-                Ok(device) => eject::eject(
-                    &card.volume,
-                    &device,
-                    deadline,
-                    cadence(args),
-                    watch_attempt(role),
-                )
-                .unwrap_or_else(|error| eject::Effort {
-                    outcome: eject::Outcome::Held {
-                        reason: format!("{error:#}"),
-                    },
-                    attempts: 1,
-                    waited: Duration::ZERO,
-                }),
-                // Zero attempts, because none was possible — see `Effort::attempts`.
-                Err(error) => eject::Effort {
-                    outcome: eject::Outcome::Held {
-                        reason: format!("the card reports no device to release: {error:#}"),
-                    },
-                    attempts: 0,
-                    waited: Duration::ZERO,
-                },
-            };
-            (role.to_string(), effort)
-        })
-        .collect()
+        .collect();
+
+    // **Concurrently, for exactly the reason the archives are** — and this was a defect until
+    // 2026-08-06. The two cards share one deadline, so run in sequence a card that retries to
+    // the end of the budget leaves the other a single attempt at the very end of the run.
+    // Measured that evening: `Primary` reached **fourteen attempts across nine minutes while
+    // `Secondary` had not been asked once**. It had gone unnoticed because cards had always
+    // resolved in seconds, so a sequential loop and a concurrent one looked identical.
+    //
+    // **Joined in spawn order**, so the report still lists Primary before Secondary however
+    // they finish. Order in the report is about roles, not about who won.
+    std::thread::scope(|scope| {
+        let running: Vec<_> = both
+            .into_iter()
+            .map(|(role, card)| {
+                scope.spawn(move || (role.to_string(), release_card(role, card, args, deadline)))
+            })
+            .collect();
+
+        running
+            .into_iter()
+            .map(|handle| handle.join().expect("a card release thread panicked"))
+            .collect()
+    })
+}
+
+/// One card's release, turning every failure path into a reportable [`eject::Effort`].
+///
+/// **The whole `Effort` is kept, not just its outcome.** Discarding `attempts` and `waited`
+/// is what made *how reliably does a held card recover* unanswerable on 2026-08-06: the one
+/// multi-minute release this project had seen — 11 m 17 s — carried no attempt count, so nobody
+/// could say whether that was sixteen asks or one lucky late one. Every run now contributes
+/// that data point for free, which is the only way a sample larger than one will ever exist.
+fn release_card(
+    role: &str,
+    card: &cards::Card,
+    args: &Offload,
+    deadline: Instant,
+) -> eject::Effort {
+    match storage::device_of(&card.volume) {
+        Ok(device) => eject::eject(
+            &card.volume,
+            &device,
+            deadline,
+            cadence(args),
+            prepare(args),
+            watch_attempt(role),
+        )
+        .unwrap_or_else(|error| eject::Effort {
+            outcome: eject::Outcome::Held {
+                reason: format!("{error:#}"),
+            },
+            attempts: 1,
+            waited: Duration::ZERO,
+        }),
+        // Zero attempts, because none was possible — see `Effort::attempts`.
+        Err(error) => eject::Effort {
+            outcome: eject::Outcome::Held {
+                reason: format!("the card reports no device to release: {error:#}"),
+            },
+            attempts: 0,
+            waited: Duration::ZERO,
+        },
+    }
 }
 
 /// The archive SSDs' half of the eject stage, printed the moment all of them are resolved.

@@ -392,6 +392,7 @@ pub fn eject(
     device: &Device,
     deadline: Instant,
     cadence: Cadence,
+    prepare: Prepare,
     mut watch: impl FnMut(Attempt<'_>),
 ) -> Result<Effort> {
     let started = Instant::now();
@@ -401,7 +402,7 @@ pub fn eject(
 
     loop {
         attempts += 1;
-        let outcome = attempt(volume, device)?;
+        let outcome = attempt(volume, device, prepare)?;
 
         let (pause, still_racing) = pause_after(&outcome, races, backoff);
         races = still_racing;
@@ -478,27 +479,29 @@ fn pause_after(outcome: &Outcome, races: u32, backoff: Duration) -> (Duration, u
 /// veto changes over that window or the same one is simply eventually won.
 /// `examples/card-veto-watch.rs` is the caller, and it exists because a harness that
 /// approximated this sequence would be measuring itself rather than the tool.
-pub fn attempt(volume: &Volume, device: &Device) -> Result<Outcome> {
-    let file = open_for_control(volume.device_path())
-        .with_context(|| format!("opening {} for eject", volume.guid_path))?;
+pub fn attempt(volume: &Volume, device: &Device, prepare: Prepare) -> Result<Outcome> {
+    if prepare == Prepare::LockAndDismount {
+        let file = open_for_control(volume.device_path())
+            .with_context(|| format!("opening {} for eject", volume.guid_path))?;
 
-    let handle = HANDLE(file.as_raw_handle());
+        let handle = HANDLE(file.as_raw_handle());
 
-    if let Err(error) = lock_with_backoff(handle) {
-        return Ok(Outcome::Held {
-            reason: format!("{error:#}"),
-        });
+        if let Err(error) = lock_with_backoff(handle) {
+            return Ok(Outcome::Held {
+                reason: format!("{error:#}"),
+            });
+        }
+
+        if let Err(error) = control(handle, FSCTL_DISMOUNT_VOLUME) {
+            return Ok(Outcome::Held {
+                reason: format!("locked, but dismount failed: {error:#}"),
+            });
+        }
+
+        // The handle must go before the device is asked to leave, or this process is itself the
+        // thing holding it open.
+        drop(file);
     }
-
-    if let Err(error) = control(handle, FSCTL_DISMOUNT_VOLUME) {
-        return Ok(Outcome::Held {
-            reason: format!("locked, but dismount failed: {error:#}"),
-        });
-    }
-
-    // The handle must go before the device is asked to leave, or this process is itself the
-    // thing holding it open.
-    drop(file);
 
     match power_down(device.disk_number) {
         Ok(()) => Ok(Outcome::Ejected),
@@ -507,6 +510,39 @@ pub fn attempt(volume: &Volume, device: &Device) -> Result<Outcome> {
             reason: refusal.detail,
         }),
     }
+}
+
+/// Whether to lock and dismount the volume before asking PnP to remove the device.
+///
+/// **This exists to test a claim at the top of this module** — *"three steps, in this order,
+/// and none of them is optional"* — which was reasoning written before any of it was measured,
+/// and which 2026-08-06's traces put in doubt.
+///
+/// **What the traces showed.** A vetoed query-remove and an accepted one are byte-for-byte the
+/// same sequence of PnP events on the same device with the same flags; the only difference is
+/// that exFAT consented to one. But Kernel-PnP only sees from `CM_Request_Device_Eject`
+/// onward, so **what this tool does *before* that call is invisible to it** — and the tray,
+/// which succeeds, almost certainly does none of it.
+///
+/// **The timings fit.** A refusal takes 184 ms, because exFAT has nothing left to do: we
+/// already dismounted. The success takes **1,275 ms**, which is exFAT flushing and detaching
+/// *itself*, as part of consenting — and only that path reaches the step that removes the
+/// volume's own device node. So the preparation may be defeating the request: we dismount, we
+/// must close the handle, Windows remounts the volume eagerly, and then we ask PnP to remove a
+/// volume that mounted milliseconds ago.
+///
+/// **A faster bare eject would NOT automatically be the fix**, and that is the part to hold on
+/// to. Lock-and-dismount is what *guarantees* the filesystem is flushed before the device
+/// leaves. Dropping it means trusting exFAT's own teardown inside the query-remove — probably
+/// sound, and it is the documented path, but it is a data-safety property this project does not
+/// hand over on one measurement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Prepare {
+    /// Lock, dismount, close the handle, then ask. The behavior every recorded run used.
+    LockAndDismount,
+    /// Ask PnP directly and let the file system do its own teardown, the way the tray icon
+    /// appears to. **Diagnostic** — see the type note before making it a default.
+    Bare,
 }
 
 /// `FSCTL_LOCK_VOLUME`, retried until [`LOCK_WINDOW`] is spent.

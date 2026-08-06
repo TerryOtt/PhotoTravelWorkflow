@@ -122,7 +122,9 @@ fn main() -> ExitCode {
         // Retain rather than index: a card that releases mid-round leaves the set immediately,
         // so the next round's timings are not padded by attempts on a device already gone.
         watching.retain(|(label, volume, device)| {
-            let outcome = eject::attempt(volume, device);
+            // The production preparation, so this measures the tool rather than an alternative
+            // to it. `Prepare::Bare` is the other arm of that experiment and belongs to a run.
+            let outcome = eject::attempt(volume, device, eject::Prepare::LockAndDismount);
             let at = started.elapsed();
 
             let line = match &outcome {
