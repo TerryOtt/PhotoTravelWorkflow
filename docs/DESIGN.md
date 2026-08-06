@@ -2054,6 +2054,26 @@ the run — it is that **an asymmetry the operator has to remember is a cost pai
 a long day**, and this design spends real effort elsewhere to remove exactly that kind of
 decision (decisions 6 and 8).
 
+**All five are released concurrently and reported in two parts, added 2026-08-06 at the
+operator's direction:** *"SSD are like two orders of magnitude more important. Let's start
+shutting them all down at the same time but print how long until SSD were fully put to bed as
+soon as all three are down, then follow up with either how long cards took to be put to bed OR
+declare failure at 90 minutes."*
+
+**Concurrent for correctness rather than speed** — nobody is waiting on eject, but the devices
+share one deadline, so run in sequence a drive that retried to the end of the budget would leave
+the others a single attempt each. **Two-part because the answer that matters exists long before
+the run ends**: the SSDs are typically down in seconds while a card can take eleven minutes, and
+one shared closing line withheld the important number for the duration of the unimportant one.
+It also reported `Released 5 devices in 22m 16s` on a night when four were released — the same
+shape as the card-dismount overstatement this decision already fixed once.
+
+**The card half MUST NOT reach the verdict or the exit code**, and `exit_code` is not given the
+card results at all, so it cannot begin to. **Both failure branches are covered by unit tests**
+rather than waiting for a device to refuse: `report_ssd_release` and `report_card_release` write
+to an `impl Write`, so the stuck-SSD line and the 90-minute give-up are asserted directly. The
+clean path is the only one a real run has ever printed.
+
 **Cards take the same three steps as an archive SSD — lock, dismount, power down — and that
 is a correction made 2026-08-05.** The evidence for it is two subsections below; the rule it
 replaced is kept here because the reasoning was sound and the premise was not:
@@ -3529,6 +3549,52 @@ verdict or the exit code. Both held.
 > spent — so at 60 minutes the outcome would have been identical. **The entire extra 22 minutes
 > went to the one device whose eject result is declared meaningless.** The wider budget remains
 > defensible; this run is not evidence for it.
+
+#### ✔ Resolved the same afternoon — the cards release on their own, in about eleven minutes
+
+**A small-day convergence run released both cards on the tool's own `CM_Request_Device_Eject`,
+with nothing touching the tray:**
+
+```text
+Travel SSDs — all 3 put to bed in 13s. Safe to store.
+
+    Cards
+        Primary    ejected; remove card from reader
+        Secondary  ejected; remove card from reader
+
+Cards — all 2 put to bed in 11m 17s.
+```
+
+**This isolates time from mechanism, which the morning's run could not.** The tray eject that
+worked at 36 minutes moved two variables together; here the same call the tool had been making
+all along succeeded after eleven minutes with no tray involved. **The obstruction clears with
+elapsed time, and the retry budget is the lever that matters.**
+
+**It also kills the freshly-written-volume hypothesis for cards.** This run wrote **zero files**
+— 23.4 GiB moved, every byte of it read-and-compare — and the tool never writes to a card under
+any circumstance. Both cards still vetoed for eleven minutes. That hypothesis was borrowed from
+the SSD case, where *a scanner is chewing freshly written files* at least has a mechanism;
+applied to a volume nothing has written to, it never did.
+
+> **↺ And it partly reverses the withdrawal above, which is why both are kept.** The correction
+> stands **for the SSDs**: they needed one or two attempts and would have released under any
+> budget. **It does not stand for the cards.** At ~11 minutes to release, a 60-minute budget on a
+> run that reached eject at 67.7 minutes gives them one attempt and certain failure. **So the
+> wider budget is load-bearing for exactly the device class this decision declares meaningless to
+> the verdict** — a real argument for keeping it, and a weaker one than *it protects the data*.
+
+**A consequence for iteration, worth knowing before someone waits it out:** eject now dominates a
+small run — `LANDED in 0m 07s` against `11m 17s` of card release. **Use `--no-eject` for display
+and report work**, or every tweak costs eleven minutes.
+
+**Kernel-PnP event 225 is the instrument this investigation was missing**, found the same day. It
+logs veto attribution to the System log, unelevated and **retroactively**, so it needs no live
+specimen and no race against the obstruction clearing — which is how the 2026-08-05 experiment
+was lost. Its first result splits one phenomenon in two: the SanDisk SSD's veto was logged and
+attributed to PID 4 (the kernel, despite the message saying *application*), and **neither card
+produced an event at all** across eleven minutes. That is consistent with `PNP_VETO_TYPE(6)`
+naming an instance path rather than a process, and it means **the SSD veto and the card veto are
+not the same fault and MUST NOT be reasoned about together.**
 
 #### Two things worth carrying
 

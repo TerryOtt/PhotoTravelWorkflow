@@ -6,6 +6,7 @@
 //! printed, rather than a parser waiting for an implementation.
 
 use std::collections::BTreeMap;
+use std::io::{self, Write};
 use std::num::NonZero;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -342,8 +343,18 @@ fn offload(args: &Offload) -> Result<ExitCode> {
 
         // The archives on this thread, so their result is in hand — and printed — without
         // waiting on a card retry that cannot change it.
+        //
+        // **A failed write to stdout is discarded rather than propagated**, here and for the
+        // cards below. The run is over and every guarantee it makes is already on disk; a
+        // closed pipe at this moment must not turn a landed, verified, ejected night into a
+        // non-zero exit. `println!` would have panicked on the same condition.
         let released = eject_phase(&plan, &outcome, args, deadline);
-        report_ssd_release(released.as_deref(), args, ejecting.elapsed());
+        let _ = report_ssd_release(
+            &mut io::stdout(),
+            released.as_deref(),
+            args.no_eject,
+            ejecting.elapsed(),
+        );
 
         (
             released,
@@ -351,7 +362,7 @@ fn offload(args: &Offload) -> Result<ExitCode> {
         )
     });
 
-    report_card_release(&cards, cards_took, budget_spent);
+    let _ = report_card_release(&mut io::stdout(), &cards, cards_took, budget_spent);
     verdict(&outcome, released.as_deref(), corroboration.as_ref(), args);
 
     Ok(exit_code(
@@ -698,24 +709,35 @@ fn release_cards(
 /// in what you do with them and in what a failure means, and grouping is what stops five rows
 /// reading as an undifferentiated pile. Same shape as `Pre-Flight Checks` — phase at column 0,
 /// groups at 4, rows at 8.
-fn report_ssd_release(released: Option<&[Released]>, args: &Offload, elapsed: Duration) {
-    println!();
-    println!();
-    println!("Eject");
-    println!();
+///
+/// **Writes to `out` rather than `println!` so the failure branches can be asserted.** They are
+/// the branches a real run will not produce on demand — a device has to actually refuse — and a
+/// suite that only ever sees the clean path cannot prove the others render at all. `no_eject`
+/// rather than the whole `Offload` for the same reason: it is the only field read, and a test
+/// should not have to build a command line to check a sentence.
+fn report_ssd_release(
+    out: &mut impl Write,
+    released: Option<&[Released]>,
+    no_eject: bool,
+    elapsed: Duration,
+) -> io::Result<()> {
+    writeln!(out)?;
+    writeln!(out)?;
+    writeln!(out, "Eject")?;
+    writeln!(out)?;
 
     // `None` means the stage never ran: either `--no-eject`, or phase 3 did not land so the
     // gate never opened. The verdict says which; this only avoids claiming an empty list of
     // devices was released.
     let Some(ssds) = released else {
-        if args.no_eject {
-            println!("    withheld by --no-eject");
+        if no_eject {
+            writeln!(out, "    withheld by --no-eject")?;
         }
-        return;
+        return Ok(());
     };
 
     if !ssds.is_empty() {
-        println!("    Travel SSDs");
+        writeln!(out, "    Travel SSDs")?;
     }
     for r in ssds {
         // What it cost, but only when it cost anything — a device that powered down on the
@@ -736,21 +758,24 @@ fn report_ssd_release(released: Option<&[Released]>, args: &Offload, elapsed: Du
             // **"ready to disconnect", not "powered down".** The operator's phrasing, and it
             // answers the question actually being asked at this moment: may I pull the cable.
             eject::Outcome::Ejected => {
-                println!(
+                writeln!(
+                    out,
                     "        {:<10} ejected; ready to disconnect{effort}",
                     r.label
-                );
+                )?;
             }
             // Worth its own wording: the bytes are flushed and detached either way, and an
             // operator who reads "failed" for this would worry about the wrong thing.
-            eject::Outcome::Dismounted { reason } => println!(
+            eject::Outcome::Dismounted { reason } => writeln!(
+                out,
                 "        {:<10} dismounted, not powered down — safe to unplug{effort}\n            {reason}",
                 r.label
-            ),
-            eject::Outcome::Held { reason } => println!(
+            )?,
+            eject::Outcome::Held { reason } => writeln!(
+                out,
                 "        {:<10} still mounted — eject it from the tray{effort}\n            {reason}",
                 r.label
-            ),
+            )?,
         }
     }
 
@@ -762,28 +787,32 @@ fn report_ssd_release(released: Option<&[Released]>, args: &Offload, elapsed: Du
         .iter()
         .filter(|r| r.effort.outcome.is_ejected())
         .count();
-    println!();
-    println!();
+    writeln!(out)?;
+    writeln!(out)?;
     if down == ssds.len() {
-        println!(
+        writeln!(
+            out,
             "Travel SSDs — all {} put to bed in {}. Safe to store.",
             count(down),
             duration(elapsed)
-        );
+        )?;
     } else {
         // **This branch has to be able to fire, and a suite that only sees the clean path
-        // cannot prove it does** — mutation-check it by forcing a Held outcome. The line it
-        // replaced printed a device count that included devices it had just described as not
-        // powered down.
+        // cannot prove it does** — `a_stuck_ssd_is_named_and_not_counted_as_put_to_bed` is
+        // that proof. The line it replaced printed a device count that included devices it
+        // had just described as not powered down.
         let stuck = labels(ssds, |o| !o.is_ejected());
-        println!(
+        writeln!(
+            out,
             "Travel SSDs — {} of {} put to bed in {}. {} still needs you; see above.",
             count(down),
             count(ssds.len()),
             duration(elapsed),
             stuck.join(", ")
-        );
+        )?;
     }
+
+    Ok(())
 }
 
 /// The cards' half, printed when they resolve — which may be long after the SSDs.
@@ -795,28 +824,35 @@ fn report_ssd_release(released: Option<&[Released]>, args: &Offload, elapsed: Du
 /// `budget_spent` distinguishes *the retry ran out of time* from *it gave up for another
 /// reason*, because Terry asked for the 90-minute case to be declared rather than left to be
 /// inferred from a large number.
-fn report_card_release(cards: &[(String, eject::Outcome)], elapsed: Duration, budget_spent: bool) {
+fn report_card_release(
+    out: &mut impl Write,
+    cards: &[(String, eject::Outcome)],
+    elapsed: Duration,
+    budget_spent: bool,
+) -> io::Result<()> {
     if cards.is_empty() {
-        return;
+        return Ok(());
     }
 
-    println!();
-    println!("    Cards");
+    writeln!(out)?;
+    writeln!(out, "    Cards")?;
     for (label, outcome) in cards {
         match outcome {
             // A card comes *out*; an SSD gets *unplugged*. Same event, different next action.
             eject::Outcome::Ejected => {
-                println!("        {label:<10} ejected; remove card from reader");
+                writeln!(out, "        {label:<10} ejected; remove card from reader")?;
             }
             // Neither remaining branch is phrased as a failure. The tool never wrote to a card,
             // so it was safe to pull before any of this ran; what was lost is tidiness, and an
             // operator reading "failed" here would worry about data that was never at risk.
-            eject::Outcome::Dismounted { reason } => println!(
+            eject::Outcome::Dismounted { reason } => writeln!(
+                out,
                 "        {label:<10} dismounted, still listed — safe to pull anyway\n            {reason}",
-            ),
-            eject::Outcome::Held { reason } => println!(
+            )?,
+            eject::Outcome::Held { reason } => writeln!(
+                out,
                 "        {label:<10} still mounted — safe to pull anyway, nothing was written to it\n            {reason}",
-            ),
+            )?,
         }
     }
 
@@ -825,14 +861,15 @@ fn report_card_release(cards: &[(String, eject::Outcome)], elapsed: Duration, bu
     // put all five to bed" — which Terry asked to keep, just not at the cost of the number
     // that matters.
     let down = cards.iter().filter(|(_, o)| o.is_ejected()).count();
-    println!();
-    println!();
+    writeln!(out)?;
+    writeln!(out)?;
     if down == cards.len() {
-        println!(
+        writeln!(
+            out,
             "Cards — all {} put to bed in {}.",
             count(down),
             duration(elapsed)
-        );
+        )?;
     } else {
         let stuck: Vec<&str> = cards
             .iter()
@@ -852,7 +889,8 @@ fn report_card_release(cards: &[(String, eject::Outcome)], elapsed: Duration, bu
             "gave up".to_string()
         };
 
-        println!(
+        writeln!(
+            out,
             "Cards — {} of {} put to bed in {}. {} never released ({}). \
              Safe to pull anyway: nothing was written to them.",
             count(down),
@@ -860,7 +898,7 @@ fn report_card_release(cards: &[(String, eject::Outcome)], elapsed: Duration, bu
             duration(elapsed),
             stuck.join(", "),
             gave_up
-        );
+        )?;
     }
 
     // **The cost of doing this properly, said out loud rather than discovered.** Releasing a
@@ -871,13 +909,16 @@ fn report_card_release(cards: &[(String, eject::Outcome)], elapsed: Duration, bu
     // offload into an expected chore — and pre-flight refuses anyway, so a forgotten replug
     // costs ten seconds rather than a night.
     if cards.iter().any(|(_, outcome)| outcome.is_ejected()) {
-        println!();
-        println!(
+        writeln!(out)?;
+        writeln!(
+            out,
             "  !  A USB card reader powers down with its card and needs a replug before the\n     \
              next offload. The Thunderbolt reader does not. If you forget, pre-flight\n     \
              refuses with ONLY ONE CARD FOUND rather than running short."
-        );
+        )?;
     }
+
+    Ok(())
 }
 
 /// `4m 12s`, or `38s` under a minute — the report's duration format.
@@ -1691,4 +1732,181 @@ fn report_geotag(report: Option<&phase5::Report>) {
         count(report.written),
         count(report.skipped)
     );
+}
+
+/// The eject report's failure branches, which a real run will not produce on demand.
+///
+/// **A device has to actually refuse to exercise these**, and on this rig that has happened
+/// once in a way nobody could schedule. So the clean path is the only one a run has ever
+/// printed, and until now the failure text was unexecuted code that looked fine in review —
+/// exactly the shape `docs/REVIEWING.md` calls a diagnostic that cannot fail.
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn released(label: &str, outcome: eject::Outcome, attempts: u32) -> Released {
+        Released {
+            label: label.to_owned(),
+            effort: eject::Effort {
+                outcome,
+                attempts,
+                waited: Duration::from_secs(11),
+            },
+        }
+    }
+
+    fn held(reason: &str) -> eject::Outcome {
+        eject::Outcome::Held {
+            reason: reason.to_owned(),
+        }
+    }
+
+    fn render_ssds(items: &[Released], elapsed: Duration) -> String {
+        let mut out = Vec::new();
+        report_ssd_release(&mut out, Some(items), false, elapsed).expect("writing to a Vec");
+        String::from_utf8(out).expect("the report is UTF-8")
+    }
+
+    fn render_cards(
+        items: &[(String, eject::Outcome)],
+        elapsed: Duration,
+        budget_spent: bool,
+    ) -> String {
+        let mut out = Vec::new();
+        report_card_release(&mut out, items, elapsed, budget_spent).expect("writing to a Vec");
+        String::from_utf8(out).expect("the report is UTF-8")
+    }
+
+    #[test]
+    fn every_ssd_down_reads_as_all_put_to_bed() {
+        let text = render_ssds(
+            &[
+                released("SanDisk", eject::Outcome::Ejected, 2),
+                released("OWC", eject::Outcome::Ejected, 1),
+            ],
+            Duration::from_secs(13),
+        );
+
+        assert!(
+            text.contains("Travel SSDs — all 2 put to bed in 13s. Safe to store."),
+            "{text}"
+        );
+        // Effort prints only when Windows made the run work for it. A device that powered
+        // down on the first ask should read as cleanly as it behaved.
+        assert!(
+            text.contains("ejected; ready to disconnect after 2 attempts over 11s"),
+            "{text}"
+        );
+        assert!(
+            !text.contains("OWC        ejected; ready to disconnect after"),
+            "{text}"
+        );
+    }
+
+    /// **The bug the split was made to kill.** One conflated closing line reported
+    /// `Released 5 devices in 22m 16s` on a night when four were released and a CFexpress
+    /// had just been described as never releasing. A count that includes devices the same
+    /// report calls stuck is the 2026-08-05 card-dismount lie in a new place.
+    #[test]
+    fn a_stuck_ssd_is_named_and_not_counted_as_put_to_bed() {
+        let text = render_ssds(
+            &[
+                released("SanDisk", eject::Outcome::Ejected, 1),
+                released("OWC", held("CONFIGRET(23), PNP_VETO_TYPE(6)"), 40),
+                released(
+                    "WD",
+                    eject::Outcome::Dismounted {
+                        reason: "the enclosure declined to power down".to_owned(),
+                    },
+                    3,
+                ),
+            ],
+            Duration::from_secs(90 * 60),
+        );
+
+        assert!(
+            text.contains("Travel SSDs — 1 of 3 put to bed in 90m 00s."),
+            "{text}"
+        );
+        assert!(text.contains("OWC, WD still needs you"), "{text}");
+        assert!(!text.contains("all 3"), "{text}");
+
+        // **Two failures, two instructions, and collapsing them is what made a successful run
+        // read as a chore.** A held volume is still mounted and only the tray will shift it; a
+        // dismounted one is flushed and detached, so pulling it is the whole of what remains.
+        assert!(
+            text.contains("still mounted — eject it from the tray"),
+            "{text}"
+        );
+        assert!(
+            text.contains("dismounted, not powered down — safe to unplug"),
+            "{text}"
+        );
+    }
+
+    /// The 90-minute give-up, which Terry asked to be *declared* rather than inferred from a
+    /// large number: a reader seeing `90m 00s` should not have to work out whether that was
+    /// persistence or a hang.
+    #[test]
+    fn cards_that_never_release_declare_the_budget() {
+        let text = render_cards(
+            &[
+                ("Primary".to_owned(), held("held by STORAGE\\Volume{...}")),
+                ("Secondary".to_owned(), eject::Outcome::Ejected),
+            ],
+            Duration::from_secs(90 * 60),
+            true,
+        );
+
+        assert!(
+            text.contains("Cards — 1 of 2 put to bed in 90m 00s."),
+            "{text}"
+        );
+        assert!(
+            text.contains("Primary never released (retried to the 90-minute budget and gave up)"),
+            "{text}"
+        );
+
+        // **Never phrased as a failure, at any volume.** The tool never wrote to a card, so it
+        // was safe to pull before this ran and is safe to pull now (decision 22).
+        assert!(
+            text.contains("Safe to pull anyway: nothing was written to them."),
+            "{text}"
+        );
+        assert!(!text.to_lowercase().contains("fail"), "{text}");
+    }
+
+    /// The same failure with time left on the clock MUST NOT claim the budget was spent —
+    /// that is the distinction `budget_spent` exists to carry.
+    #[test]
+    fn cards_that_gave_up_early_do_not_claim_the_budget() {
+        let text = render_cards(
+            &[("Primary".to_owned(), held("something else went wrong"))],
+            Duration::from_secs(42),
+            false,
+        );
+
+        assert!(text.contains("never released (gave up)"), "{text}");
+        assert!(!text.contains("budget"), "{text}");
+    }
+
+    /// A card that never released MUST NOT trigger the replug warning: the reader only powers
+    /// down with a card it actually ejected, so warning here would send the operator to fix
+    /// something that did not happen.
+    #[test]
+    fn the_replug_warning_follows_an_actual_eject() {
+        let stuck = render_cards(
+            &[("Primary".to_owned(), held("still mounted"))],
+            Duration::from_secs(42),
+            false,
+        );
+        assert!(!stuck.contains("needs a replug"), "{stuck}");
+
+        let clean = render_cards(
+            &[("Primary".to_owned(), eject::Outcome::Ejected)],
+            Duration::from_secs(9),
+            false,
+        );
+        assert!(clean.contains("needs a replug"), "{clean}");
+    }
 }

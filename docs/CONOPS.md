@@ -153,6 +153,31 @@ SSD means work remains, and the report names it.
 way the SSDs are — locked, dismounted, powered down — so nothing is left in the tray at the
 end of a run.
 
+**The eject report arrives in two parts, and the first is the one you are waiting for.** The
+SSD line prints the moment all three are down, usually within seconds. The card line follows
+whenever the cards resolve, and on this rig that has taken **as long as eleven minutes**:
+
+```text
+Travel SSDs — all 3 put to bed in 13s. Safe to store.
+
+    Cards
+        Primary    ejected; remove card from reader
+        Secondary  ejected; remove card from reader
+
+Cards — all 2 put to bed in 11m 17s.
+```
+
+**Once the SSD line says `Safe to store`, those three drives are done** — pull them, put them
+in the safe, and let the cards finish on their own. A card cannot change the verdict or the
+exit code, because the tool never wrote to one: a card was safe to pull before the run started
+and is safe to pull whatever that second line ends up saying. **The run's own verdict is still
+the last line printed**, so read it before closing the window.
+
+**Eleven minutes is normal and is not the tool struggling.** Windows refuses to release a
+volume for reasons that clear on their own, and the retry is what eventually wins — on
+2026-08-06 both cards came back on the tool's own attempt with nobody touching the tray
+([`DESIGN.md`](DESIGN.md) decision 22).
+
 **One consequence you will meet, and it is expected rather than a fault: releasing a card
 ejects its device, and for the USB SD reader that device *is* the reader.** It powers down
 with the card and will not wake when the next card goes in — **it needs its cable replugged.**
