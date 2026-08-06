@@ -704,8 +704,8 @@ fn watch_attempt(label: &str) -> impl FnMut(eject::Attempt<'_>) + '_ {
         };
 
         let next = match attempt.retry_in {
-            Some(pause) => format!("retry in {}", duration(pause)),
-            None => format!("after {}", duration(attempt.elapsed)),
+            Some(pause) => format!("retry in {}", duration_aligned(pause)),
+            None => format!("after {}", duration_aligned(attempt.elapsed)),
         };
 
         println!(
@@ -714,10 +714,14 @@ fn watch_attempt(label: &str) -> impl FnMut(eject::Attempt<'_>) + '_ {
             attempt.number
         );
 
+        // **Four spaces deeper than the attempt line it belongs to.** Terry, 2026-08-06:
+        // *"indent makes my brain see the indented lines as deeper/more detail."* It sat level
+        // with the device column, which read as a second row rather than as detail about the
+        // one above. Same relationship geotag's gap explanation has with its own row.
         if let Some(reason) = reason
             && said.as_deref() != Some(reason.as_str())
         {
-            println!("               {reason}");
+            println!("                   {reason}");
             said = Some(reason.clone());
         }
     }
@@ -903,13 +907,16 @@ fn report_ssd_release(
         .iter()
         .filter(|r| r.effort.outcome.is_ejected())
         .count();
-    writeln!(out)?;
+    // **Indented under `Travel SSDs` rather than flush left, and it no longer repeats the
+    // group's name.** Terry, 2026-08-06: *"the final line should be indented to h2 ... no need
+    // to write Travel SSDs again as indenting to h2 will put them under Travel SSDs section."*
+    // Position carries the scope, so saying it again is the same stutter the `Corroborating`
+    // heading had.
     writeln!(out)?;
     if down == ssds.len() {
         writeln!(
             out,
-            "Travel SSDs — all {} put to bed in {}. Safe to store.",
-            count(down),
+            "    All SSDs put to bed in {}. Safe to store.",
             duration(elapsed)
         )?;
     } else {
@@ -920,7 +927,7 @@ fn report_ssd_release(
         let stuck = labels(ssds, |o| !o.is_ejected());
         writeln!(
             out,
-            "Travel SSDs — {} of {} put to bed in {}. {} still needs you; see above.",
+            "    {} of {} SSDs put to bed in {}. {} still needs you; see above.",
             count(down),
             count(ssds.len()),
             duration(elapsed),
@@ -995,15 +1002,10 @@ fn report_card_release(
     // put all five to bed" — which Terry asked to keep, just not at the cost of the number
     // that matters.
     let down = cards.iter().filter(|(_, e)| e.outcome.is_ejected()).count();
-    writeln!(out)?;
+    // Indented under `Cards`, same as the SSD half — see the note there.
     writeln!(out)?;
     if down == cards.len() {
-        writeln!(
-            out,
-            "Cards — all {} put to bed in {}.",
-            count(down),
-            duration(elapsed)
-        )?;
+        writeln!(out, "    All cards put to bed in {}.", duration(elapsed))?;
     } else {
         let stuck: Vec<&str> = cards
             .iter()
@@ -1025,7 +1027,7 @@ fn report_card_release(
 
         writeln!(
             out,
-            "Cards — {} of {} put to bed in {}. {} never released ({}). \
+            "    {} of {} cards put to bed in {}. {} never released ({}). \
              Safe to pull anyway: nothing was written to them.",
             count(down),
             count(cards.len()),
@@ -1055,14 +1057,31 @@ fn report_card_release(
     Ok(())
 }
 
-/// `4m 12s`, or `38s` under a minute — the report's duration format.
+/// The report's duration format, for **prose**: `5m 0s`, `15m 12s`.
+///
+/// **One shape, always** — this used to drop the minutes below a minute and render `38s`, so
+/// the same quantity appeared in two formats depending on how long something took. Terry asked
+/// for that consistency on 2026-08-06.
+///
+/// **Never zero-padded**, because `00s` reads as a clock and this is a measurement.
 fn duration(elapsed: Duration) -> String {
     let seconds = elapsed.as_secs();
-    if seconds < 60 {
-        format!("{seconds}s")
-    } else {
-        format!("{}m {:02}s", seconds / 60, seconds % 60)
-    }
+    format!("{}m {}s", seconds / 60, seconds % 60)
+}
+
+/// The same value **padded to a fixed width for a column**: ` 5m  0s`, `15m 12s`.
+///
+/// Terry, 2026-08-06: *"reserve two chars for both min and sec, no zero padding, right align
+/// values."* Only the live eject attempts stack durations directly under one another, so this
+/// is the one place the padding does any work.
+///
+/// **Deliberately not used in prose**, and that is the same call he made about the LANDED
+/// banner an hour later — *"leave landed alone, it looks better as is."* A padded value mid
+/// sentence reads as a double space rather than as alignment, because there is nothing beneath
+/// it to align with. The format is shared; the padding is applied where it is load-bearing.
+fn duration_aligned(elapsed: Duration) -> String {
+    let seconds = elapsed.as_secs();
+    format!("{:>2}m {:>2}s", seconds / 60, seconds % 60)
 }
 
 /// A card's root, which is what decision 4 pairs the two cards on.
@@ -1973,14 +1992,17 @@ mod tests {
             Duration::from_secs(13),
         );
 
+        // Indented under the `Travel SSDs` heading and not repeating it — position carries
+        // the scope.
         assert!(
-            text.contains("Travel SSDs — all 2 put to bed in 13s. Safe to store."),
+            text.contains("\n    All SSDs put to bed in 0m 13s. Safe to store."),
             "{text}"
         );
+        assert!(!text.contains("Travel SSDs —"), "{text}");
         // Effort prints only when Windows made the run work for it. A device that powered
         // down on the first ask should read as cleanly as it behaved.
         assert!(
-            text.contains("ejected; ready to disconnect after 2 attempts over 11s"),
+            text.contains("ejected; ready to disconnect after 2 attempts over 0m 11s"),
             "{text}"
         );
         assert!(
@@ -2012,11 +2034,11 @@ mod tests {
         );
 
         assert!(
-            text.contains("Travel SSDs — 1 of 3 put to bed in 90m 00s."),
+            text.contains("\n    1 of 3 SSDs put to bed in 90m 0s."),
             "{text}"
         );
         assert!(text.contains("OWC, WD still needs you"), "{text}");
-        assert!(!text.contains("all 3"), "{text}");
+        assert!(!text.contains("All SSDs"), "{text}");
 
         // **Two failures, two instructions, and collapsing them is what made a successful run
         // read as a chore.** A held volume is still mounted and only the tray will shift it; a
@@ -2046,7 +2068,7 @@ mod tests {
         );
 
         assert!(
-            text.contains("Cards — 1 of 2 put to bed in 90m 00s."),
+            text.contains("\n    1 of 2 cards put to bed in 90m 0s."),
             "{text}"
         );
         assert!(
