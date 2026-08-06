@@ -152,6 +152,46 @@ pass reads memory rather than media for some unknowable fraction of the day.
 > top), and the settle window is the clearest case of that: shortening it does not make the
 > run faster, it makes the result less trustworthy.
 
+### The operator contract: shut down as much of the system tray as possible
+
+**Terry's words, 2026-08-06, and it is his half of the deal rather than a suggestion: the
+operator contract is to *aggressively* shut down as much in the system tray as possible before
+a measured run.** The settle window is when to do it.
+
+**You MUST close the tray aggressively, and Claude MUST then verify the *processes* are gone
+rather than trusting that the icons are.** Those are two different claims, and the gap between
+them is where a measured run gets quietly ruined.
+
+> **That gap was demonstrated the first time this contract was exercised, which is why it is
+> written down.** On 2026-08-06 Terry closed the tray aggressively and said so. **`Adobe
+> Desktop Service` was still running and was the second-largest CPU consumer on the machine** —
+> 20.2 CPU-seconds against seven minutes of uptime — with `CoreSync`, `AdobeIPCBroker`, two
+> `Creative Cloud Helper` processes and `OneDrive.Sync.Service` alongside it. Disk was
+> genuinely idle at 0.00 MB/s on all six drives, so nothing was in flight; the risk was an
+> install firing at minute 30 of a 52-minute run.
+>
+> **Closing a tray icon does not stop the service behind it.** The icon is a proxy for the
+> process, and this project has a standing preference for the fact over the proxy — the same
+> reason `CONOPS.md` prefers *the card enumerated* to *the card is back in*.
+
+**The probe, since "quit the updaters" is not checkable by eye:**
+
+```powershell
+Get-Process | Where-Object { $_.CPU -gt 1 } | Sort-Object CPU -Descending |
+    Select-Object -First 12 @{n='CPU(s)';e={[math]::Round($_.CPU,1)}}, ProcessName
+```
+
+Anything above the shell, `explorer` and the session's own processes is a candidate. **Stop
+the user-mode ones; do not elevate to reach the SYSTEM services.** In the 2026-08-06 case the
+three SYSTEM services present (`AdobeUpdateService`, `DSAUpdateService`,
+`Dell.Update.SubAgent`) were all at **0.00** CPU-seconds, so the ones that mattered were
+exactly the ones reachable without elevation. **Re-check after stopping them**: a killed
+updater that respawns is a fact you want before launch, not after.
+
+**None of this is permanent and that is the point** — every one of them restarts at the next
+login, so the cost of being aggressive is nothing and the cost of being polite is a number
+nobody can quote.
+
 ## Resuming the session after the reboot
 
 A session comes up knowing nothing and its first instinct is to go and look at things.
@@ -292,7 +332,20 @@ What the script asserts, and why each one is there:
 - **Both cards MUST be mounted**, holding the same day.
 - **The binary MUST be `HEAD`'s.** Run `cargo build --release` and confirm it had nothing to
   do. A stale artifact will happily run and lie about which code produced the number.
-- **Nothing else MUST be using the machine.**
+- **Nothing else MUST be using the machine — and this step has two halves, performed by two
+  different parties.** **Terry MUST close the tray aggressively** (the operator contract
+  above). **Claude MUST then double-check behind him, on processes rather than on icons**, and
+  report what it found either way — including "nothing left," which is a result and not
+  silence. Requested by Terry 2026-08-06, immediately after the first exercise of the contract
+  turned up `Adobe Desktop Service` as the machine's second-largest CPU consumer with the tray
+  already closed.
+
+  **This is the one row on this list a script cannot fully check**, which is exactly why it is
+  assigned to a person rather than left to `full-run-check.ps1`. It is also
+  [`CONOPS.md`](CONOPS.md)'s division of labor applied to a single step — *he does the physical
+  act only he can do; the machine reports the effect* — and the reason it is written here as a
+  step is that a verification which depends on Claude remembering to offer it is not a step at
+  all.
 
 **Every one of those is a MUST because failing it does not fail the run — it produces a
 number.** That is the whole hazard: a bridged enclosure, a USB 2.0 reader or a stale binary
