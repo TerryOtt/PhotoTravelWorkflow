@@ -368,6 +368,31 @@ the deal:
   ignored the rule the product obeys. **If a measurement needs to write, it writes
   somewhere that is not a camera card.**
 
+  **Two scopes, and conflating them is what made this rule feel absurd at a workbench.**
+  Clarified by Terry, 2026-08-06: *"we change SD card contents all the time during dev.
+  Consider that guidance more during the period of a trip. Once I'm shooting new pics, SD
+  cards are super verboten to write to until after I'm home."*
+
+  **"Camera card" means every card the camera writes to — CFexpress as much as SDXC.** His
+  correction, minutes later: *"apply MUST NOT to camera cards, that bright line applies to CF
+  as well."* **The bright line is about the role, never the form factor.**
+
+  | Who | At home, in development | On a trip, from the first frame shot until home |
+  |---|---|---|
+  | **`offload` itself** | MUST NOT write to a camera card — ever, on any path (`DESIGN.md` constraint 2). This does not relax | same |
+  | **Claude, and any diagnostic** | MAY write to a camera card that holds nothing anyone wants. Bench work, burn-ins and acceptance tests are exactly this | **MUST NOT modify a single bit.** Terry: *"Claude and the app MUST NOT modify a bit of data on SD during a trip"* |
+
+  **The tool's prohibition is absolute and the diagnostic's is trip-scoped**, and the
+  asymmetry is deliberate: the tool runs unattended on cards holding the only copy of a
+  day's shooting, while a bench test runs on a card the operator just formatted and is
+  watching. **The 2026-08-04 incident is what the trip scope protects against** — it was a
+  probe writing to a *live* card.
+
+  **So the question to ask before any write is not "is this the tool?" but "is there a trip
+  in progress?"** If frames have been shot and not yet landed home, the answer is no,
+  whoever is asking. When unsure whether a trip is in progress, **ask** — the cost of asking
+  is a sentence, and the cost of guessing wrong is a shooting day.
+
   **The rhythm:** both cards are formatted at the start of every shooting session. There
   may be several sessions in a day — a midday return to the hotel often means offload,
   reformat, and back out for the evening — and a session never spans more than one

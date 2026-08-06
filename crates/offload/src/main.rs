@@ -2209,78 +2209,21 @@ fn report_passes(outcome: &pipeline::Outcome) {
     );
 }
 
-/// A phase heading with the blank lines it is owed, or just the gap when the live heading is
-/// still on screen and only the record follows.
+/// The badge beside a step's heading — **whether the numbers below need reading at all.**
 ///
-/// **Two blank lines above a phase, one above a pass** — `progress.rs` states that convention
-/// and `Corroborating` and `Geotagging` were getting one. Spotted by Terry on 2026-08-06,
-/// reading a real terminal rather than a log.
+/// Never red; see [`docs/DESIGN.md`](../../../docs/DESIGN.md), *the opposite of green is never
+/// red* and *the badge column is a go/no-go on unplugging things*, which carry the reasoning and
+/// the standing orders.
 ///
-/// **The blanks belong to the heading, not to the record.** When the live heading survives —
-/// a captured log, where nothing is cleared — reprinting it would stutter, and giving the
-/// record two blank lines would open a gap between a heading and the rows it belongs to.
-/// The badge beside a critical step's heading — **an 11pm signal, not a statistic.**
+/// **Three things here look wrong and are not, so leave them alone without reading that first:**
 ///
-/// Terry, 2026-08-06, asking for it on `Writing`, `Verifying` and `Corroborating`: *"It's a
-/// strong visual clue that these absolutely critical steps went perfect, the stats under them
-/// can be skimmed over safely."*
-///
-/// **So the badge answers a different question from the numbers below it.** Those say what
-/// happened; this says whether reading them is necessary. On night three of a trip that is the
-/// more valuable of the two.
-///
-/// **Not clean is YELLOW, never red.** Standing order, Terry, 2026-08-06 — see
-/// [`docs/DESIGN.md`](../../../docs/DESIGN.md), *the opposite of green is never red*. In his
-/// words: *"let's be gentle with 11pm Terry and just flag it as 'hey this needs your attention,
-/// don't freak out, we're gonna be fine, you shoot dual card for a reason, no data is lost,
-/// just need some help'."*
-///
-/// **And a badge that could only come out green would be worthless** — the whole point is that
-/// the eye is allowed to stop on it, which requires that it sometimes does not.
-///
-/// **`!!!` rather than `⚠`, decided by looking at both on the real console.** U+26A0 renders
-/// there with *emoji presentation* — an orange-filled triangle that draws its own colours and
-/// ignores the foreground this sets, so it came out orange-on-yellow and muddy. Width was the
-/// worry going in and turned out to be a non-issue; **legibility was the real problem, and only
-/// a side-by-side on the actual terminal found it.**
-///
-/// **The yellow badge MUST NOT be bold, and that is why it was grey.** Terry, 2026-08-06:
-/// *"it's almost a gray and getting washed out on the yellow."* `black().bold()` emits
-/// `ESC[1;30m`, and this console renders bold black as *intense* black — grey. **The attribute
-/// added to make it louder was what silenced it.**
-///
-/// **Confirmed by a test built specifically to fail**, after the first side-by-side was too weak
-/// to show anything: a wide bar of bold black set against an *explicitly* bright-black one. They
-/// matched, which is the promotion happening in plain sight. The earlier comparison used a single
-/// thin `!` that anti-aliases into its background, so it could not have distinguished black from
-/// grey whatever the truth was — **an instrument that cannot fail cannot confirm either.**
-///
-/// **The background is a fixed `#FFFF00` rather than the palette's yellow, and that was the other
-/// half of the washout.** `SGR 43` is `#C19C00` under Windows Terminal's default scheme — a dark
-/// mustard gold. Black on *that* is genuinely low contrast, so two separate causes were dulling
-/// the same badge and each was hiding the other.
-///
-/// **Pure yellow beat the road-sign amber it was expected to lose to.** `#FFD500` was the
-/// reasoned pick — hazard tape, highway signage, the colour the association argues for — and
-/// Terry chose `#FFFF00` off a side-by-side without hesitating: *"pure yellow is the clear
-/// winner, that does what an attention badge should."* **Maximum luminance won over the correct
-/// reference**, which is the sort of thing only looking settles. Signage amber is chosen partly
-/// for how it survives sun, rain and retroreflective sheeting; none of that applies to an
-/// emissive panel two feet from someone's face.
-///
-/// **A true colour also makes the badge scheme-independent**, which matters more here than
-/// palette politeness: this signal's whole job is instant recognition, and a colour that shifts
-/// with whichever theme is loaded is a signal that has to be re-learned. The green badge stays
-/// on the palette until there is a reason to move it; nobody has reported it reading wrong.
-///
-/// **The green badge keeps `bold`, because there the same rule helps**: bold white is *bright*
-/// white, which is the stronger of the two on green. Same attribute, opposite effect, entirely
-/// because of which base colour it is promoting.
-///
-/// **Both badges are five cells wide.** `!!!` is two characters wider than `✓`, so the tick
-/// carries one extra space each side. They sit at the end of their lines, so an uneven pair
-/// would not break the column — it would just look unfinished, and this report is read by
-/// someone who notices that.
+/// - **The yellow badge is not bold.** `black().bold()` emits `ESC[1;30m` and this console
+///   promotes bold black to *intense* black, which is grey. Adding `bold` to make it louder is
+///   what silences it. Green keeps `bold` because bright white is genuinely stronger on green.
+/// - **The background is a true colour, not `on_yellow()`.** Palette yellow is `#C19C00` here —
+///   a dark mustard that black barely shows on.
+/// - **Both badges are five cells.** `!!!` is two wider than `✓`, hence the tick's extra space
+///   each side.
 fn step_badge(clean: bool) -> String {
     if clean {
         style("  \u{2713}  ").white().bold().on_green().to_string()
@@ -2340,6 +2283,15 @@ fn badged_heading(name: &str, indent: usize, erased: bool, clean: bool) -> Strin
     String::new()
 }
 
+/// A phase heading with the blank lines it is owed, or just the gap when the live heading is
+/// still on screen and only the record follows.
+///
+/// **Two blank lines above a phase, one above a pass**, and the blanks belong to the heading
+/// rather than to the record — in a captured log the live heading survives, so reprinting it
+/// would stutter while two blank lines would open a gap above the rows it labels.
+///
+/// **This comment had drifted onto [`step_badge`]** until 2026-08-06, the same way `progress.rs`
+/// lost `clear`'s. See that one for the mechanism.
 fn phase_heading(name: &str, indent: usize, erased: bool) {
     println!();
     if erased {
@@ -2723,42 +2675,18 @@ mod tests {
         String::from_utf8(out).expect("the report is UTF-8")
     }
 
-    /// The one green case, and the only one: every SSD and every card came down.
+    /// One green render, so the glyph and the badge are exercised end to end. **Which
+    /// combinations are green is `only_a_wholly_released_rig_is_clean`'s job** — three more
+    /// render tests differing only in their fixture proved the same `everything_released` call
+    /// three more times.
     #[test]
-    fn the_unhook_gate_is_green_only_when_everything_released() {
+    fn a_wholly_released_rig_renders_the_clean_badge() {
         let text = render_gate(
             Some(&[released("SanDisk", eject::Outcome::Ejected, 1)]),
             &[card("Primary", eject::Outcome::Ejected, 1)],
         );
         assert!(text.contains(CLEAN), "{text}");
         assert!(!text.contains(ATTENTION), "{text}");
-    }
-
-    /// **A stuck card turns the gate yellow**, and that is not decision 22 being violated: that
-    /// decision keeps cards out of the *verdict* and the *exit code*, both of which this leaves
-    /// alone. Terry's rule is about the physical act — *"there's exactly one case it gets green:
-    /// all cards and SSD ejected."*
-    #[test]
-    fn a_stuck_card_turns_the_unhook_gate_yellow() {
-        let text = render_gate(
-            Some(&[released("SanDisk", eject::Outcome::Ejected, 1)]),
-            &[card("Primary", held("still mounted"), 90)],
-        );
-        assert!(text.contains(ATTENTION), "{text}");
-        assert!(!text.contains(CLEAN), "{text}");
-    }
-
-    #[test]
-    fn a_stuck_ssd_turns_the_unhook_gate_yellow() {
-        let text = render_gate(
-            Some(&[
-                released("SanDisk", eject::Outcome::Ejected, 1),
-                released("OWC", held("still mounted"), 40),
-            ]),
-            &[card("Primary", eject::Outcome::Ejected, 1)],
-        );
-        assert!(text.contains(ATTENTION), "{text}");
-        assert!(!text.contains(CLEAN), "{text}");
     }
 
     /// **`--no-eject` MUST be yellow**, and this is the test that says so out loud rather than
@@ -2825,15 +2753,5 @@ mod tests {
             3,
         );
         assert!(!everything_released(Some(&[limp]), &[card_up()]));
-    }
-
-    /// Every badge lands on the same column whatever its heading's indent — the property the
-    /// operator's *all green* scan depends on. `Geotagging` sits at phase level and the rest at
-    /// subsection level, and this is what caught them being four columns apart.
-    #[test]
-    fn badges_line_up_whatever_the_heading_indent() {
-        for indent in [offload::progress::PHASE, 4] {
-            assert_eq!(indent + badge_pad(indent), BADGE_COLUMN);
-        }
     }
 }

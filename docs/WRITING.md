@@ -11,6 +11,42 @@ incident happened there.*
 
 > **Every document leads with what its reader came for. Everything else comes after.**
 
+## The second standing order: prose earns its place or goes
+
+**Added 2026-08-06 at Terry's request, and the framing is his:** *"doc and test bloat seem to be
+a side effect of vibe coding... this is a hobby project, we aren't launching nuclear missiles,
+nobody's gonna die. Use a fresh pair of skeptical eyes on what REALLY is justified."*
+
+**A comment or a paragraph MUST buy something a reader could not get from the code.** Four things
+qualify, and nothing else does:
+
+| Keep | Because |
+|---|---|
+| **A finding that cost time to learn** | bold black renders as grey; the slow card was a bad card; the veto came from re-dismounting |
+| **A rule, with enough why that it is not re-litigated** | never write to a camera card; red is banned |
+| **A mechanism a reader would get wrong** | `MultiProgress` repaints wherever the cursor is |
+| **A decision that looks wrong until explained** | cards excluded from the exit code |
+
+**Cut on sight:**
+
+- **The same argument in three places.** A finding belongs in *one* home — usually `DESIGN.md` —
+  and everywhere else cites it. Code comments restating a decision in full are the main offender.
+- **Narration of what the code says.** If the sentence tracks the statement below it, delete it.
+- **Justification nobody asked for.** Defending an obvious choice teaches the reader that this
+  codebase argues with itself.
+- **Long quotation where a clause would do.** One vivid sentence of Terry's earns its place; three
+  paragraphs of transcript do not.
+- **Ceremony around a five-line function.** Thirty lines of doc on a function that sets two
+  colours is the shape to watch for.
+
+**Two guards, because the failure mode is regrowth rather than a bad first draft:**
+
+- **Length is not thoroughness.** The instinct that produced the bloat is the same one that feels
+  like diligence while producing it — every paragraph seemed worth writing at the time.
+- **Deleting prose MUST NOT delete the finding.** If a paragraph is the only record of something
+  measured, compress it, move it, or leave it — never drop it. **When in doubt about a finding,
+  keep it; when in doubt about an explanation, cut it.**
+
 For the README that reader is the 98% case — someone deciding whether this tool is for
 them and then trying to run it. They get *what it does*, then *how to run it*, and
 nothing stands between those two. Philosophy, benchmarks and verification evidence all
