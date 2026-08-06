@@ -192,7 +192,7 @@ the previous day.
 | **3 · Ingest & verify** | **Always — this phase is the product** | Read CFexpress once → SHA256 + EXIF → fan out to 4 → unbuffered read-back verify per destination | **LANDED** |
 | **4 · Corroborate** | Two cards only — a single-source run has nothing to compare (decision 7) | Read SDXC fully, compare hashes, delete + tombstone mismatches | Card health report |
 | **5 · Geotag** | Only with tracks (decision 26), and only frames a track brackets within limits (decision 16) | Correlate stashed capture times to GPX, write sidecars to all 4 | Ready to edit from |
-| **6 · Eject** | Unless `--no-eject`, and only once nothing remains for the current cards (decision 22) | Lock, dismount and power down each destination resolved by serial — concurrently, retried with backoff until an hour after launch | The SSDs can go in the safe |
+| **6 · Eject** | Unless `--no-eject`, and only once nothing remains for the current cards (decision 22) | Lock, dismount and power down each destination resolved by serial — concurrently, retried with backoff until 90 minutes after launch | The SSDs can go in the safe |
 
 **Eject is a stage rather than a footnote, and it is timed like one** — promoted 2026-08-04
 at the operator's request. It is different in kind from the five phases: it moves no data and
@@ -2167,11 +2167,37 @@ the volume. Retrying only the final call would then ask the same question of a v
 has since remounted, so the lock and dismount are redone with it. The operator had already
 found this empirically — the pre-tool ritual was pressing the tray icon *twice*.
 
-**The retry runs until one hour after launch, and that is deliberate rather than generous.**
-See *Both metrics are thresholds* — the budget is the hour before dinner ends, and **whatever
-of it the run does not need is time nobody is waiting through.** Spending it asking Windows
-again costs exactly nothing. One attempt always happens even if the budget is already spent,
-since refusing to try at all would turn a slow night into a manual one for no gain.
+**The retry runs until ninety minutes after launch, and that is deliberate rather than
+generous.** See *Both metrics are thresholds* — the budget is the dinner window, and
+**whatever of it the run does not need is time nobody is waiting through.** Spending it asking
+Windows again costs exactly nothing. One attempt always happens even if the budget is already
+spent, since refusing to try at all would turn a slow night into a manual one for no gain.
+
+> **It was sixty minutes until 2026-08-06, and the operator raised it.** `CONOPS.md` puts
+> dinner at 60–90 and the constant took the *bottom* of that range, so that the program would
+> always have exited before he returned. His words retiring that: *"this app is run when I'm
+> away for dinner. Let's push the eject timeframe to 90 mins. If I do get back before it's
+> done ejecting, I will happily wait."*
+>
+> **The premise the sixty rested on was one only he could supply, and it was wrong.** Coming
+> back to a run still arguing with Windows was treated as the thing to avoid; the thing to
+> avoid is **a drive left in the tray**. Waiting a few minutes at the desk is cheaper than a
+> chore, and he is the authority on which of those he minds more.
+>
+> **And the 60–90 was never a measurement in the first place**, which is the more general
+> lesson. His words: *"the hour runtime has slop in it, that's a very fuzzy number."* The
+> constant took the lower bound of a fuzzy estimate and treated it as a hard ceiling —
+> **false precision applied to an approximation**, and the cost landed on the one stage with
+> the least margin to give. When a constant is derived from a soft number, the soft number's
+> *width* is part of the input; picking its safest edge is a decision that needs stating, not
+> a free default.
+>
+> **This is also the note directly below being overruled by evidence rather than by taste.**
+> It said *"widening the budget past an hour is not the answer, since the hour is the actual
+> constraint"* — sound, and resting on a constraint that turned out not to exist. It stays
+> where it is, uncorrected in place, because the alternative it proposed (starting eject early
+> for destinations nothing is waiting on) is still the better lever if ninety ever proves
+> tight; it is simply no longer the *only* lever.
 
 > **How much retry that actually leaves is a function of the day, and the biggest days give
 > the least.** Corrected 2026-08-04 when the day-size distribution was measured; this
@@ -2202,7 +2228,14 @@ since refusing to try at all would turn a slow night into a manual one for no ga
 > | LANDED | ~22 m 30 s | ~22 m 30 s |
 > | Corroboration | ~32 min | **~29 min** |
 > | Total before eject | ~55 min | **~52 min** |
-> | **Retry window left** | **~5 min** | **~8 min** |
+> | Retry window left, **60 min budget** | ~5 min | ~8 min |
+> | **Retry window left, 90 min budget** | **~35 min** | **~38 min** |
+>
+> **The last row is why the budget moved to ninety the same day this table was written.** At
+> sixty, the worst night of the year gave eject a fifth of what an ordinary night gives it —
+> and the card-choice lever above, worth 3 minutes, was the largest one available. Ninety
+> makes that lever irrelevant, which is the right outcome: **the fastest fix for a squeezed
+> retry window was never to squeeze the run.**
 >
 > **Two things this changes.** The interleave bought LANDED back — 22 m rather than 30 — but
 > it bought eject *nothing*, because corroboration grew to fill it: the SD read is now most of

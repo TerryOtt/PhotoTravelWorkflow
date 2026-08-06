@@ -436,13 +436,24 @@ const SOLE_LABEL: &str = "Sole";
 
 /// How long after launch eject stops trying (decision 22).
 ///
-/// **The operator is at dinner, and dinner is 60–90 minutes** (`CONOPS.md`). A run reaches
-/// LANDED in about a quarter of that and finishes in about half, so the rest of the hour is
-/// time nobody is waiting through — which makes it free to spend asking Windows again.
-/// **As long as the program exits inside the hour, taking longer costs nothing at all**, and
-/// a drive that powers itself down at minute 40 is worth far more than one that gave up at
-/// minute 36 and left a chore.
-const RUN_BUDGET: Duration = Duration::from_secs(60 * 60);
+/// **Ninety minutes, which is the top of the dinner window rather than the bottom.** It was
+/// sixty until 2026-08-06, chosen as the conservative end of `CONOPS.md`'s 60–90 — on the
+/// reasoning that the program must exit before the operator returns.
+///
+/// **The operator retired that reasoning himself**, and he is the only possible source for
+/// it: *"this app is run when I'm away for dinner. Let's push the eject timeframe to 90 mins.
+/// If I do get back before it's done ejecting, I will happily wait."* So returning to a run
+/// still arguing with Windows is not the failure the sixty was protecting against — **the
+/// failure is a drive left in the tray**, and waiting a few minutes is cheaper than a chore.
+///
+/// **What it buys lands exactly where the risk is.** The retry window is what is left after
+/// phases 3–5, so it is *smallest on the biggest days* — the nights with the most freshly
+/// written data, the most scanner activity and the most likely veto. On the 415 GB record day
+/// sixty minutes left roughly eight; ninety leaves nearly forty. Decision 22 has the table.
+///
+/// **Nothing waits on this.** A run that ejects cleanly on the first ask still exits in
+/// seconds; the budget is a ceiling on patience, never a delay.
+const RUN_BUDGET: Duration = Duration::from_secs(90 * 60);
 
 /// Decision 22: eject when nothing remains for the current cards.
 ///

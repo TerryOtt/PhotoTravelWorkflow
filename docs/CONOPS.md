@@ -176,12 +176,24 @@ and 22). That property is why this arrangement was chosen over leaving the SD in
 
 **If you walk in and it is still on the eject stage, it is working, not stuck.** Windows
 will sometimes refuse to power a freshly written drive down for many minutes, so the tool
-keeps asking — with a running clock, and until an hour after launch. Everything that
+keeps asking — with a running clock, and until **90 minutes** after launch. Everything that
 matters was settled long before this point: the raws landed and verified at LANDED, and
 corroboration and geotagging finished after it. What is left is the drive parking itself.
-**Waiting costs you nothing** — the run exits inside the hour either way, and if Windows
-never relents the verdict tells you to unplug the drive, which is equally safe
+**Waiting costs you nothing that matters** — every guarantee was banked at LANDED, and if
+Windows never relents the verdict tells you to unplug the drive, which is equally safe
 ([`DESIGN.md`](DESIGN.md) decision 22).
+
+> **You may now genuinely return to a run still ejecting, and that is by your own choice
+> rather than a regression.** The budget was an hour until 2026-08-06, sized so the program
+> would always have exited first. You raised it: *"if I do get back before it's done ejecting,
+> I will happily wait."* **A few minutes at the desk beats a drive left in the tray**, and the
+> longer window matters most on the biggest nights, which is exactly when the retry is
+> shortest and a veto is likeliest.
+>
+> **The 60–90 minutes above was never a measurement.** Your words: *"the hour runtime has slop
+> in it, that's a very fuzzy number."* Treating its lower bound as a hard ceiling was false
+> precision applied to an estimate — and it cost the one stage that had the least margin to
+> give.
 
 Everything above the verdict is detail — mismatches, geotag counts, the throughput
 numbers. Read it with the other eye, or in the morning.
