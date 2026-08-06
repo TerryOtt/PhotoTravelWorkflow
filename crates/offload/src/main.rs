@@ -1414,27 +1414,52 @@ fn verify_destination(root: &Path) -> Result<ExitCode> {
     );
 
     println!();
+
+    // Decision 14's rule, applied to `verify`: the verdict is the last line and each of these
+    // phrases appears nowhere else in the output. **Matched exhaustively rather than chained
+    // through `if`** — a fifth outcome added later is a compile error here instead of silently
+    // falling through into whichever branch happens to be last, which is how the previous
+    // version reported an empty disk as `CLEAN`.
+    let verdict = report.verdict();
     println!(
         "►  {}",
-        if report.clean() {
-            "CLEAN — every recorded file is present and matches".to_string()
-        } else if !report.unreadable_manifests.is_empty() && report.damaged() == 0 {
-            "CANNOT FULLY VERIFY — a manifest could not be read; the photographs it \
-             covers were not checked, and nothing here says they are damaged"
-                .to_string()
-        } else {
-            format!(
+        match verdict {
+            verify::Verdict::Clean =>
+                "CLEAN — every recorded file is present and matches".to_string(),
+
+            // **This is the outcome that used to be spelled `CLEAN`**, and the wording has to
+            // do two things the old line did not: say plainly that nothing was proven, and
+            // name both causes, because the operator cannot tell them apart from here. A disk
+            // wiped since its last run and a path that was never an archive root produce
+            // exactly the same empty walk.
+            verify::Verdict::NothingToVerify => format!(
+                "NOTHING TO VERIFY — no manifest found under {}. Either this is not an \
+                 archive root, or this disk has been cleared. Nothing was checked, and \
+                 nothing here says the photographs are fine.",
+                root.display()
+            ),
+
+            verify::Verdict::Incomplete =>
+                "CANNOT FULLY VERIFY — a manifest could not be read; the photographs it \
+                 covers were not checked, and nothing here says they are damaged"
+                    .to_string(),
+
+            verify::Verdict::Damaged => format!(
                 "NOT CLEAN — {} damaged, {} missing",
                 count(report.damaged()),
                 count(report.missing())
-            )
+            ),
         }
     );
 
-    Ok(if report.clean() {
-        ExitCode::SUCCESS
-    } else {
-        ExitCode::from(2)
+    Ok(match verdict {
+        verify::Verdict::Clean => ExitCode::SUCCESS,
+        // Decision 18's code 2 — completed, and something wants your attention. An empty disk
+        // is not a *failure* of the command, which ran exactly as designed; it is emphatically
+        // not a pass either, and a script keying on the exit status must not read it as one.
+        verify::Verdict::NothingToVerify
+        | verify::Verdict::Incomplete
+        | verify::Verdict::Damaged => ExitCode::from(2),
     })
 }
 

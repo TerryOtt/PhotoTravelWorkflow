@@ -57,7 +57,67 @@ pub struct Report {
     pub folders: Vec<FolderReport>,
 }
 
+/// What a verification actually established.
+///
+/// **An enum rather than a `bool`, because the boolean could not say "I could not check".**
+/// `clean()` used to be three `== 0` tests — no damage, nothing missing, no unreadable
+/// manifest — and **every one of them is vacuously true on a disk holding no manifests at
+/// all.** So an archive that had been wiped reported `CLEAN — every recorded file is present
+/// and matches`, which is true in the same way that every unicorn in this room is purple.
+///
+/// Found 2026-08-06 on a real drive, and it is the shape [`REVIEWING.md`] collects: a check
+/// that answers the reassuring thing when it cannot answer at all. The failure has no
+/// backstop anywhere — decision 20's whole promise is a disk proving itself years later on a
+/// machine that has never seen this tool, and nobody re-checks a `CLEAN`.
+///
+/// **The type is the fix, not a fourth `if`.** A `bool` lets a caller keep asking the old
+/// question; a non-exhaustive `match` is a compile error, which is this project's stated
+/// preference for making a mistake impossible rather than merely unlikely.
+///
+/// [`REVIEWING.md`]: ../../../docs/REVIEWING.md
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Verdict {
+    /// Every recorded file was found and matched, and every manifest was readable.
+    Clean,
+    /// **No manifest anywhere on the disk**, so nothing here claims to be an archive. Not a
+    /// pass and not a failure — the check had nothing to examine, and that is its own answer.
+    NothingToVerify,
+    /// At least one manifest could not be read, so what it covers was not checked. Says
+    /// nothing whatever about the photographs beside it (decisions 12, 28).
+    Incomplete,
+    /// Files are damaged or missing. The thing this command exists to find.
+    Damaged,
+}
+
 impl Report {
+    /// What this verification established — see [`Verdict`].
+    pub fn verdict(&self) -> Verdict {
+        // **Checked first, because every test below is a statement *about* manifests and all
+        // of them are vacuously true when there are none.** `manifest_folders` only yields
+        // directories that actually carry a `.photoday-manifest.json`, so an empty list means
+        // the walk found no such file anywhere under the root.
+        if self.folders.is_empty() {
+            return Verdict::NothingToVerify;
+        }
+
+        // Damage outranks an unreadable manifest: a disk with both has a definite problem and
+        // a partial view, and the definite one is what the operator must act on.
+        if self.damaged() > 0 || self.missing() > 0 {
+            return Verdict::Damaged;
+        }
+
+        // Note for whoever touches this next: a missing or unreadable *destination marker*
+        // also lands in `unreadable_manifests`, so it reaches this branch too. The module doc
+        // says a marker is "information, not a gate" while this makes it one — a real
+        // disagreement, older than this function, deliberately left alone rather than widened
+        // into an unrequested behavior change.
+        if !self.unreadable_manifests.is_empty() {
+            return Verdict::Incomplete;
+        }
+
+        Verdict::Clean
+    }
+
     pub fn checked(&self) -> usize {
         self.folders.iter().map(|f| f.checked).sum()
     }
@@ -76,13 +136,6 @@ impl Report {
 
     pub fn tombstoned(&self) -> usize {
         self.folders.iter().map(|f| f.tombstoned).sum()
-    }
-
-    /// Clean means every recorded file was found and matched, and every manifest was
-    /// readable. An unrecorded file is *not* damage and does not fail the disk — it is
-    /// reported so it can be explained.
-    pub fn clean(&self) -> bool {
-        self.damaged() == 0 && self.missing() == 0 && self.unreadable_manifests.is_empty()
     }
 }
 
@@ -216,5 +269,147 @@ fn describe(error: &ManifestError) -> String {
             format!("{error}")
         }
         other => format!("{other} — your photographs are probably fine"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hash::{hex, sha256};
+    use crate::manifest::{Entry, Run, Status};
+
+    /// A destination root holding one date folder with one verified raw in it.
+    fn archive_with_one_frame(root: &Path) {
+        let folder = root.join("2026").join("2026-08-06");
+        let bytes = b"a photograph, for the purposes of argument".to_vec();
+        std::fs::create_dir_all(&folder).expect("a date folder");
+        std::fs::write(folder.join("1402Z_0001.CR3"), &bytes).expect("a raw");
+
+        crate::manifest::update(
+            &folder,
+            "2026-08-06",
+            "TEST",
+            Run {
+                run_id: "R".into(),
+                files_added: 1,
+                bytes_added: bytes.len() as u64,
+            },
+            vec![Entry {
+                name: "1402Z_0001.CR3".into(),
+                status: Status::Present,
+                sha256: hex(&sha256(&bytes)),
+                bytes: bytes.len() as u64,
+                captured_utc: None,
+                source_card: "primary".into(),
+                source_volume_serial: "A4E2-91CC".into(),
+                run_id: "R".into(),
+                verified_utc: "2026-08-06T14:02:00Z".into(),
+                corroborated: None,
+                deletion: None,
+            }],
+        )
+        .expect("writing the manifest");
+    }
+
+    /// **The defect this enum exists for.** A disk with no manifests reported
+    /// `CLEAN — every recorded file is present and matches`, because every test behind the
+    /// old boolean was vacuously true. Found on a real drive 2026-08-06.
+    ///
+    /// **Mutation-checked:** restoring the old body — `damaged() == 0 && missing() == 0 &&
+    /// unreadable_manifests.is_empty()` — makes this case return `Clean` and fails here,
+    /// naming the empty root. Nothing else in the suite notices.
+    #[test]
+    fn a_disk_with_no_manifests_is_not_clean() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+
+        // A marker and nothing else — exactly the state the WD was found in: it *had* been an
+        // archive, so the marker reads fine and only the photographs are gone. That readable
+        // marker is what kept `unreadable_manifests` empty and let the old test pass.
+        crate::marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
+            .expect("a destination marker");
+
+        let report = destination(scratch.path()).expect("verification runs");
+
+        assert_eq!(
+            report.verdict(),
+            Verdict::NothingToVerify,
+            "an empty disk must not be spelled the same way as a verified one: {report:?}"
+        );
+        assert_eq!(report.checked(), 0);
+    }
+
+    /// The other half of the same assertion, and the reason the fix is not simply "return
+    /// NothingToVerify when nothing was checked": a real archive still has to pass.
+    #[test]
+    fn a_disk_with_a_matching_manifest_is_clean() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+        crate::marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
+            .expect("a destination marker");
+        archive_with_one_frame(scratch.path());
+
+        let report = destination(scratch.path()).expect("verification runs");
+
+        assert_eq!(report.verdict(), Verdict::Clean, "{report:?}");
+        assert_eq!(report.checked(), 1);
+    }
+
+    /// **A folder whose files were all tombstoned is a real archive, not an empty one**, and
+    /// this is the case that makes `folders.is_empty()` the right discriminator rather than
+    /// `checked() == 0`. Phase 4 deleting every frame of a day leaves manifests that verify
+    /// perfectly and check zero files — that disk is clean, and must not be told it holds
+    /// nothing.
+    #[test]
+    fn a_folder_of_tombstones_is_clean_rather_than_empty() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+        crate::marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
+            .expect("a destination marker");
+        archive_with_one_frame(scratch.path());
+
+        let folder = scratch.path().join("2026").join("2026-08-06");
+        std::fs::remove_file(folder.join("1402Z_0001.CR3")).expect("phase 4 deleted it");
+        crate::manifest::corroborate(
+            &folder,
+            &[crate::manifest::Outcome {
+                name: "1402Z_0001.CR3".into(),
+                corroborated: crate::manifest::Corroborated::Mismatched,
+                deletion: Some(crate::manifest::Deletion {
+                    source_sha256: "aaaa".into(),
+                    other_sha256: "bbbb".into(),
+                    reason: "the two cards disagreed".into(),
+                    deleted_utc: "2026-08-06T00:00:00Z".into(),
+                }),
+            }],
+        )
+        .expect("tombstoning");
+
+        let report = destination(scratch.path()).expect("verification runs");
+
+        assert_eq!(report.checked(), 0, "the fixture must check nothing");
+        assert_eq!(report.tombstoned(), 1);
+        assert_eq!(
+            report.verdict(),
+            Verdict::Clean,
+            "a fully tombstoned day is a proven archive, not an absent one: {report:?}"
+        );
+    }
+
+    /// Damage still outranks everything, so the new early return cannot mask a real fault.
+    #[test]
+    fn a_damaged_file_still_reports_damaged() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+        crate::marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
+            .expect("a destination marker");
+        archive_with_one_frame(scratch.path());
+
+        let raw = scratch
+            .path()
+            .join("2026")
+            .join("2026-08-06")
+            .join("1402Z_0001.CR3");
+        std::fs::write(&raw, b"not what the manifest recorded").expect("corrupting it");
+
+        let report = destination(scratch.path()).expect("verification runs");
+        assert_eq!(report.verdict(), Verdict::Damaged, "{report:?}");
+        assert_eq!(report.damaged(), 1);
     }
 }
