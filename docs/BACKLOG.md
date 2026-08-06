@@ -38,16 +38,19 @@ is the scope of the product; this is what is in flight right now and what state 
 
 ## 2. Terry's signoff on the CLI output
 
-Every question he raised on 2026-08-06 is answered and shipped. **Two known open threads:**
+**Every question he raised on 2026-08-06 is answered and shipped, and both open threads closed
+the same evening. This item is now waiting on his word, not on work.**
 
-- **The Writing/Verifying block vanishes before LANDED**, because `progress.clear()` erases it.
-  He wants it kept. `progress.rs`'s `finish()` doc argues for keeping it and `clear()`'s doc
-  argues for removing it — **the file contradicts itself** and the behavior follows `clear()`.
-  Note the constraint: `MultiProgress` repaints wherever the cursor is, so a plain `println!`
-  beside live bars *collides* — on 2026-08-05 that drew the LANDED banner inside eight progress
-  rows. A static re-print after clearing is the achievable version.
-- **Terminal width** — the geotag gap explanation is ~133 characters and has only been seen on
-  a 4K display. **The laptop is what travels.** Check it wraps acceptably.
+- **The Writing/Verifying block above LANDED — done.** `progress.clear()` erased it and he wanted
+  it kept; a static re-print after clearing is what shipped, both lines badged. **What remains is
+  documentation, not behavior:** `progress.rs`'s `finish()` doc argues for keeping the block and
+  `clear()`'s doc argues for removing it, so **the file still contradicts itself** while the code
+  is now correct. **Folded into item 5** — it is exactly the kind of superseded prose that review
+  exists to catch.
+- **Terminal width — closed, it fits.** The geotag gap explanation is ~133 characters and had
+  only ever been read at 4K. Seen on the XPS 15 at **1920 × 1200** on 2026-08-06: no wrap, ending
+  around 85 % of the window. **The premise was wrong rather than the line** — the laptop is not a
+  1080p machine, which is worth remembering before the next width worry.
 
 ## 3. SanDisk 512 GB SD acceptance test
 
