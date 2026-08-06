@@ -65,6 +65,8 @@ So the first question for any document is **who opens this, and what were they a
 | `README.md` | someone evaluating or running the tool | what it does, then a command that works |
 | `CONOPS.md` | the operator, mid-trip | the ritual, and what to do when it goes sideways |
 | `DESIGN.md` | someone changing the design | the settled design and why |
+| `RUNS.md` | someone asking what a full run cost | the narratives, newest first |
+| `BACKLOG.md` | a session picking up work | what is in flight and what state it is in |
 | `REVIEWING.md` | someone about to put a change on `main` | the bar it has to clear |
 | `TRIP-HYGIENE.md` | someone preparing to leave on a trip | the routine, in the order it has to happen |
 | `FULL-RUN.md` | someone about to record what a full run cost | the sequence that makes the number comparable |

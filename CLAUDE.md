@@ -247,6 +247,7 @@ facts about the hardware; each was caught because he pushed back on one that loo
 | write a document or a comment | [`docs/WRITING.md`](docs/WRITING.md) | every document leads with what *its* reader came for |
 | touch a dependency, or prepare for a trip | [`docs/TRIP-HYGIENE.md`](docs/TRIP-HYGIENE.md) | **trip hygiene** — the pre-departure routine, once per trip, at home. Firmware is frozen inside T-30 days |
 | take a wall clock from a full run | [`docs/FULL-RUN.md`](docs/FULL-RUN.md) | the sequence that makes a number comparable, and the metadata-only checks that precede it |
+| quote what a past run cost | [`docs/RUNS.md`](docs/RUNS.md) | the run narratives, newest first — **and each quotes the wording the tool used that night**, so read `DESIGN.md` decision 14 for what it prints today |
 
 **"Deep dive review" always means all four:** code, tests, code comments (in the code
 *and* in the tests), and docs. `REVIEWING.md` has the table of what stales what, and why

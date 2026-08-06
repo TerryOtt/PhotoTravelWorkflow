@@ -196,10 +196,18 @@ muster; this is about what this project grew.
 4,593-line `DESIGN.md`. The bar now lives in [`WRITING.md`](WRITING.md) — *prose earns its place
 or goes*.
 
-**First pass done:** `step_badge`'s 60-line doc cut to 12; `phase_heading`'s doc restored; four
-redundant tests removed. **Remaining and larger:** `main.rs` (997 comment lines), `eject.rs`
-(429), `progress.rs` (270), and `DESIGN.md`'s run records, which should move out to their own
-file the way `EJECT-SERIES.md` already did.
+**Done so far:**
+
+- `step_badge`'s 60-line doc cut to 12; `phase_heading`'s doc restored; four redundant tests
+  removed.
+- **`DESIGN.md` split: 4,599 → 3,774 lines (−18 %).** The three full-run narratives moved to
+  [`RUNS.md`](RUNS.md) — 834 lines, verified as an exact partition (3,765 + 834 = 4,599). **A
+  structural win with zero findings lost**, which is the shape the rest of this item should take
+  wherever possible.
+
+**Remaining:** `main.rs` (~980 comment lines), `eject.rs` (429), `progress.rs` (270). These are
+prose reduction rather than relocation, so they need the `WRITING.md` bar applied paragraph by
+paragraph.
 
 **The count is not the metric.** Most tests are regressions for defects that actually shipped, and
 the "considered and rejected" material exists to stop re-proposals. **The real fat is the same
