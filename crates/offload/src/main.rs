@@ -1329,13 +1329,17 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     // with the banner it closes reads as a different element rather than as the other end of
     // the same one — and the banner's width moves with the elapsed time, so it cannot be a
     // literal.
+    // **Indented as a subsection of `Offloading`.** Terry, 2026-08-06: LANDED and
+    // `Corroborating` are what offloading *produced*, where geotagging is *"value add and not
+    // part of offloading"* and stays at column 0. The run then reads as one phase with its
+    // result nested under it, rather than four peers in a row.
     let banner = format!(
-        "═══ LANDED in {minutes}m {seconds:02}s · you can breathe, Terry, your data is safe ═══"
+        "    ═══ LANDED in {minutes}m {seconds:02}s · you can breathe, Terry, your data is safe ═══"
     );
     println!("{banner}");
     println!();
     println!(
-        "    {} files · {} GiB · read once from the source card",
+        "        {} files · {} GiB · read once from the source card",
         count(outcome.files),
         offload::human::gib_up(outcome.bytes)
     );
@@ -1361,7 +1365,7 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
             // it. `Gbps` stays decimal because it is a *bits* unit whose only purpose is
             // comparison against a link — 10 Gbps is 10^10 bits by definition, and a figure
             // in GiB/s cannot be held up against the number printed on the cable.
-            "    {} GiB moved · {:.1} GiB/s · {:.1} Gbps",
+            "        {} GiB moved · {:.1} GiB/s · {:.1} Gbps",
             offload::human::gib_up(moved),
             moved as f64 / GIB / seconds,
             moved as f64 * 8.0 / 1e9 / seconds
@@ -1390,7 +1394,7 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
                 .on_red()
         };
         println!(
-            "    {:<8} {} written · {} skipped · {} verified   {verdict}",
+            "        {:<8} {} written · {} skipped · {} verified   {verdict}",
             destination.label,
             count(destination.written),
             count(destination.skipped),
@@ -1401,7 +1405,7 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     if !outcome.unfiled.is_empty() {
         println!();
         println!(
-            "    !  {} frame(s) had no readable capture time and are in _unfiled",
+            "        !  {} frame(s) had no readable capture time and are in _unfiled",
             count(outcome.unfiled.len())
         );
     }
@@ -1410,8 +1414,10 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     // than as a heading followed by text that trails off into the next phase. Terry asked for
     // it on 2026-08-06; `chars()` rather than `len()` because `═` is three bytes and a
     // byte-length rule would come out three times too long.
+    // Trimmed before counting, then re-indented, so the rule is the width of the *banner* and
+    // not of the banner plus its indent.
     println!();
-    println!("{}", "═".repeat(banner.chars().count()));
+    println!("    {}", "═".repeat(banner.trim_start().chars().count()));
 
     // **No run-log path here.** It was the only line in this block that was not about the
     // data being safe, and `CONOPS.md` says this block is what earns walking away — a file
@@ -1956,9 +1962,10 @@ fn report_passes(outcome: &pipeline::Outcome) {
     // **Says "all N" only when it is all of them.** A pass that finished on three of four
     // destinations is the interesting case, and a line that rounds it up to "all" would hide
     // the one thing worth seeing.
-    let tally = |done: usize| {
+    // Capitalized: it opens a line, and every line a human reads starts with a capital.
+    let titled = |done: usize| {
         if done == all {
-            format!("all {} destinations", count(all))
+            format!("All {} destinations", count(all))
         } else {
             format!("{} of {} destinations", count(done), count(all))
         }
@@ -1976,7 +1983,7 @@ fn report_passes(outcome: &pipeline::Outcome) {
     println!("    Writing");
     println!(
         "        {} · {}/{}",
-        tally(written_through),
+        titled(written_through),
         count(files),
         count(files)
     );
@@ -1984,7 +1991,7 @@ fn report_passes(outcome: &pipeline::Outcome) {
     println!("    Verifying");
     println!(
         "        {} · {}/{}",
-        tally(verified_through),
+        titled(verified_through),
         count(files),
         count(files)
     );
@@ -2000,11 +2007,16 @@ fn report_passes(outcome: &pipeline::Outcome) {
 /// **The blanks belong to the heading, not to the record.** When the live heading survives —
 /// a captured log, where nothing is cleared — reprinting it would stutter, and giving the
 /// record two blank lines would open a gap between a heading and the rows it belongs to.
-fn phase_heading(name: &str, erased: bool) {
+fn phase_heading(name: &str, indent: usize, erased: bool) {
     println!();
     if erased {
-        println!();
-        println!("{name}");
+        // Two blanks for a phase, one for a subsection — `progress.rs`'s own convention, and
+        // the reason `Corroborating` reads as belonging to `Offloading` rather than starting
+        // something new.
+        if indent == offload::progress::PHASE {
+            println!();
+        }
+        println!("{:indent$}{name}", "");
     }
 }
 
@@ -2013,13 +2025,13 @@ fn phase_heading(name: &str, erased: bool) {
 fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: bool) {
     let Some(report) = report else {
         // Always headed: the waived path never drew bars, so nothing put the word on screen.
-        phase_heading("Corroborating", true);
-        println!("    Waived — only one card was present (--allow-single-source)");
+        phase_heading("Corroborating", offload::progress::PASS, true);
+        println!("        Waived — only one card was present (--allow-single-source)");
         return;
     };
 
-    phase_heading("Corroborating", heading_was_erased);
-    print!("    {} matched", count(report.matched));
+    phase_heading("Corroborating", offload::progress::PASS, heading_was_erased);
+    print!("        {} matched", count(report.matched));
     if report.transient > 0 {
         // Not a data problem — the re-read agreed. It is a *reader* problem, and worth
         // saying so before it becomes one.
@@ -2032,7 +2044,7 @@ fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: boo
 
     for (name, source, other) in &report.mismatched {
         println!(
-            "        {} — deleted everywhere, quarantined\n             source {}\n              other {}",
+            "            {} — deleted everywhere, quarantined\n                 Source {}\n                  Other {}",
             name.display(),
             &source[..16.min(source.len())],
             &other[..16.min(other.len())]
@@ -2040,14 +2052,15 @@ fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: boo
     }
 
     if !report.mismatched.is_empty() {
-        println!("        quarantine  {}", report.quarantine.display());
+        println!("            Quarantine  {}", report.quarantine.display());
     }
 
     if report.suspect_card() {
         println!();
         println!(
-            "  !  That is far more disagreement than the one or two a healthy pair of cards\n     \
-             produces. THIS LOOKS LIKE A FAILING CARD — replace it before the next shoot."
+            "        !  That is far more disagreement than the one or two a healthy pair of \
+             cards\n           produces. THIS LOOKS LIKE A FAILING CARD — replace it before the \
+             next shoot."
         );
     }
 }
@@ -2055,12 +2068,12 @@ fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: boo
 fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool, destinations: usize) {
     let Some(report) = report else {
         // Always headed: the skipped path never drew bars, so nothing put the word on screen.
-        phase_heading("Geotagging", true);
+        phase_heading("Geotagging", offload::progress::PHASE, true);
         println!("    Not run — no tracks (--no-gpx)");
         return;
     };
 
-    phase_heading("Geotagging", heading_was_erased);
+    phase_heading("Geotagging", offload::progress::PHASE, heading_was_erased);
     print!(
         "    {} tagged · {} outside track",
         count(report.tagged),

@@ -104,8 +104,8 @@ pub fn run(
     // Heading plus one row, the same shape phase 3 uses. The row is labelled by what is
     // being read rather than by the phase — the heading already says the phase, and
     // `secondary` is the word the card block and the eject block both use for this card.
-    let _section = progress.section("Corroborating", crate::progress::PHASE);
-    let bar = progress.bar("Secondary", ingested.len(), crate::progress::PHASE);
+    let _section = progress.section("Corroborating", crate::progress::PASS);
+    let bar = progress.bar("Secondary", ingested.len(), crate::progress::PASS);
 
     for frame in ingested {
         bar.inc();
@@ -147,7 +147,7 @@ pub fn run(
                 "SOURCE MISMATCH on {} — the two cards disagree about this frame.\n\n\
                  Refusing to go further because --fail-on-source-mismatch was given. \
                  Nothing has been deleted.\n\n\
-                 source card: {}\n other card: {}",
+                 Source card: {}\n Other card:  {}",
                 frame.card_relative.display(),
                 hex(&source_again),
                 hex(&other_again)
