@@ -119,11 +119,13 @@ and you lose 5.8×. Combines with the acceptance test above into a 2 cards × 3 
 
 | Swept | Not yet swept |
 |---|---|
-| `CONOPS.md` verdict table — was naming phrases the tool no longer prints | `FULL-RUN.md` |
-| `DESIGN.md` decision 14 — verdict table, layout rules, badge section | `TRIP-HYGIENE.md` |
-| `progress.rs` — orphaned `clear()` doc | `REVIEWING.md` (grepped only, not read) |
-| `main.rs` — `step_badge`, `phase_heading`, `verdict()` | the rest of `main.rs`'s 997 comment lines |
-| `WRITING.md` — gained the prose bar | `eject.rs` (429 comment lines), `human.rs`, `winio.rs` |
+| `CONOPS.md` verdict table — was naming phrases the tool no longer prints | `TRIP-HYGIENE.md` |
+| `DESIGN.md` decision 14 — verdict table, layout rules, badge section | `REVIEWING.md` (grepped only, not read) |
+| `progress.rs` — orphaned `clear()` doc | the rest of `main.rs`'s ~980 comment lines |
+| `main.rs` — `step_badge`, `phase_heading`, `verdict()` | `eject.rs` (429 comment lines), `human.rs`, `winio.rs` |
+| `WRITING.md` — gained the prose bar | `DESIGN.md`'s run records, which should move to their own file |
+| `FULL-RUN.md` — **clean**, no verdict or badge claims | |
+| `--eject-prepare` references repo-wide — **all five describe the removal**, none instruct | |
 
 **Four defects found so far, none of them cosmetic:** `CONOPS.md` citing dead verdict phrases;
 four rows of `DESIGN.md`'s verdict table describing output that never existed; two orphaned doc

@@ -1757,6 +1757,12 @@ with anything above it. Its forms:
 exactly one case — see *the badge column is a go/no-go on unplugging things*. Every row below
 was checked against `verdict()` on 2026-08-06.
 
+> **This table is the authority; the run records further down are not.** Those quote what the
+> tool printed on the night they were written — `EJECTED — SAFE TO STORE` and similar — and are
+> deliberately left alone, because editing a record of what happened to match what happens now
+> destroys the record. **A grep for a verdict phrase will therefore find older wording in dated
+> narratives.** Trust this table.
+
 | Condition | Headline | Colour | Rest of the line |
 |---|---|---|---|
 | Phase 3 verified everywhere, every device released | ` SAFE TO STORE ` | green | the claim |
