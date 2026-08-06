@@ -321,6 +321,34 @@ the deal:
   longer hold the same files: either is an equipment failure, not a mode
   ([`DESIGN.md`](DESIGN.md) decisions 7 and 27). The deliberate exception is below,
   under *When a card is truly gone*.
+- **Every session is shot on one 512 GB CFexpress and one 512 GB SDXC, and the matching
+  capacity is the point.** Stated by the operator 2026-08-06. The complement is **three of
+  each**, rotated:
+
+  | Slot | The three |
+  |---|---|
+  | CFexpress Type B, 512 GB | Sabrent Rocket CFX · Lexar CFexpress · Angelbird AV Pro CFexpress SE |
+  | SDXC UHS-II, 512 GB | Angelbird AV Pro SD · Lexar Silver Pro · SanDisk *(arriving 2026-08-07)* |
+
+  **Equal capacity is not tidiness, it falls out of the row above.** Both slots receive
+  every frame, so **the pair holds only as much as its *smaller* card** — a 512 paired with
+  a 256 is a 256 GB session, and the moment the small one fills, the two cards stop holding
+  the same files. That is decision 27's gate firing at the desk on an equipment problem the
+  operator created by pairing unequal cards. **512 against 512 makes the constraint
+  symmetric**, so both fill together or neither does.
+
+  **The margin, honestly bounded rather than asserted:** the largest *day* on record is
+  **415 GB** — 81 % of a 512 GB card. But the card constraint is **per session, not per
+  day**, because both cards are formatted at the start of each one and a day may hold
+  several. So the worst load any single card has actually carried is **at most 415 GB and
+  probably well under it, and nobody has counted.** The catalog groups by date folder, which
+  cannot see the session split. Worth counting before a trip that expects a bigger day than
+  any on record.
+
+  **Anything smaller than 512 GB is a spare or a test card, not a shooting card.** The
+  256 GB Lexar Silver Pro measures healthy and stays in the bag on that basis — it spent
+  2026-08-04/06 in the rig for testing, which is exactly how a session could mistake it for
+  the operational corroborator. It is not one.
 - **GPS logging is an intention, not a promise — and the tool is built for the
   difference.** The ideal is a track behind every frame. The reality is an operator who
   is human, at altitude, chasing light, and who will sometimes forget to start the
