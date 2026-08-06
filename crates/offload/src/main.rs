@@ -207,8 +207,16 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // and it fits the vocabulary the tool already had: the run ends at `LANDED`. Both words
     // come from the same place, which is why neither reads as jargon here.
     println!("Pre-Flight Checks");
-    // Every other heading gets a blank line under it from `Progress::section`; this one is a
-    // plain print and was the only one whose first line sat jammed against it.
+    // **A deliberate exception, kept after a consistency review. MUST NOT be normalized.**
+    // `Corroborating`, `Geotagging` and `Eject` all put their first line directly under the
+    // heading; this one keeps a blank. Terry compared them on 2026-08-06 and chose to keep the
+    // gap: *"it's not consistent but it looks better to my frustratingly-inconsistent human
+    // meat-sac known as a brain."*
+    //
+    // **And the difference is structural rather than arbitrary, which is why it survives.**
+    // Pre-flight's content is three sub-sections — `Camera Cards`, `Destinations`, `Tracks` —
+    // where the other phases have a line or two of result directly underneath. A heading with
+    // sections under it wants air; a heading with a sentence under it does not.
     println!();
     // Three periods, not U+2026. Terry, 2026-08-05: the single-glyph ellipsis "bothers my old
     // school DOS ANSI UI eyes." His screen, his call — and an ASCII ellipsis cannot render as
@@ -246,10 +254,14 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // Flush left: this is a phase heading, the parent of the `Writing` and `Verifying`
     // sections below it, and it used to sit indented as though it were an item in a list.
     //
-    // Two blanks above, like every phase heading — but **no blank below, and it is the one
-    // phase heading without one.** Its content is entirely sub-sections, and `Writing` brings
-    // its own leading blank; adding one here would put two together. `Pre-Flight Checks`,
-    // `Corroborating` and `Geotagging` all have rows directly under them and do get the gap.
+    // Two blanks above, like every phase heading — but **no blank below.** Its content is
+    // entirely sub-sections, and `Writing` brings its own leading blank; adding one here would
+    // put two together.
+    //
+    // **Corrected 2026-08-06**: this used to say `Corroborating` and `Geotagging` "do get the
+    // gap". They no longer do — a status line earns no blank above it, only a sub-heading does.
+    // `Pre-Flight Checks` is now the single deliberate exception, and the note at its own print
+    // site says why.
     println!();
     println!();
     // **`·` and not `...` before the estimate.** The ellipsis was doing a separator's job in the
