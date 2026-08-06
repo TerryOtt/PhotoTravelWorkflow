@@ -7,6 +7,15 @@ words: *"that's my memory right now and that's dangerous."*
 **Claude MUST update this file when an item opens, closes or materially changes**, in the same
 turn, not at the end of a session. RFC 2119 keywords, and the capitals are load-bearing.
 
+> **⚠ THIS FILE IS NOT THE FIRST THING TO READ. If `RUN-STATE.json` exists at the repository
+> root, [`FULL-RUN.md`](FULL-RUN.md) governs and MUST be read before any other tool call** — a
+> measured run is staged or in flight, and nothing here matters until it is finished.
+>
+> **The reason is that a staged run is perishable and this file is not.** A cold page cache
+> bought with a reboot, wiped destinations, a settled machine: picking up an interesting item
+> from this list spends all of it on a probe or a walk of the archive trees, and the reboot was
+> for nothing. **The backlog will still be here afterwards.**
+
 This is a *backlog*, not a design document. [`DESIGN.md`](DESIGN.md)'s **Still to build** list
 is the scope of the product; this is what is in flight right now and what state it is in.
 

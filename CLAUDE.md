@@ -122,10 +122,24 @@ looking around. **This gate exists because the constraint used to live in the co
 and a reboot destroys conversations while leaving every drive exactly where it was.**
 Delete the file once the run is recorded.
 
-**[`docs/BACKLOG.md`](docs/BACKLOG.md) is what is in flight and what state it is in.** A
-session's task list dies with the session, and on 2026-08-06 that list was briefly the only
-record of four open items. **Claude MUST update that file when an item opens, closes or
-materially changes — in the same turn, not at the end of a session.**
+**Only once that gate is clear: [`docs/BACKLOG.md`](docs/BACKLOG.md) is what is in flight and
+what state it is in.** A session's task list dies with the session, and on 2026-08-06 that list
+was briefly the only record of four open items. **Claude MUST update that file when an item
+opens, closes or materially changes — in the same turn, not at the end of a session**, because
+end of session is exactly when a session does not get to finish.
+
+**The precedence is absolute and the order is not cosmetic:**
+
+| | |
+|---|---|
+| **1. `RUN-STATE.json` exists** | [`FULL-RUN.md`](docs/FULL-RUN.md) governs, **before any other tool call.** A measured run is staged or in flight and the backlog is irrelevant until it is finished |
+| **2. No `RUN-STATE.json`** | `BACKLOG.md` is the starting point — it says what was being worked on and how far it got |
+
+**Why this way round.** A staged run is a *perishable* state: a cold page cache bought with a
+reboot, a wiped set of destinations, a settled machine. **Reading the backlog first and picking
+up an interesting task is exactly how that gets spent** — a probe, a walk of the archive trees,
+an `examples/` run, and the reboot was for nothing. The backlog will still be there afterwards;
+the cold cache will not.
 
 **Before answering anything, read these two, in this order:**
 
