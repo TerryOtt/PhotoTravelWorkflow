@@ -277,7 +277,7 @@ prose reduction rather than relocation.
 the "considered and rejected" material exists to stop re-proposals. **The real fat is the same
 argument restated in three places**, so the likely answer is structure rather than deletion.
 
-## 2. Settle the USB-C→USB-A adapter — OPEN, TERRY'S MOVE
+## 2. Settle the USB-C→USB-A adapter — IN PROGRESS, TERRY'S MOVE
 
 **Opened 2026-08-07 out of the reader matrix, as a side quest rather than a blocker** — the
 matrix does not need an adapter, because the Lexar is natively USB-A and the other two are
@@ -312,6 +312,29 @@ plain `Generic USB Hub` means USB 2.0.** No throughput run needed; the chain ans
 > **Swapping adapters first would waste the evidence.** If a *different* adapter works, that reads
 > as "the first one was faulty" — when the live alternative is that any of them works once seated.
 > Reseat the original, both orientations, before introducing a second variable.
+
+### Started 2026-08-07 — the instrument, and the outcomes pre-registered
+
+**Instrument: the UGreen reader with the SanDisk 512 card**, moved as a unit into the front-right
+outermost USB-A port through the **original** adapter. That pair measured **275 MB/s** minutes
+earlier, so it is a known-good combination and the adapter is the only unknown.
+
+**The PnP parent chain settles this on its own and no throughput run is required** —
+`Generic SuperSpeed USB Hub` means the adapter carries SuperSpeed, plain `Generic USB Hub` means
+it negotiated USB 2.0. A number is only worth taking afterwards, for the record.
+
+**Three outcomes, written down before the result so none of them can be fitted afterwards:**
+
+| Reading | Verdict |
+|---|---|
+| **~275** | The adapter is sound and was **mis-seated** the first time. The spares are then irrelevant |
+| **~40** | The adapter genuinely does not carry SuperSpeed. *Now* the two spares are worth trying |
+| **~90–104** | ⚠ **Not the adapter — the CARD came loose in the move.** Remove and reinsert the card, re-read |
+
+> **The third row is the one that would otherwise be misattributed.** Handling the reader puts the
+> card in play too, so a UHS-I reading on this test has a cause that has nothing to do with the
+> adapter. **Two candidate failures share this path**, and naming both before the run is what stops
+> the first plausible one from collecting the blame.
 
 ---
 
