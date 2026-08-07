@@ -696,7 +696,28 @@ the repository.
 > **TERRY'S MOVE at the end:** archiving the repository is his call, since it is the tool he
 > currently travels with. Everything before that is buildable without him.
 
-## Boomerang pass: code → docs → code — OPEN, TERRY'S MOVE
+## Boomerang pass: code → docs → code — IN PROGRESS, started 2026-08-07 23:10Z
+
+**Terry's brief, verbatim:** *"code -> docs is pass one. Make sure everything the code does that
+is **user visible** is in the docs. Then wipe your brain and do docs -> code in pass 2, making
+sure everything the docs SAY the code should/should not do is in line with the code."*
+**Conflict resolver: Terry judgement calls.**
+
+| | |
+|---|---|
+| **Pass 1 — code → docs** | Enumerate every user-visible behavior — CLI surface, printed lines, exit codes, files written, config keys, refusal messages — and confirm each is documented |
+| **Pass 2 — docs → code** | Done **fresh**, not carrying pass 1's conclusions. Every *the tool MUST / MUST NOT / prints* claim checked against the source |
+
+**A gap is not a conflict.** Code doing something undocumented → document it and keep going.
+**Docs describing something absent is the one to stop on**, because it may be *intent* rather
+than error — and that is a judgement call.
+
+> **The cautionary case is tonight's `--jobs`.** `DESIGN.md` described a thread pool that did not
+> exist; building the code to match the doc produced a feature that was measured and reverted.
+> **Pass 2 MUST NOT blindly make the code match the docs** — a doc describing intent and a doc
+> describing a defect look identical on the page.
+
+### ⚠ The older placeholder, kept because it records what was inferred before the brief
 
 **Requested 2026-08-07, mid-build.** He will explain the intent when he authorizes work on it.
 
