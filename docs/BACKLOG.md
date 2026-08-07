@@ -336,9 +336,18 @@ stale clone answers authoritatively from whatever state it was left in.
 the CLI surface and the module inventory were accurate. **The defect class is claims about output
 and data shapes, and claims about what exists — never the interface itself.**
 
-**The docs got BIGGER, and that is the honest result.** `DESIGN.md` 3,245 → 3,236 with decision 14
-down 41 and decision 22 down 30, because the corrections added more than the narrative cuts
-removed. **The pass bought accuracy, not size.** `WRITING.md` rule 5 gained what would have caught
+**The docs got BIGGER, and that is the honest result.** `DESIGN.md` **3,245 → 3,218** despite
+decision 14 losing 41, decision 22 losing 38 and decision 20 losing 19 — the corrections added
+back most of what the narrative cuts removed. Across `docs/` the total went **7,670 → 7,791**,
+almost all of it `BACKLOG.md` recording this work. **The pass bought accuracy, not size**, and
+that trade was not the one the item was opened for.
+
+> **What to conclude for the rest of the item:** the remaining prose is mostly *earned*. The
+> largest blockquotes left — decision 17's interleaved-verify table, *Where the wall clock goes*
+> — are measurements plus a live trap (the 26 MB figure is per **file**, not per frame, and
+> already cost a session half its card-capacity answers). **Cutting those would be deleting
+> evidence to hit a number**, which the standing order explicitly does not license. The real
+> remaining fat, if any, is structural rather than lexical. `WRITING.md` rule 5 gained what would have caught
 all of it: a document stating what a program prints or writes MUST have those strings grepped
 against the source; **the pattern MUST be proven able to find something before its silence is
 believed**; and a phrase with a variable in it is never present literally, so search the invariant
