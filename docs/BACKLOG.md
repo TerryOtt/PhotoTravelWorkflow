@@ -336,6 +336,18 @@ stale clone answers authoritatively from whatever state it was left in.
 the CLI surface and the module inventory were accurate. **The defect class is claims about output
 and data shapes, and claims about what exists — never the interface itself.**
 
+**Coverage is complete: every file in `docs/` plus `CLAUDE.md` was swept.** `CONOPS.md` gave up
+two unbuilt promises in the **shooting-day contract**, which is the worst place for one since it
+is what Terry reads. `FULL-RUN.md`, `REVIEWING.md` and `EJECT-SERIES.md` came back clean —
+`EJECT-SERIES.md` cites `IOCTL_VOLUME_OFFLINE`, which is absent from the source and correctly
+labeled a candidate and *Untested*. **That is the shape a forward-looking reference should have**,
+and it is the counter-example to the three decisions that read as built.
+
+**The same sweep then ran over code comments**, since a comment is a claim too. Two stale ones:
+`storage.rs` cited the Defender check that had just been withdrawn, and `body-identity.rs` still
+called itself *"the one measurement decision 34 is blocked on"* after answering that question
+twice.
+
 **The docs got BIGGER, and that is the honest result.** `DESIGN.md` **3,245 → 3,218** despite
 decision 14 losing 41, decision 22 losing 38 and decision 20 losing 19 — the corrections added
 back most of what the narrative cuts removed. Across `docs/` the total went **7,670 → 7,791**,
