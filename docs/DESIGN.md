@@ -2799,11 +2799,31 @@ the worst moment, which is trip hygiene.
 > gap rule and the `<trkseg>` refusal behave identically on both paths, which a clean-track day
 > could never have shown.
 >
-> **What it does NOT check, and the fixture corpus is still the thing that would:** sidecar
-> *content* (nothing was written), and the **`+01:00`** case, which is the one where a dropped
-> offset still tags, 49.9 km away, silently. Terry's body runs on UTC, so his archive cannot
-> supply that case at all. **A day agreeing is worth a lot and is not worth what
-> `cr3-offset-nonzero` is worth.**
+> ### ✔ And the `+01:00` case *is* covered — the archive supplies it, and the archive is wrong
+>
+> **This was recorded here as the gap the missing fixture alone could close. That was wrong.**
+> The 2022-09-27 shoot is itself at `+01:00` — it is the shoot `cr3-offset-nonzero` was cut
+> from, `_50A0001.CR3` included — so the case is reproducible from `Q:\` without the corpus.
+>
+> **Checked against the raw GPX rather than against another tool:**
+>
+> | | |
+> |---|---|
+> | `_50A0001.CR3` EXIF | `15:02:05.57+01:00` — i.e. **14:02:05Z** |
+> | Track at **14:02:05Z** | `51,21.1414N / 116,5.2920W`, **a track point 0 s away** |
+> | Track at 15:02:05Z | `51,43.0525N / 116,30.4545W`, nearest point 48 s away |
+> | **`offload geotag` wrote** | `51,21.1414N / 116,5.2920W` ✔ |
+> | **The archive sidecar holds** | `51,43.0525907528N / 116,30.4547687054W` ✘ |
+>
+> **So the engine honors the offset correctly, and Terry's 2022-09-27 archive does not** —
+> 400 of 400 sidecars sampled agree with the *naive* reading, worst displacement **49.9 km**,
+> which is `FIXTURES.md`'s own number for this frame. Those sidecars were written before the fix
+> the fixture exists to guard. **Tracked in [`BACKLOG.md`](BACKLOG.md); re-tagging is Terry's
+> call and is not obviously safe, because Lightroom now owns those packets.**
+>
+> **What is still not checked**: sidecar *content* against a reference implementation. The
+> comparison above is against the **track**, which is better for position and says nothing about
+> the rest of the packet.
 >
 > ### ⚠ NEF is read but cannot be tagged, and that is a real gap against RawGeotag
 >

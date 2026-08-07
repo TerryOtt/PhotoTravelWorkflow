@@ -483,6 +483,45 @@ exactly the storage that measurement was taken against.
 **Recommendation: A**, because decision 30 is already authorized and B makes it worse. **His
 call because it is scope**, not because the engineering is unclear.
 
+## ⚠ 2022-09-27's archive geotags are ~50 km wrong — OPEN, TERRY'S MOVE
+
+**Found 2026-08-07 while validating `offload geotag` against the archive, and it is a fact about
+his photographs rather than about this code.**
+
+**Every sidecar checked in `Q:\Lightroom\Images\2022\2022-09-27` carries a position computed by
+*ignoring* the frame's `+01:00` EXIF offset. 400 of 400 sampled, unanimous, worst displacement
+49.9 km.**
+
+**Proven against the track itself, not against another tool:**
+
+| | |
+|---|---|
+| `_50A0001.CR3` EXIF | `2022-09-27T15:02:05.57+01:00` — i.e. **14:02:05Z** |
+| Track at **14:02:05Z** | `51,21.1414N / 116,5.2920W` — **a track point 0 seconds away** |
+| Track at 15:02:05Z | `51,43.0525N / 116,30.4545W` — nearest point 48 s away |
+| **Archive sidecar says** | `51,43.0525907528N / 116,30.4547687054W` — **the naive one** |
+| **`offload geotag` wrote** | `51,21.1414N / 116,5.2920W` — **the correct one** |
+
+**This is the exact failure `FIXTURES.md` describes for this exact frame** — *"read as naive UTC
+it tags 49.9 km away, and it still tags, because 15:02:05Z also falls inside the track. No error,
+no warning, no skip."* `cr3-offset-nonzero` exists **because** of this bug. The archive was
+tagged before the fix and never re-tagged.
+
+**The fix, if he wants it** — `--force-xmp` is required because sidecars already exist:
+
+```
+offload geotag "Q:\Lightroom\Images\2022\2022-09-27" "C:\Travel\GPX\not-tonight\2022-09-27.gpx" --force-xmp
+```
+
+> **⚠ Two things to settle before anyone runs that, and Claude MUST NOT run it unasked.**
+>
+> 1. **Those sidecars are Lightroom's, not RawGeotag's** — they carry `crs:`, `crd:` and
+>    `xmpMM:` namespaces and an `Adobe XMP Core` writer tag. **`xmp::render` writes a GPS-only
+>    packet**, so a rewrite would discard develop settings. That has to be checked, not assumed.
+> 2. **Which other days are affected is unmeasured.** Only shoots with a **non-zero** EXIF offset
+>    can be wrong; a day shot on UTC is unaffected because the offset is a no-op. The scoping
+>    script reads only `.xmp` and `.gpx` — no raws, writes nothing.
+
 ## Retire RawGeotag into `offload geotag` (decision 30) — IN PROGRESS
 
 > ### ✔ The subcommand shipped 2026-08-07. **The retirement did not.**
