@@ -485,6 +485,52 @@ call because it is scope**, not because the engineering is unclear.
 
 ## Retire RawGeotag into `offload geotag` (decision 30) — IN PROGRESS
 
+> ### ✔ The subcommand shipped 2026-08-07. **The retirement did not.**
+>
+> ```text
+> offload geotag <ROOT> <GPX...> [--max-gap-seconds S] [--max-gap-meters M] [--force-xmp]
+> ```
+>
+> **Verified against six real frames from 2024-10-02 with that day's own track**: 6 tagged, 6
+> sidecars written; a re-run wrote 0 and left 6 alone; `--force-xmp` rewrote all 6; an empty
+> tree prints `NOTHING TO TAG` and exits 2. A sidecar was read back carrying
+> `x:xmptk="offload 0.1.0"`, real coordinates and a matching `GPSTimeStamp`.
+>
+> **What is left, and the first item is the one that matters:**
+>
+> | | |
+> |---|---|
+> | **🔴 BLOCKED — the fixture corpus is not on this machine** | See below. This is decision 30's own bar and it cannot be met from here |
+> | `C:` Migrate `docs/LIGHTROOM-XMP.md` | Its procedure drives `rawgeotag.exe`; now that `offload geotag` is that binary, it can move — but its *verification* needs Lightroom, so migrating it is transcription, not validation |
+> | **`T:` Archive the repository** | Terry's call — it is the tool he currently travels with, and it stays working until the corpus check passes here |
+>
+> ### 🔴 The blocker, searched for rather than assumed
+>
+> **`FIXTURES.md` puts the raws at `..\RawGeotag-fixtures\`, a sibling of the checkout, 222 MB,
+> and deliberately *not in git*** — *"personal photographs"*. RawGeotag is not cloned here
+> either, so neither half is present.
+>
+> **Searched `C:`, `D:`, `Q:` and `N:` to depth 3.** What exists is `N:\rawgeotag-stage`
+> (the 190 GB and 390 GB stress corpora) and `N:\rawgeotag-bench` (`j1`/`j2`/`j4`/`j8`, the old
+> `-j` trees). **Neither is the regression corpus** — no `cr3-offset-utc`,
+> `cr3-offset-nonzero` or `nef-no-offset`.
+>
+> **Rebuilding equivalent fixtures MUST NOT be treated as a substitute**, and `FIXTURES.md`
+> says why in one line: *"a value re-derived from whatever the code currently does is worthless
+> as a regression check."* New raws would need new expected aggregates, computed by the very
+> code under test. **The point of the corpus is that its hashes predate the change.**
+>
+> **`cr3-offset-nonzero` is the one that matters and the one hardest to replace.** It holds the
+> only frames with a real `+01:00` offset, and it exists because reading `_50A0001.CR3` as naive
+> UTC still tags — **49.9 km away**, with no error and no skip. Terry's body runs on UTC
+> (decision 23), so his recent archive cannot supply that case.
+>
+> **What unblocks it: Terry saying where `RawGeotag-fixtures` is, or that it is gone.** If it is
+> gone, decision 30's bar has to be renegotiated rather than quietly lowered.
+>
+> **Do not read "shipped" as "done".** RawGeotag keeps working and the duplication stays live
+> until the corpus validates, which is exactly what decision 30 said before any of this started.
+
 **Opened 2026-08-07: the precondition is met and nobody had noticed.** `CLAUDE.md` said
 retirement *"cannot happen until phase 5 works."* **Phase 5 works** — `main.rs:316` calls
 `geotag_phase` → `phase5::run` on the ordinary run path, and `DESIGN.md`'s *Where this stands*
