@@ -1571,10 +1571,13 @@ of the evidence, on the machine that will still be there when someone asks about
 > **The default stays at `available_parallelism`** — 20 here, past the knee and costing nothing
 > measurable. Lowering it to 4 would trade a real NAS case, which is unmeasured, for noise.
 >
-> > **What this does NOT establish, said plainly: the NAS case.** RawGeotag's 12× came from
-> > SMB, and nothing here has measured `offload` against the NAS. **Decision 30 cannot claim
-> > parity with RawGeotag until it does** — the pool removes the regression on local storage
-> > and says nothing about the storage RawGeotag was actually tuned for.
+> > **The NAS case is deliberately not measured, and does not need to be.** RawGeotag's ~12×
+> > came from geotagging *years* of files across `Q:\` in one pass — many directories, high
+> > latency, threads hiding round trips. **Terry, 2026-08-07: that is not a use case this
+> > project will have** — `offload` is the workflow going forward, and its phase 5 is one
+> > shooting day into one folder per destination. **So the local table above is the
+> > representative measurement**, not a stand-in for a better one, and decision 30 does not owe
+> > parity on a workload that has already happened once and will not recur.
 
 `--jobs N`, defaulting to logical CPU count, following RawGeotag's finding that this
 problem class parallelizes well into double-digit thread counts.

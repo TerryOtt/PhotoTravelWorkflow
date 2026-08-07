@@ -240,6 +240,26 @@ only when the metric is mistaken for a gradient. Optimize for whether Terry can 
 verdict, walk away, and sleep. Wall clock re-enters the argument only if a run approaches the
 bar. `DESIGN.md` — *Both metrics are thresholds* — has the full version.
 
+## `Q:\` is the archive, and Claude may read it and almost nothing else
+
+**The rule, verbatim from the hook that enforces it: *"`Q:\` is the photo archive: read
+anything, create a new `.xmp`, nothing else — never delete, never overwrite."*** Twenty years
+of originals; `N:\` holds the stress corpora and is a softer *ask* rather than a deny.
+
+**Written here 2026-08-07 because it lived only in `~/.claude/hooks/nas-guard.py`** and in
+neither `CLAUDE.md`. **A session had no way to learn it before tripping it** — which is exactly
+what happened: a benchmark scratch directory was created at `Q:\_offload-bench`, outside the
+*create a new `.xmp`, nothing else* rule, and the guard then refused the cleanup. **The hook
+enforces only the destructive half**, so it catches the tidy-up rather than the mistake.
+
+> **The hook's message cites "CLAUDE.md binding constraint 5", which is not this rule** —
+> constraint 5 below is *readable over clever*. The citation has been wrong for as long as the
+> hook has existed and is worth correcting in the hook, not by renumbering anything here.
+
+**So the operational rule is wider than the hook: Claude MUST NOT create anything on `Q:\`
+except a sidecar the workflow calls for**, and MUST ask before writing anything else there —
+scratch directories included. **A guard that only blocks deletes is not permission to write.**
+
 ## Binding constraints
 
 **The key words MUST, MUST NOT, SHALL NOT, SHOULD and MAY in this file are used as

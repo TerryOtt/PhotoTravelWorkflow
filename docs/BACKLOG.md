@@ -448,10 +448,13 @@ decision.
 > metadata within a directory and a day is one directory, so local work plateaus where SMB's
 > latency-bound case kept scaling.
 >
-> **Two things this did not do**, both recorded at decision 15: the **NAS case is unmeasured**,
-> so decision 30 cannot yet claim parity with RawGeotag; and `Progress::Bar` had to become
-> thread-safe — `Cell`/`RefCell` became one `Mutex`, because splitting the print decision
-> across atomics would let two threads emit the same row.
+> **The NAS case is deliberately not measured.** RawGeotag's ~12× came from tagging years of
+> files across `Q:\` at once — many directories, high latency. **Terry: that is not a use case
+> this project will have.** `offload`'s phase 5 is one shooting day into one folder per
+> destination, so the local table *is* the representative measurement rather than a stand-in.
+>
+> **`Progress::Bar` had to become thread-safe** — `Cell`/`RefCell` became one `Mutex`, because
+> splitting the print decision across atomics would let two threads emit the same row.
 
 ## ~~Decide `--jobs`: implement the phase 5 pool, or delete the flag~~ — the finding
 
