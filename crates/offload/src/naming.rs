@@ -141,43 +141,34 @@ mod tests {
         );
     }
 
-    /// The body prefix is dropped and the separator is ours, so the name reads the same
-    /// way whichever of Canon's two stem shapes the camera is writing. This is the case
-    /// the previous scheme got ugly on — it produced `1422ZIMG_1234.CR3`.
+    /// Every stem shape, in one table. The body prefix is dropped and the separator is ours, so
+    /// the name reads the same way whichever of Canon's two shapes the camera writes — the case
+    /// the previous scheme got ugly on, producing `1422ZIMG_1234.CR3`.
     #[test]
-    fn only_the_sequence_number_survives_whatever_shape_the_stem_has() {
+    fn the_sequence_number_is_all_trailing_digits_or_else_the_whole_stem() {
         let captured = "2026-08-03T14:22:37Z".parse::<DateTime<Utc>>().unwrap();
 
-        for stem in ["_50A0001", "IMG_0001", "_MG_0001", "100_0001"] {
+        for (stem, expected) in [
+            ("_50A0001", "1422Z_0001.CR3"),
+            ("IMG_0001", "1422Z_0001.CR3"),
+            ("_MG_0001", "1422Z_0001.CR3"),
+            ("100_0001", "1422Z_0001.CR3"),
+            // All the trailing digits, not the last four: a five-digit counter must not
+            // collide two frames onto one name.
+            ("ABC12345", "1422Z_12345.CR3"),
+            // No trailing digits keeps the whole stem, because an empty sequence would name
+            // every such frame in a minute alike.
+            ("SCAN", "1422Z_SCAN.CR3"),
+            ("IMG_0001A", "1422Z_IMG_0001A.CR3"),
+        ] {
             assert_eq!(
                 prefixed_name(captured, &format!("{stem}.CR3")),
-                "1422Z_0001.CR3",
+                expected,
                 "{stem}"
             );
         }
-    }
 
-    /// All the trailing digits, not the last four — a five-digit counter must not
-    /// collide two frames onto one name.
-    #[test]
-    fn a_longer_counter_keeps_all_of_its_digits() {
-        let captured = "2026-08-03T14:22:37Z".parse::<DateTime<Utc>>().unwrap();
-
-        assert_eq!(prefixed_name(captured, "ABC12345.CR3"), "1422Z_12345.CR3");
         assert_eq!(sequence_number("ABC12345"), "12345");
-    }
-
-    /// The fallback: a stem with no trailing digits keeps the whole stem, because the
-    /// alternative is an empty sequence that names every such frame in a minute alike.
-    #[test]
-    fn a_stem_with_no_trailing_digits_keeps_the_whole_stem() {
-        let captured = "2026-08-03T14:22:37Z".parse::<DateTime<Utc>>().unwrap();
-
-        assert_eq!(prefixed_name(captured, "SCAN.CR3"), "1422Z_SCAN.CR3");
-        assert_eq!(
-            prefixed_name(captured, "IMG_0001A.CR3"),
-            "1422Z_IMG_0001A.CR3"
-        );
         assert_eq!(
             sequence_number("0001"),
             "0001",
@@ -282,26 +273,17 @@ mod tests {
         );
     }
 
+    /// Before the extension, splitting on the **last** dot — `rsplit_once` rather than
+    /// `split_once`, so a name with more than one dot keeps all but the last in its stem.
     #[test]
     fn the_collision_suffix_goes_before_the_extension() {
-        assert_eq!(
-            with_collision_suffix("1422Z_0001.CR3", 1),
-            "1422Z_0001_001.CR3"
-        );
-        assert_eq!(
-            with_collision_suffix("1422Z_0001.CR3", 42),
-            "1422Z_0001_042.CR3"
-        );
-    }
-
-    /// `rsplit_once` rather than `split_once`, so a name with more than one dot keeps
-    /// all but the last as part of its stem.
-    #[test]
-    fn the_collision_suffix_splits_on_the_last_dot_not_the_first() {
-        assert_eq!(
-            with_collision_suffix("1422Z_50A.0001.CR3", 1),
-            "1422Z_50A.0001_001.CR3"
-        );
-        assert_eq!(with_collision_suffix("NOEXTENSION", 1), "NOEXTENSION_001");
+        for (name, nth, expected) in [
+            ("1422Z_0001.CR3", 1, "1422Z_0001_001.CR3"),
+            ("1422Z_0001.CR3", 42, "1422Z_0001_042.CR3"),
+            ("1422Z_50A.0001.CR3", 1, "1422Z_50A.0001_001.CR3"),
+            ("NOEXTENSION", 1, "NOEXTENSION_001"),
+        ] {
+            assert_eq!(with_collision_suffix(name, nth), expected, "{name}");
+        }
     }
 }
