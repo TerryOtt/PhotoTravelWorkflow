@@ -315,6 +315,14 @@ plain `Generic USB Hub` means USB 2.0.** No throughput run needed; the chain ans
 
 ---
 
+## Closed 2026-08-07
+
+- **Reader characterization — all three cleared at 275–280 MB/s.** Full record is above rather
+  than here, because the protocol is worth re-reading before the next matrix and moving 120 lines
+  would bury it. **What it produced beyond the numbers:** a seating failure that reads as a
+  hardware spec limit, and [`CONOPS.md`](CONOPS.md)'s *a card reading slow is a link problem* —
+  a field table keyed on the number rather than on which reader is in the bag
+
 ## Closed 2026-08-06
 
 Kept briefly so a resumed session does not re-open them.
