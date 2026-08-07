@@ -3430,7 +3430,7 @@ new evidence rather than fresh taste.
 | `comfy-table` or `tabled` for the report's tables | The layout is bespoke and its column widths are load-bearing; `format!` width specifiers already do this without a layout engine's opinion |
 | `aligned-vec` for the unbuffered read buffers | `FILE_FLAG_NO_BUFFERING` needs a sector-aligned buffer, which is `std::alloc` with a `Layout`, a `Drop` and a `Deref`. The one allocation in the program whose invariant should be visible where it is written |
 | `directories` for the config path | Cross-platform standard-location machinery for a tool that only ships on Windows. One read of `%APPDATA%` |
-| `assert_cmd` and `predicates` for the process-level test | RawGeotag's precedent: `env!("CARGO_BIN_EXE_offload")` and `std::process::Command` are enough, and decision 18 asks for four tests in total |
+| `assert_cmd` and `predicates` for the process-level test | RawGeotag's precedent: `env!("CARGO_BIN_EXE_offload")` and `std::process::Command` are enough. Argued when decision 18's end-to-end surface was four tests; the crate would still earn nothing now |
 | `criterion` for decision 17's hash measurement | It is a single sustained throughput figure over 2 GiB, not a microbenchmark needing statistical machinery to see. `examples/hash-rate.rs` reproduces the table in thirty lines and needs no harness |
 
 ## Non-goals

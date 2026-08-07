@@ -166,7 +166,7 @@ The policy is not license to relitigate. Specifically:
 - **Verbosity that buys clarity.** This project takes the obvious mechanism over the clever
   one on purpose. Longer and duller is not a window.
 
-## Tests: four of them, and each has to be able to fail
+## Tests: each one has to be able to fail
 
 [`DESIGN.md`](DESIGN.md) decision 18 set the scope deliberately narrow — the phase 4
 deletion path, the naming function, one end-to-end happy path, and `verify` against a

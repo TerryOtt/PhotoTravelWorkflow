@@ -98,8 +98,24 @@ or goes*.
   asserted that a *literal* parses, re-typing the value instead of reading it — so mutating the
   real one would not have failed it. Now reads a named `SPACER` const, and is mutation-checked.
 
-**Remaining:** `progress.rs` (279 of 610 lines, **46 %** — the densest left), `human.rs`,
-`winio.rs`, and the smaller blocks throughout `main.rs`.
+- **Two more run records found and moved.** *Corroboration ran for the first time* (247 lines)
+  and *16 m 55 s on the dock* were sitting in the **architecture** section, not at the end, so
+  the first split walked past them. `DESIGN.md` **4,599 → 3,482 (−24 %)**, none of it deleted.
+- **Prose deleted, not just moved.** `CLAUDE.md` **528 → 455**: the no-drift rule was 109 lines
+  written the same day across four edits, now 38; and the build-chain section stopped restating
+  the global config, which is loaded in the same session. **Total docs 8,411 → 7,713.**
+
+**Remaining:** `progress.rs`, `human.rs`, `winio.rs` and the smaller `main.rs` blocks — all
+prose reduction rather than relocation.
+
+> **Moving does not shrink the total, only deletion does**, and it is worth being honest about
+> which is which. The `RUNS.md` splits took **1,117 lines** out of `DESIGN.md` and **zero** out
+> of the repository — they buy navigability. The `CLAUDE.md` cuts are the first real deletions.
+>
+> **`DESIGN.md` decision 22 is 455 lines and is the obvious next candidate**, but it is one
+> continuous argument rather than a narrative that can be lifted, and splitting a decision from
+> its own evidence is how a refuted idea gets re-proposed. **Left deliberately; raise it before
+> touching it.**
 
 > **What is deliberately NOT being cut.** Tests that guard a defect which actually shipped, and
 > comments carrying a mechanism a reader would get wrong — `estimate()`'s warning that

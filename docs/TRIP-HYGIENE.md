@@ -475,10 +475,10 @@ that never builds then re-checks bytes the *old* linker produced, and passes. A 
 false pass is the one outcome this step exists to prevent, so spend the half minute rather
 than working out whether this particular change needed it.
 
-**`cargo test` passing is not enough on a dependency bump.** The suite here is four tests
-by design ([`DESIGN.md`](DESIGN.md) decision 18) and none of them touch a card reader, a
-Thunderbolt hub or a real SSD. A crate that changed how a GPX timestamp parses or how a raw
-header is read shows up in the dry run against the rig and nowhere else.
+**`cargo test` passing is not enough on a dependency bump**, and the reason is not the size of
+the suite. **Not one of its tests touches a card reader, a Thunderbolt hub or a real SSD** — they
+run against temp directories and fixtures. A crate that changed how a GPX timestamp parses or how
+a raw header is read shows up in the dry run against the rig and nowhere else.
 
 ## Step 4 — commit the lockfile
 
