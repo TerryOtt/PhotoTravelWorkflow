@@ -205,7 +205,7 @@ facts about the hardware; each was caught because he pushed back on one that loo
 | propose or write anything | [`docs/DESIGN.md`](docs/DESIGN.md) | every decision numbered and argued, plus what was considered and rejected — `grep -c '^### [0-9]' docs/DESIGN.md` for the count |
 | change what the operator does | [`docs/CONOPS.md`](docs/CONOPS.md) | the nightly ritual, **daily hygiene** (the per-session camera-config check), and the shooting-day contract the guarantees rest on |
 | put anything on `main` | [`docs/REVIEWING.md`](docs/REVIEWING.md) | a branch can be as ugly as it needs to be; `main` has no broken windows |
-| write a document or a comment | [`docs/WRITING.md`](docs/WRITING.md) | every document leads with what *its* reader came for |
+| write **or touch** a document, a comment or a test | [`docs/WRITING.md`](docs/WRITING.md) | **the default stance is REMOVE** (standing order, 2026-08-07) — keeping needs an argument that says what it prevents *now*, and whatever survives gets cut to its shortest honest form. Past necessity justifies nothing |
 | touch a dependency, or prepare for a trip | [`docs/TRIP-HYGIENE.md`](docs/TRIP-HYGIENE.md) | **trip hygiene** — the pre-departure routine, once per trip, at home. Firmware is frozen inside T-30 days |
 | take a wall clock from a full run | [`docs/FULL-RUN.md`](docs/FULL-RUN.md) | the sequence that makes a number comparable, and the metadata-only checks that precede it |
 | quote what a past run cost | [`docs/RUNS.md`](docs/RUNS.md) | the run narratives, newest first — **and each quotes the wording the tool used that night**, so read `DESIGN.md` decision 14 for what it prints today |
