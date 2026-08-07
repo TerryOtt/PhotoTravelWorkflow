@@ -84,7 +84,11 @@ the backlog instead of the report.
 > the prefix did it.
 
 
-## 1. Characterize all three UHS-II USB SD readers — IN PROGRESS
+## Characterize all three UHS-II USB SD readers — CLOSED 2026-08-07
+
+> **All three cleared: 280, 276, 275 MB/s — one population inside ±2 %.** Every reader in the bag
+> is safe to travel with. Full record below; it is kept in place rather than moved because it is
+> long and the protocol is worth re-reading before the next matrix.
 
 One known-good card through all three, so Terry knows every reader in the bag is safe to travel
 with. A slow reader is silent in the field — the card mounts, every file reads, nothing errors,
@@ -146,12 +150,31 @@ directly.
 |---|---|---|---|
 | **SanDisk SDDR-409** (USB-C) | SuperSpeed, `Hub_#0005` port 3 | **280 MB/s** (277–283) | **done** |
 | **Lexar** (USB-A) | SuperSpeed, **same hub**, port 5 | **276 MB/s** (273–278) | **done** |
-| **UGreen** (USB-C) | — | — | next |
+| **UGreen** (USB-C) | SuperSpeed, **`Hub_#0005` port 3 — the baseline's own socket** | **275 MB/s** (272–279) | **done** |
 
-### Readers 1 and 2 are indistinguishable — 2026-08-07
+> **The UGreen row is the tightest comparison in the matrix and it happened by luck rather than
+> design.** It went into `Port_#0003.Hub_#0005` — *the same physical socket* the SDDR-409's
+> 280 MB/s came from — so reader is genuinely the only variable, with not even a sibling port
+> between them. **Record which socket each row used**; the protocol asked for the same hub and
+> this row happens to do better than that.
 
-**280 against 276 is a 1.4 % gap inside a ±2 % band, so neither reader is faster than the
-other.** Both flat over 150 s, neither throttling, neither capping the card.
+### All three readers are indistinguishable — 2026-08-07
+
+| Reader | Mean | Range | Spread |
+|---|---|---|---|
+| SanDisk SDDR-409 | **280** | 277–283 | 2.1 % |
+| Lexar | **276** | 273–278 | 1.8 % |
+| UGreen | **275** | 272–279 | 2.5 % |
+
+**The widest gap between any two readers is 1.8 %, inside the ±2 % band — so this is one
+population, not three.** All three flat over 150 s, none throttling, none capping the card.
+**Every reader in the bag is safe to travel with**, which is the question the item was opened to
+answer, and the answer is boring in the best available way.
+
+> **What it does NOT establish: any reader's ceiling.** Three readers agreeing at ~277 with one
+> card means they all clear *that card*, not that 277 is anybody's limit. **A faster card would be
+> needed to separate them**, and there is no reason to buy one — the fleet's fastest SD is the card
+> under test, so nothing in the bag can expose a difference that matters.
 
 **The like-for-like turned out better than the protocol demanded.** The two readers landed on the
 **same hub** — identical chain from `Hub_#0005` up through both SuperSpeed hubs to the same Intel
@@ -168,7 +191,33 @@ one socket**, because holding one socket across a USB-C and a USB-A reader was n
 > one reader yields one number, and this project has now filed it under the reader twice.
 > **A reader's ceiling is only established by the fastest card that has ever been through it.**
 
-## 2. Put the docs and tests on a diet — IN PROGRESS
+### The UGreen read 93 MB/s first, and the reader was innocent
+
+**A badly seated card negotiates UHS-I and looks exactly like UHS-I hardware.** The UGreen's first
+two runs were **flat at 92–93 MB/s** — 89 % of UHS-I's 104 MB/s SDR104 ceiling — with the USB side
+confirmed SuperSpeed in the baseline's own socket. Terry found it: the slot was sticky, and the
+card clicked in deeper when pushed. **A full remove-and-reinsert took it to 275.**
+
+**The mechanism is worth keeping because it is invisible and cheap to hit.** A UHS-II card slot has
+**two rows of pins** — the standard row plus a second row behind it, which *is* the UHS-II
+interface. A card seated far enough to contact the first row and not the second enumerates
+normally, mounts, reads every file, errors at nothing, and runs at exactly UHS-I speed.
+
+> **⚠ A push is not a reseat. SD bus speed is negotiated when the card INITIALIZES.** The first
+> reseat improved contact without re-enumerating anything — same serial, same disk numbers, same
+> drive letter — so the link stayed at whatever it had already agreed to and the number did not
+> move. **Only a full removal and reinsertion renegotiates.** Verified both ways here.
+
+> **The reasoning failure, recorded because the objection was raised and then argued past.** The
+> not-re-enumerated caveat was written down *before* the repeat run, and then a flat 93 was read as
+> a spec limit and a confident lean toward "the UGreen is UHS-I" was stated anyway.
+>
+> **Flat at a spec boundary establishes WHICH spec is in force. It says nothing about WHY.** A
+> UHS-I ceiling is exactly as consistent with UHS-I hardware as with UHS-II hardware that
+> negotiated down, and those two were collapsed while the note separating them was still on screen.
+> **A caveat only helps if it survives the next result.**
+
+## 1. Put the docs and tests on a diet — IN PROGRESS
 
 **Terry raised the priority on 2026-08-06** and set the framing: *"pretty aggressive... this is a
 hobby project, we aren't launching nuclear missiles, nobody's gonna die. Use a fresh pair of
@@ -228,7 +277,7 @@ prose reduction rather than relocation.
 the "considered and rejected" material exists to stop re-proposals. **The real fat is the same
 argument restated in three places**, so the likely answer is structure rather than deletion.
 
-## 3. Settle the USB-C→USB-A adapter — OPEN, TERRY'S MOVE
+## 2. Settle the USB-C→USB-A adapter — OPEN, TERRY'S MOVE
 
 **Opened 2026-08-07 out of the reader matrix, as a side quest rather than a blocker** — the
 matrix does not need an adapter, because the Lexar is natively USB-A and the other two are
@@ -253,6 +302,16 @@ plain `Generic USB Hub` means USB 2.0.** No throughput run needed; the chain ans
 > unit, a design wired for USB 2.0 only, and a plug seated 90 % of the way — deep enough for the
 > USB 2.0 contacts, short of the SuperSpeed pins. **Reseat firmly and try both orientations before
 > condemning any of the three**, since the cheapest explanation costs nothing to rule out.
+
+> **⚠ START WITH THE SAME ADAPTER, RESEATED — not a different one.** The seating explanation was
+> raised when this item opened, never tested, and then **the identical failure was proven on the
+> card slot an hour later**: flat at a lower spec's ceiling, on a path confirmed good, fixed by
+> pulling the thing out and pushing it home. **This rig has now demonstrated a seating tell twice
+> in one session**, and the adapter is the one place it was hypothesized and never checked.
+>
+> **Swapping adapters first would waste the evidence.** If a *different* adapter works, that reads
+> as "the first one was faulty" — when the live alternative is that any of them works once seated.
+> Reseat the original, both orientations, before introducing a second variable.
 
 ---
 
