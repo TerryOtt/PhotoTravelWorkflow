@@ -458,8 +458,13 @@ Lightroom's own output, and a tidy-up that cannot re-run those checks is a net l
 **RawGeotag still holds its own copy of these four modules**, and was deliberately not modified
 by the lift — it builds and runs exactly as before. **So a real fix made here has to be applied
 there by hand, or the tool Terry actually travels with keeps the bug.** That ends when decision
-30 retires RawGeotag into `offload geotag`, which cannot happen until phase 5 works; until then,
-treat the duplication as live.
+30 retires RawGeotag into `offload geotag`. **Until it does, treat the duplication as live.**
+
+> **Its precondition is now met, established 2026-08-07.** This used to read *"which cannot
+> happen until phase 5 works"*. Phase 5 **does** work — `main.rs:316` calls `geotag_phase`,
+> which calls `phase5::run`, on the ordinary run path, and *Where this stands* lists it as wired
+> and running. **So decision 30 is unblocked and the duplication is now open by choice rather
+> than by dependency.** Tracked in [`docs/BACKLOG.md`](docs/BACKLOG.md).
 
 > **⚠ It is NOT cloned on this machine — established 2026-08-07.** `..\RawGeotag` does not
 > exist, and nothing named `RawGeotag` is anywhere on `C:`, `D:` or `Q:`. This file used to link

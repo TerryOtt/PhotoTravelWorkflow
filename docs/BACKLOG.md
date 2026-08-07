@@ -388,6 +388,32 @@ nobody can use is worse than one that is absent.
 **Why it is his call:** the engineering is not in doubt; withdrawing a designed feature is a scope
 decision.
 
+## Retire RawGeotag into `offload geotag` (decision 30) — OPEN
+
+**Opened 2026-08-07: the precondition is met and nobody had noticed.** `CLAUDE.md` said
+retirement *"cannot happen until phase 5 works."* **Phase 5 works** — `main.rs:316` calls
+`geotag_phase` → `phase5::run` on the ordinary run path, and `DESIGN.md`'s *Where this stands*
+lists it wired and running.
+
+**So the engine duplication is open by choice rather than by dependency**, and the standing
+warning in `CLAUDE.md` is real: `crates/geotag` here and RawGeotag's own four modules are
+separate copies, so **a fix made here does not reach the tool Terry actually travels with.**
+
+**RawGeotag is <https://github.com/TerryOtt/RawGeotag>** — public, last pushed 2026-08-03, which
+is the lift itself. **Not cloned on this machine; read it with `gh`**, since a stale clone would
+answer authoritatively from whatever state it was left in.
+
+**The work:** add the `geotag` subcommand (RawGeotag's CLI is a strict subset of what phase 5
+already does); migrate `docs/LIGHTROOM-XMP.md`, `docs/FIXTURES.md` + `scripts/verify-fixtures.ps1`,
+`docs/TESTING.md`'s one load-bearing principle, and the duplicated `fixture-manifests/`; archive
+the repository.
+
+**`--utc-offset` MUST NOT come across.** It existed for a body that recorded no timezone; decision
+23 removed the need, and reintroducing it would reintroduce the gate it implies.
+
+> **TERRY'S MOVE at the end:** archiving the repository is his call, since it is the tool he
+> currently travels with. Everything before that is buildable without him.
+
 ## Build decision 34: the body check — OPEN
 
 **Opened 2026-08-07 at Terry's request**, off the diet pass's finding that decision 34 is fully
