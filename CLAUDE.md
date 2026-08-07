@@ -455,11 +455,24 @@ tests (decision 17). **Treat it as validated code, not as new code**: it is corr
 because it was checked against thousands of real frames on two bodies and diffed against
 Lightroom's own output, and a tidy-up that cannot re-run those checks is a net loss.
 
-**[`../RawGeotag`](../RawGeotag) still holds its own copy of these four modules**, and
-was deliberately not modified by the lift — it builds and runs exactly as before. **So a
-real fix made here has to be applied there by hand, or the tool Terry actually travels
-with keeps the bug.** That ends when decision 30 retires RawGeotag into `offload geotag`,
-which cannot happen until phase 5 works; until then, treat the duplication as live.
+**RawGeotag still holds its own copy of these four modules**, and was deliberately not modified
+by the lift — it builds and runs exactly as before. **So a real fix made here has to be applied
+there by hand, or the tool Terry actually travels with keeps the bug.** That ends when decision
+30 retires RawGeotag into `offload geotag`, which cannot happen until phase 5 works; until then,
+treat the duplication as live.
+
+> **⚠ It is NOT cloned on this machine — established 2026-08-07.** `..\RawGeotag` does not
+> exist, and nothing named `RawGeotag` is anywhere on `C:`, `D:` or `Q:`. This file used to link
+> it as a relative path, which made every instruction below unfollowable without saying so.
+>
+> **The canonical location is <https://github.com/TerryOtt/RawGeotag>** — public, last pushed
+> **2026-08-03**, which is the lift itself and confirms it has not moved since.
+>
+> **Read it with `gh` rather than cloning it.** `gh api repos/TerryOtt/RawGeotag/contents/docs
+> --jq '.[].name'` lists it; `gh api .../contents/docs/LIGHTROOM-XMP.md --jq .content | base64
+> -d` reads one. A clone would create the second working copy decision 30 exists to retire, and
+> **a stale local clone is worse than no clone** — it would answer questions authoritatively
+> from whatever state it was left in.
 
 Its `CLAUDE.md` and `docs/` carry findings this project inherited rather than re-derived,
 and several comments in `crates/geotag` cite them by name — the NEF read-strategy

@@ -53,7 +53,8 @@ rather than at 11pm in a hotel.
 
 **Has Lightroom Classic had a major version since the last trip?** If so, run the two
 checks in RawGeotag's `docs/LIGHTROOM-XMP.md` — the XMP engine lives there and that is
-where its verification stays. Same reasoning as this file, different trigger: find out that
+where its verification stays. **That repository is not cloned on this machine** (checked
+2026-08-07); it is <https://github.com/TerryOtt/RawGeotag> and `gh` reads it without a clone. Same reasoning as this file, different trigger: find out that
 Lightroom moved while you are at home. Dot releases do not warrant it.
 
 ### Device firmware — T-30 days or not at all
@@ -294,7 +295,7 @@ forever. The exposure concentrates in the pre-1.0 crates, which as of decision 2
 | `time` | 0.3 | `gpx`'s public type at one boundary; moves when `gpx` does |
 | `sha2` | 0.11 | the hash in every manifest. A backend change is a throughput question, not a correctness one — `cargo run --release --example hash-rate` answers it |
 | `windows` | 0.62 | the storage-identity layer, eject and unbuffered I/O — all of it |
-| `windows-registry` | 0.6 | the Defender check only, which already warns rather than fails |
+| `windows-registry` | 0.6 | decision 9's Defender check — **which is unbuilt**, so this crate is imported by nothing. See below |
 | `indicatif` | 0.18 | the progress bars. Cosmetic, and the one that actually went stale in RawGeotag |
 | `console` | 0.16 | **the badge column and the verdict's headline — a safety signal, not cosmetic.** See below |
 
