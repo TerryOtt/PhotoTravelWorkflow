@@ -277,7 +277,29 @@ prose reduction rather than relocation.
 the "considered and rejected" material exists to stop re-proposals. **The real fat is the same
 argument restated in three places**, so the likely answer is structure rather than deletion.
 
-## 2. Settle the USB-C→USB-A adapter — IN PROGRESS, TERRY'S MOVE
+## 2. Test all three USB-C→USB-A adapters — IN PROGRESS
+
+**All three get tested, not just the one that failed.** Terry owns three UGREEN C-female→A-male
+adapters from one 3-pack; one has already been proven USB 2.0 only. **The question a single
+failure cannot answer is whether that unit is defective or the product is built that way**, and
+the answer decides whether this is a return, a purchase, or a capability the travel case can have.
+
+| # | PnP chain | Verdict |
+|---|---|---|
+| **1** | plain `Generic USB Hub`, Intel 3.10 | **USB 2.0 ONLY — proven**, firmly seated, two variables changed |
+| **2** | **`Generic SuperSpeed USB Hub`**, Intel 3.20 | **SuperSpeed** — throughput confirming |
+| **3** | — | to test |
+
+**Adapter 2 changes the conclusion, and it is the more useful outcome.** A working unit from the
+same pack means **the design does carry SuperSpeed and unit 1 is defective** — so the 10 Gbps
+claim is true of the product, C→A is a real option for the travel case, and the return is for a
+bad item rather than a misdescribed one.
+
+> **This is why the spares had to be tested rather than assumed.** Stopping at adapter 1 would
+> have recorded "UGREEN adapters are USB 2.0 junk" — a conclusion about a *product line* drawn
+> from a *single unit*, which is the same error this project has now made twice about card readers
+> (the SDDR-409's "247 ceiling" and the Lexar reader's "222"). **One sample never characterizes a
+> population**, and the fix each time is the cheapest possible second sample.
 
 **Opened 2026-08-07 out of the reader matrix, as a side quest rather than a blocker** — the
 matrix does not need an adapter, because the Lexar is natively USB-A and the other two are
