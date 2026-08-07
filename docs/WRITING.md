@@ -17,7 +17,36 @@ incident happened there.*
 a side effect of vibe coding... this is a hobby project, we aren't launching nuclear missiles,
 nobody's gonna die. Use a fresh pair of skeptical eyes on what REALLY is justified."*
 
-### ⚠ Sharpened 2026-08-07: past necessity is no justification at all
+### ⚠ STANDING ORDER 2026-08-07: the default stance is REMOVE
+
+**Terry, verbatim:** *"start with a default stance to remove. If you can't justify removal, make it
+as concise as possible. Standing order for this project."*
+
+**Applies to all three: prose in `docs/`, code comments, and unit tests.** RFC 2119 keywords, and
+the capitals are load-bearing.
+
+**The burden of proof is inverted, and that inversion is the whole point.** The question is no
+longer *can I find a reason to cut this?* — it is ***what argument keeps this?*** Anything that
+cannot answer the second question **MUST** go, and anything that survives it **MUST** then be cut
+to its shortest honest form.
+
+| Stance | |
+|---|---|
+| **Default** | **Remove.** No argument needed to delete |
+| **Keeping** | **MUST** be justified — say what it prevents *now* |
+| **Kept** | **MUST** then be made as concise as it can be without losing what justified it |
+
+**Why the inversion rather than a stricter version of the old rule:** a bar like *"prose earns its
+place"* is still evaluated by a reader looking for reasons to keep, and a reason can always be
+found — every comment in this repository was written because something went wrong. **Two review
+passes applied that bar and the comment share did not move.** Flipping the default is what makes
+the third pass different.
+
+**This does NOT license deleting a rule, a measurement, or a safety-critical prohibition** because
+it is inconvenient to justify. Those answer *what does this prevent* in one sentence, and the
+answer is the justification. **The order removes the benefit of the doubt, not the evidence.**
+
+### Sharpened 2026-08-07: past necessity is no justification at all
 
 **Terry, verbatim:** *"diet means shrink if necessary, remove if not — just because a comment was
 necessary in the past is zero justification to keep it."*

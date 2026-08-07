@@ -102,27 +102,19 @@ mod tests {
         assert_eq!(count(1_000_000), "1,000,000");
     }
 
-    /// The four-digit case is the one that matters: a full run moves ~1,687 GiB, and the
-    /// figure shipped without a separator until the operator spotted it in real output.
+    /// Rendering across the whole range: four-digit separators, the sub-10 GiB decimal, and the
+    /// threshold from both sides. `2_796_966_092` is the staged 50-frame slice — 2.605 GiB, which
+    /// a plain ceiling would render `3`.
     #[test]
-    fn gib_carries_separators_and_no_fraction() {
+    fn gib_renders_separators_above_the_threshold_and_one_decimal_below() {
         assert_eq!(gib_up(201_252_000_000), "188");
         assert_eq!(gib_up(1_811_700_000_000), "1,688");
         assert_eq!(gib_down(1_620_000_000_000), "1,508");
-    }
 
-    /// **The staged 50-frame slice, which is the case the threshold exists for.** 2,796,966,092
-    /// bytes is 2.605 GiB, which a plain ceiling would render `3` — a 15 % overstatement.
-    #[test]
-    fn a_small_payload_keeps_one_decimal() {
         assert_eq!(gib_up(2_796_966_092), "2.7");
         assert_eq!(gib_down(2_796_966_092), "2.6");
         assert_eq!(gib_up(0), "0.0");
-    }
 
-    /// The threshold itself, from both sides — ten GiB exactly is already whole.
-    #[test]
-    fn ten_gibibytes_is_where_the_decimal_stops() {
         assert_eq!(gib_up(10 * (1u64 << 30) - 1), "10.0");
         assert_eq!(gib_up(10 * (1u64 << 30)), "10");
         assert_eq!(gib_down(10 * (1u64 << 30)), "10");
@@ -184,6 +176,8 @@ mod tests {
         assert_eq!(percent(0, 3_883), "0.0%");
         assert_eq!(percent(389, 3_883), "10.0%");
         assert_eq!(percent(3_883, 3_883), "100.0%");
+        // Pre-flight refuses an empty card, so this is a rendering guard rather than a case.
+        assert_eq!(percent(0, 0), "0.0%");
     }
 
     /// The reason the decimal is there, asserted as the thing that is actually true: **ten times
@@ -202,11 +196,5 @@ mod tests {
             one_decimal >= whole * 9,
             "one decimal gave {one_decimal} visible steps against {whole} for a whole number"
         );
-    }
-
-    /// Pre-flight refuses an empty card, so this is a rendering guard rather than a case.
-    #[test]
-    fn an_empty_total_does_not_divide_by_zero() {
-        assert_eq!(percent(0, 0), "0.0%");
     }
 }
