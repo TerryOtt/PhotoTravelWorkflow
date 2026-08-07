@@ -226,7 +226,7 @@ normally, mounts, reads every file, errors at nothing, and runs at exactly UHS-I
 > negotiated down, and those two were collapsed while the note separating them was still on screen.
 > **A caveat only helps if it survives the next result.**
 
-## 1. Put the docs and tests on a diet — IN PROGRESS
+## Put the docs and tests on a diet — IN PROGRESS
 
 **Terry raised the priority on 2026-08-06** and set the framing: *"pretty aggressive... this is a
 hobby project, we aren't launching nuclear missiles, nobody's gonna die. Use a fresh pair of
