@@ -518,9 +518,27 @@ offload geotag "Q:\Lightroom\Images\2022\2022-09-27" "C:\Travel\GPX\not-tonight\
 > 1. **Those sidecars are Lightroom's, not RawGeotag's** — they carry `crs:`, `crd:` and
 >    `xmpMM:` namespaces and an `Adobe XMP Core` writer tag. **`xmp::render` writes a GPS-only
 >    packet**, so a rewrite would discard develop settings. That has to be checked, not assumed.
-> 2. **Which other days are affected is unmeasured.** Only shoots with a **non-zero** EXIF offset
->    can be wrong; a day shot on UTC is unaffected because the offset is a no-op. The scoping
->    script reads only `.xmp` and `.gpx` — no raws, writes nothing.
+> 2. **The scope is larger than one day** — see below.
+
+### The candidate set: 26 days, ~50,319 sidecars
+
+**Scanned `Q:\Lightroom\Images` 2019–2026, one sidecar per date folder, read-only.** Only a
+**non-zero** offset can carry this error; a UTC day is unaffected because the offset is a no-op.
+
+| Offset | Days | |
+|---|---|---|
+| `-06:00` | 2021-08-07 … 08-09 | **6 hours of travel** — displacement far larger than 50 km |
+| `-05:00` | 2021-12-30, 2022-01-11 … 01-18 | 5 hours |
+| `+01:00` | 2022-09-26 … 09-30, 2022-12-04 … 12-16, 2023-09-11 … 09-17 | the proven case |
+| `+01:00`, **not geotagged** | 2024-05-02 | nothing to be wrong |
+
+**25 geotagged days, 50,319 sidecars.** Everything from 2024-09 on is UTC, which matches decision
+23's standing intent and means **the current body's work is unaffected.**
+
+> **Only 2022-09-27 is *proven*.** The other 24 are candidates on the same pattern, and cannot be
+> checked without each day's GPX — only `2022-09-27` and `2024-10-02` are on this laptop.
+> **The displacement scales with the offset**, so the `-06:00` days would be the worst if
+> confirmed. **Do not state them as wrong without their tracks.**
 
 ## Retire RawGeotag into `offload geotag` (decision 30) — IN PROGRESS
 
