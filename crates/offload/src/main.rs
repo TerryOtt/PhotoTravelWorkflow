@@ -964,30 +964,16 @@ fn release_card(
 
 /// The archive SSDs' half of the eject stage, printed the moment all of them are resolved.
 ///
-/// **Split from the cards on 2026-08-06, at Terry's direction, and the run that prompted it is
-/// the argument.** The three SSDs were down in 15 s while a CFexpress retried for 22 minutes
-/// and never released — and one shared closing line reported the pair as
-/// `Released 5 devices in 22m 16s`. Two things were wrong with that. The answer that matters
-/// existed at fifteen seconds and was withheld for twenty-two minutes; and the count was a lie,
-/// because four devices had been released, which is the same shape decision 22 fixed once
-/// already when the report claimed cards were released and a dismount had released nothing.
+/// **Reported separately from the cards, and ahead of them**, because the stakes differ by
+/// Terry's own measure — *"SSDs are like two orders of magnitude more important"*. An SSD that
+/// will not power down reaches the exit code (decision 18); a stuck card is tidiness. The run
+/// that forced the split had three SSDs down in 15 s and a card retrying for 22 minutes, and
+/// reported the pair as one line: `Released 5 devices in 22m 16s` — withholding the answer that
+/// mattered, and miscounting, since four devices *had* been released.
 ///
-/// His framing: *"SSD are like two orders of magnitude more important."* An SSD that will not
-/// power down reaches the exit code (decision 18) and leaves a chore. A card that will not
-/// release is tidiness, and the tool never wrote to it.
-///
-/// **The heading no longer lives here.** `watch_attempt` prints a line the moment the first
-/// device is asked, so `Eject` is written before the stage starts — a header that arrived after
-/// its own section would read backwards. This half still owns the `Travel SSDs` sub-heading.
-///
-/// **They keep sub-headings.** `Travel SSDs` and `Cards` at one level in: the two groups differ
-/// in what you do with them and in what a failure means, and grouping is what stops five rows
-/// reading as an undifferentiated pile. Same shape as `Pre-Flight Checks` — phase at column 0,
-/// groups at 4, rows at 8.
-///
-/// **Writes to `out` rather than `println!` so the failure branches can be asserted.** They are
-/// the branches a real run will not produce on demand — a device has to actually refuse — and a
-/// suite that only ever sees the clean path cannot prove the others render at all.
+/// **Writes to `out` rather than `println!` so the failure branches can be asserted** — a device
+/// has to actually refuse to produce them, so a suite that only sees the clean path cannot prove
+/// they render at all.
 fn report_ssd_release(
     out: &mut impl Write,
     released: Option<&[Released]>,
@@ -1232,38 +1218,18 @@ fn report_card_release(
     Ok(())
 }
 
-/// The `Eject` section's own badge — **a go/no-go on the physical act of unplugging things.**
+/// The `Eject` section's roll-up — **a go/no-go on the physical act of unplugging things.**
 ///
-/// **Green in exactly one case: every SSD and every card came down.** Terry, 2026-08-06:
-/// *"There's exactly one case it gets green: all cards and SSD ejected. Short of that it's
-/// yellow."* See [`docs/DESIGN.md`](../../../docs/DESIGN.md), *the badge column is a go/no-go on
-/// unplugging things*, for why the whole column is read as one signal and why a section without
-/// a badge would break it.
+/// Green in exactly one case: every SSD *and* every card came down. `DESIGN.md`, *the badge
+/// column is a go/no-go on unplugging things*, has the reasoning and the standing orders.
 ///
-/// **Cards can turn this yellow, and that does not contradict decision 22.** That decision keeps
-/// cards away from the *verdict* and the *exit code*, and this touches neither — `exit_code` is
-/// not even given the card results. It says *do not start pulling things yet*, which is true of
-/// a stuck card even though nothing was ever written to one.
-///
-/// **`--no-eject` therefore lands here as a guaranteed yellow, deliberately.** The flag is used
-/// constantly during development, and a run that used it leaves every drive mounted — so a green
-/// column would be the one output actively capable of causing harm. His reason, which is the
-/// whole point of the badge: *"it stops my muscle memory from yanking SSDs that are still
-/// mounted. You say NTFS can survive that. I do not want to TEST that personally with those
-/// drives."*
-///
-/// **It is a step of the `Eject` section rather than a badge on the section itself**, alongside
-/// `Travel SSDs` and `Cards`. Terry settled that on 2026-08-06: `Eject` is a container like
-/// `Offloading`, and containers carry no badge. It also could not carry this one without waiting
-/// for the cards, whose retry can run for minutes — and reporting the SSDs the moment they are
-/// down, rather than behind a stuck card, was a deliberate fix.
-///
-/// **Last of the three, because it is the roll-up and the decision.** The badge column is read
-/// top to bottom and this is the line the operator acts on.
+/// **Two things here look wrong and are not.** Cards can turn it yellow without contradicting
+/// decision 22, because that decision keeps them out of the *verdict* and the *exit code* and
+/// this touches neither. And `--no-eject` is a guaranteed yellow on purpose — that run leaves
+/// every drive mounted, so green would be the one output capable of causing harm.
 ///
 /// **It states its own reason when the stage never ran**, so the badge is never separated from
-/// what caused it. An earlier version put `Withheld by --no-eject` under the `Eject` heading and
-/// the badge two lines below it, which read as two unrelated facts.
+/// its cause; an earlier version left them two lines apart and they read as unrelated facts.
 fn report_unhook_gate(
     out: &mut impl Write,
     clean: bool,
@@ -1849,33 +1815,25 @@ fn plan_names(plan: &preflight::Preflight) -> Result<usize> {
     Ok(unnameable)
 }
 
-/// Wall-clock estimate for **both** the moment the data is safe and the moment the program
-/// exits.
-///
-/// **It used to answer only the first, and that was the wrong question to answer alone.**
-/// Terry, 2026-08-05: *"I'd want that number to be estimate to program termination."* LANDED
-/// is the product, so it stays — but the operator is deciding whether to go to dinner, and
-/// dinner ends when the program does.
+/// Wall-clock estimate for **both** LANDED and program exit — the operator is deciding whether
+/// to go to dinner, and dinner ends when the program does.
 ///
 /// # The three terms, and why only one of them is a guess
 ///
 /// **Phase 3, to LANDED** — the slowest destination absorbs N of writes and N of read-back
-/// (decision 2's arithmetic), at 450–800 MB/s. These stay constants because destination
-/// throughput is not measured at pre-flight; the spread is wide on purpose.
+/// (decision 2's arithmetic) at 450–800 MB/s. Constants, and the spread is wide on purpose:
+/// destination throughput is not measured at pre-flight.
 ///
-/// **Phase 4, corroboration** — computed from the second card's rate, which pre-flight *has
-/// just measured*, so this term is grounded rather than assumed. It reads all of N off the
-/// slowest device in the rig. [`CORROBORATION_EFFICIENCY`] is the read-then-hash serialization
-/// tax, measured 2026-08-04: 170 MB/s achieved against a 205 MB/s card.
+/// **Phase 4, corroboration** — computed from the second card's rate, which pre-flight *has just
+/// measured*, so this term is grounded rather than assumed. [`CORROBORATION_EFFICIENCY`] is the
+/// read-then-hash serialization tax: 170 MB/s achieved against a 205 MB/s card, 2026-08-04.
 ///
-/// **Phase 5 and eject** — a minute, near enough. Geotagging ran ~20 s and eject 6 s on the
-/// last three runs.
+/// **Phase 5 and eject** — a minute, near enough.
 ///
-/// **Corroboration is added, not overlapped**, because that is what the code does: `phase4`
-/// begins after `pipeline::run` returns. Decision 2 argues for the two-pass shape partly on
-/// the grounds that it *lets* phase 4 start during the verify pass — a benefit that is
-/// described and not built. Estimating as though it were would understate every run by a
-/// quarter of an hour.
+/// **Corroboration is ADDED, not overlapped**, because that is what the code does — `phase4`
+/// begins after `pipeline::run` returns. Decision 2 argues the two-pass shape *lets* phase 4
+/// start during the verify pass; that benefit is described and not built. **Estimating as though
+/// it were would understate every run by a quarter of an hour.**
 ///
 /// Checked against the 2026-08-05 run: predicted 26–33 min, actual 27 m 06 s.
 fn estimate(bytes: u64, corroboration_bytes_per_second: Option<f64>) -> String {
