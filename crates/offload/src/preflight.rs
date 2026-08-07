@@ -10,6 +10,7 @@
 //! mean *go fetch something*.
 
 use std::collections::BTreeMap;
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -66,6 +67,47 @@ pub enum BodyReport {
     /// The frame could not be read. **Never fatal** — decision 34 reports and never
     /// refuses, and a night's shooting is not held up by a reporting feature failing.
     Unreadable(String),
+}
+
+impl fmt::Display for BodyReport {
+    /// The report's row, **INFO in every arm**, and that is load-bearing rather than mild.
+    ///
+    /// **No `!` prefix and no badge in any branch.** A `!` block is the report's WARNING level
+    /// and carries exit 2; a body mismatch is true on *every* run until the config is edited,
+    /// so spending exit 2 on it would train the operator to read past a code that also means
+    /// unfiled frames, a confirmed mismatch and a refused eject. Decision 34 rejected exactly
+    /// that.
+    ///
+    /// **What makes INFO sufficient rather than lax is the other reader.** `../CLAUDE.md` binds
+    /// Claude to act on this line every time it disagrees — ask what changed, offer the config
+    /// edit — while a tired human sees a plain fact about his camera. The line must still stand
+    /// alone, because hotel internet does not.
+    ///
+    /// `Display` rather than a private helper in `main.rs` so `examples/body-check.rs` renders
+    /// the **same** string the report does. A probe with its own copy of the formatting can
+    /// agree today and drift tomorrow, and it would be the probe everyone believed.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AsConfigured { model, serial } => write!(f, "{model} · {serial} — as configured"),
+
+            // Both sides, always. Naming only the observed one would make the reader go and
+            // look up what was expected, at the moment he is deciding whether tonight is normal.
+            Self::Unexpected {
+                observed,
+                configured,
+            } => write!(
+                f,
+                "{observed} — does not match the config (expected {} · {})",
+                configured.model, configured.serial
+            ),
+
+            Self::FrameSaysNothing => write!(f, "the first frame records no camera identity"),
+
+            // The run is unaffected — this arm exists so a reporting feature that fails says so
+            // instead of printing nothing, which would be indistinguishable from a match.
+            Self::Unreadable(why) => write!(f, "could not be read — {why}"),
+        }
+    }
 }
 
 /// What phase 2 established: whether the rig can take it.
@@ -163,7 +205,7 @@ pub fn phase1(config: &Config, volumes: &[Volume], allow_single_source: bool) ->
 /// that is discovered only after the whole day has streamed through phase 3. One frame here
 /// turns a 35-minute discovery into a ten-second one, while the fix is still a decision
 /// about tonight rather than a fact about it.
-fn check_body(first: Option<&PathBuf>, configured: &config::Body) -> BodyReport {
+pub fn check_body(first: Option<&PathBuf>, configured: &config::Body) -> BodyReport {
     let Some(path) = first else {
         // An empty card cannot reach here — phase 1 needs files to compute N — but the
         // signature admits it, and inventing a mismatch from no evidence is the one
