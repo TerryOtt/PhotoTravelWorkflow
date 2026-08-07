@@ -2049,20 +2049,17 @@ spent, since refusing to try at all would turn a slow night into a manual one fo
 > avoid is **a drive left in the tray**. Waiting a few minutes at the desk is cheaper than a
 > chore, and he is the authority on which of those he minds more.
 >
-> **And the 60–90 was never a measurement in the first place**, which is the more general
-> lesson. His words: *"the hour runtime has slop in it, that's a very fuzzy number."* The
-> constant took the lower bound of a fuzzy estimate and treated it as a hard ceiling —
-> **false precision applied to an approximation**, and the cost landed on the one stage with
-> the least margin to give. When a constant is derived from a soft number, the soft number's
-> *width* is part of the input; picking its safest edge is a decision that needs stating, not
-> a free default.
+> **And the 60–90 was never a measurement in the first place**, which is the general lesson. His
+> words: *"the hour runtime has slop in it, that's a very fuzzy number."* The constant took the
+> lower bound of a fuzzy estimate and treated it as a hard ceiling — **false precision applied to
+> an approximation**, and the cost landed on the stage with the least margin to give. **When a
+> constant comes from a soft number, that number's *width* is part of the input**, and picking
+> its safest edge is a decision to state rather than a free default.
 >
-> **This is also the note directly below being overruled by evidence rather than by taste.**
-> It said *"widening the budget past an hour is not the answer, since the hour is the actual
-> constraint"* — sound, and resting on a constraint that turned out not to exist. It stays
-> where it is, uncorrected in place, because the alternative it proposed (starting eject early
-> for destinations nothing is waiting on) is still the better lever if ninety ever proves
-> tight; it is simply no longer the *only* lever.
+> **The note below is left uncorrected in place**, having been overruled by this: it argued that
+> widening past an hour was not the answer *because the hour was the actual constraint* — sound,
+> and resting on a constraint that did not exist. Its alternative (starting eject early for
+> destinations nothing waits on) is still the better lever if ninety ever proves tight.
 
 > **How much retry that actually leaves is a function of the day, and the biggest days give
 > the least.** Corrected 2026-08-04 when the day-size distribution was measured; this
@@ -2083,9 +2080,8 @@ spent, since refusing to try at all would turn a slow night into a manual one fo
 > constraint; **if this ever bites, the lever is starting eject earlier for destinations
 > nothing is waiting on, not waiting longer.**
 >
-> **The budget moved to ninety on 2026-08-06** because at sixty the worst night of the year
-> gave eject a fifth of what an ordinary night gives it. **The fastest fix for a squeezed retry
-> window was never to squeeze the run.**
+> **The fastest fix for a squeezed retry window was never to squeeze the run** — which is what
+> moved the budget to ninety, above.
 >
 > ### ✗ Measured 2026-08-06, and every prediction was optimistic
 >
