@@ -48,11 +48,14 @@ enum Command {
         dest: PathBuf,
     },
 
-    /// Tag an existing tree of raws against GPX tracks. Reads no config.
-    ///
-    /// **RawGeotag's whole job, as a subcommand** (decision 30). Phase 5 already correlates
-    /// capture times against a track and writes sidecars; this points that at a directory
-    /// instead of at what tonight landed, which is the only difference between the two.
+    // **Everything on this variant reaches `--help` verbatim**, so the rationale lives in `//`
+    // comments and never in `///`. Decision 30's version: this is RawGeotag's whole job as a
+    // subcommand — phase 5 already correlates capture times against a track and writes
+    // sidecars, and this points that at a directory instead of at what tonight landed.
+    //
+    // Caught by pass 1 of the boomerang, which found markdown asterisks and a decision number
+    // rendered into the user's `--help`.
+    /// Tag an existing tree of raws against GPX tracks. Reads no config
     Geotag {
         /// The directory of raws, searched recursively.
         root: PathBuf,
@@ -73,11 +76,10 @@ enum Command {
         #[arg(long)]
         force_xmp: bool,
 
-        /// Correlate everything and write nothing — what *would* be tagged.
-        ///
-        /// **Carried over from RawGeotag deliberately.** This subcommand writes into a
-        /// directory of somebody's photographs, which the nightly command never does — it
-        /// writes into destinations it created. A preview is worth more here than there.
+        // Carried over from RawGeotag deliberately: this subcommand writes into a directory of
+        // somebody's existing photographs, where the nightly command writes into destinations
+        // it created. A preview is worth more here than there.
+        /// Correlate everything and write nothing
         #[arg(long)]
         dry_run: bool,
     },
