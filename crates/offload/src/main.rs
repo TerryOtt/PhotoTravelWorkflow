@@ -48,11 +48,6 @@ enum Command {
         /// The archive root — a path, never a config label (decision 20).
         dest: PathBuf,
     },
-    /// Backfill a destination that missed an offload, from the laptop working copy.
-    Sync {
-        /// The archive root to bring current.
-        dest: PathBuf,
-    },
 }
 
 #[derive(Debug, Args)]
@@ -73,7 +68,7 @@ struct Offload {
     #[arg(long)]
     allow_single_source: bool,
 
-    /// Run without a named archive destination; sync the disk when it returns.
+    /// Run without a named archive destination; re-run the night when it returns.
     #[arg(long, value_name = "LABEL")]
     without: Vec<String>,
 
@@ -150,14 +145,6 @@ fn main() -> ExitCode {
 fn dispatch(cli: &Cli) -> Result<ExitCode> {
     match &cli.command {
         Some(Command::Verify { dest }) => return verify_destination(dest),
-        Some(Command::Sync { dest }) => {
-            eprintln!(
-                "offload: sync is not implemented yet ({}) — see docs/DESIGN.md \
-                 decision 20.",
-                dest.display()
-            );
-            return Ok(ExitCode::FAILURE);
-        }
         None => {}
     }
 

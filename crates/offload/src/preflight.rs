@@ -195,7 +195,8 @@ pub fn phase2(
     if let Some(missing) = undeclared.first() {
         bail!(
             "DESTINATION MISSING — {} ({}).\n\n\
-             Plug it in, or re-run with --without {} and sync the disk when it returns.",
+             Plug it in, or re-run with --without {} and re-run the night when it returns.\n\
+             If the drive is dead, remove it from config.json and finish the trip on three.",
             missing.label,
             missing.reason,
             missing.label

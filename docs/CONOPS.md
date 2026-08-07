@@ -608,12 +608,35 @@ SSDs eject the moment nothing remains.
 | Forgot to plug in a card | Pre-flight refuses in the first ten seconds, before anything is written. Plug it in, `offload` again. |
 | CFexpress filled or failed mid-day — some frames exist only on the SDXC | Pre-flight refuses: the cards no longer hold the same files, and the refusal says which holds what. Remove the card that stopped and re-run `offload --allow-single-source` — the complete card lands the whole day, never corroborated. |
 | Laptop slept / power died | Same as a crash. The archives cannot be left half-written — a partial file never carries a real name. |
-| An SSD is missing at offload — dead, lost, still in the safe | Pre-flight refuses. `offload --without <label>` runs the night on the destinations that remain; `offload sync <that disk>` brings it current when it returns, from the laptop copy — no cards needed. |
-| No GPX tracks on the laptop — forgot the copy, or the logger died | Pre-flight refuses. Copy the tracks in (or point `--gpx` at them). If none exist tonight, `offload --no-gpx` lands the raws untagged; when tracks turn up, re-run before the next format, or `offload sync` each copy after it. |
+| An SSD is left in the safe tonight and comes back tomorrow | Pre-flight refuses. `offload --without <label>` runs the night on the destinations that remain. **Re-run the whole night once it is back** — decision 13's resume skips what is already there and writes only what that disk missed, provided the cards have not been formatted yet. |
+| **An SSD dies mid-trip** | **Delete it from `config.json` in `%APPDATA%` and finish the trip on three.** No flag, no backfill, no per-night decision to remember — see below. |
+| No GPX tracks on the laptop — forgot the copy, or the logger died | Pre-flight refuses. Copy the tracks in (or point `--gpx` at them). If none exist tonight, `offload --no-gpx` lands the raws untagged; when tracks turn up, re-run before the next format. |
 | Cards already reformatted before corroboration finished | Nothing to recover — the run closes out on its own at the next offload and the report says which files stayed uncorroborated. They were still verified on all four copies. |
 
 Fatal errors are deliberate ([`DESIGN.md`](DESIGN.md) decision 18): the tool stops and
 says why rather than improvising. The recovery is always the same re-run.
+
+### A dead drive is a config edit, and four destinations is why
+
+**Terry's own procedure, 2026-08-06:** *"if a drive failed mid trip, I'd remove it from APPDATA
+config and finish out. It's why I bring four, because the mantra in photography is 'if you don't
+have three copies, you have none.' This way we are at N+1 and can still have that three with a
+failure."*
+
+**So the rig is specified at N+1 and the recovery is arithmetic, not machinery.** Four copies
+minus one failure is three, which is the number that counts as backed up. **Nothing needs to be
+reconciled afterwards** — the remaining three are complete from the moment the config changes,
+and there is no hole to remember on the flight home.
+
+**This is why `offload sync` was deleted rather than built** (2026-08-06). It existed to backfill
+a destination that missed a night, which is a problem the config edit never creates. **A feature
+that repairs a state the operator's own procedure does not enter is machinery with no user** —
+and it had been advertised in `--help` for weeks while being a stub that exited with an error.
+
+**Edit the config, do not delete the drive's folder or its manifests.** If it is recoverable
+later, an untouched archive tree plus `offload verify <DEST>` says exactly how much of it
+survived. Removing it from the config stops the tool writing to it; it does not discard what is
+already there.
 
 ### When a card is truly gone
 

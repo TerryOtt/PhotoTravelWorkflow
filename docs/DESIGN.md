@@ -747,7 +747,7 @@ offload                            the nightly command
                              the sole source of truth; corroboration is waived
   --without <LABEL>          run without a named archive destination — pre-flight
                              otherwise refuses when one is missing; repeatable;
-                             sync the disk when it returns
+                             re-run the night when it returns
   --gpx <PATH>               override when tracks aren't in the usual place
   --no-gpx                   proceed with no tracks at all — raws land as normal,
                              no sidecars are written; pre-flight otherwise refuses
@@ -761,7 +761,6 @@ offload                            the nightly command
                              2s-doubling-to-60s backoff — a diagnostic
 
 offload verify <DEST>       standalone re-verify; works years later, without config
-offload sync <DEST>         NOT BUILT — see Still to build
 ```
 
 > **`--eject-gap-seconds` is the last survivor of the eject investigation**, and it should be
@@ -920,7 +919,7 @@ had reached six other decisions and each was reasoning from it:
   blind spot it cannot justify.
 - **`--force-xmp` had no honest reason to scope itself by role** (decision 16).
 - **Eject is about removable versus internal, not archive versus working** (decision 22).
-- **`sync`'s copy source is the laptop because it is the copy that is always attached**,
+- ~~**`sync`'s copy source is the laptop**~~ — withdrawn 2026-08-06; kept only because the point below still holds,
   not because it is authoritative (decision 20).
 - **`_runs` lives on the laptop for the same reason** (decision 14).
 - **The manifest's raws-only rule keeps one of its two supports** (decision 12).
@@ -1627,7 +1626,7 @@ unambiguous about *what*. Semantics are otherwise unchanged, including composing
 
 The rule the flag is the exception to deserves stating outright: **an existing sidecar
 is never rewritten without `--force-xmp` — by any code path.** Phase 5 tags what is
-untagged and skips the rest (decision 13's convergence); `sync` writes a sidecar only
+untagged and skips the rest (decision 13's convergence); a re-run writes a sidecar only
 where none exists (decision 20). One invariant, one door through it.
 
 Two consequences of scoping it that way:
@@ -1856,15 +1855,12 @@ records: `waived` (decision 7) or `forfeited` (decision 13). Note the timing: th
 two-source property completes at the end of phase 4, not at LANDED, where all four are
 proven equal to the source card alone.
 
-### 20. `verify` and `sync` are standalone; only `verify` is config-free
+### 20. `verify` is standalone and config-free
 
 Both take a destination *path* rather than a config label. For `verify` the reason is
 absolute: an archive pulled from the safe has to be checkable on a machine that has
 never seen this tool's configuration, and it is — `verify` reads nothing but the
-destination itself, its marker and its manifests. `sync` does not share that property
-and should not pretend to: it needs a copy source — any surviving copy — and GPX tracks
-for regeneration, and it takes both from the config — fine, because backfilling a disk
-that missed an offload happens on the machine that ran the offload.
+destination itself, its marker and its manifests.
 
 **`offload verify <DEST>`** reads the destination marker to name what it is checking —
 at whatever schema that disk was written with, which every later build still understands
@@ -1948,64 +1944,21 @@ a sidecar that differs between them means either a phase 5 re-run that did not r
 copy — backfillable, and worth knowing about — or corruption. Neither is something to
 pass over silently.
 
-**`offload sync <DEST>`** backfills a destination that missed an offload — the SSD that
-sat in a drawer while a `--without` run went on without it (decision 25). It copies from
-another destination, since the cards are long since reformatted, and verifies what it
-writes exactly as phase 3 does. **It never deletes**, so it cannot be used to make a
-destination match by removing files from it.
-
-**Any present copy can be the source, and the laptop is merely the convenient default**
-— it is the one destination that is always attached. No copy is authoritative over the
-others (decision 11), which is what makes this safe: if the laptop's own copy of a file
-fails its manifest, sync sources that file from a destination whose copy passes rather
-than having nowhere to turn.
-
-**Sync leaves behind the same manifests a run would have.** Every date folder it touches
-gets its manifest written or updated by the same atomic mechanism (decision 12): sync
-records itself in the `runs` array, stamps its own `verified_utc` as each read-back
-completes, and carries the photo-facts — hash, capture time, source card, corroboration
-verdict — unchanged from the laptop's manifest, tombstones included, so a deliberately
-deleted file stays explained even on a disk that never held it. This is not optional
-bookkeeping: `verify` reads nothing but the disk, so a disk sync built must be as
-self-describing as one the nightly run built — and carrying the photo-facts unchanged is
-what keeps the four copies' manifests cross-checking after one of them is rebuilt.
-The source's manifest also supplies the canonical hash sync verifies against, which cuts
-both ways: a source file whose in-flight hash no longer matches its own manifest is
-rot in the source copy, and sync refuses to propagate it — the file is named, skipped, and
-left for recovery from an archive rather than written over a good copy's future.
-
-**`_unfiled` is inside sync's walk like any date folder** (decision 21): its raws are
-copied and read-back verified, its manifest carried, and no sidecar question arises — a
-file is in `_unfiled` precisely because it has no capture time to correlate. Skipping it
-would be the quiet failure: a disk that missed an offload would come back "current"
-while permanently missing a raw, and `verify` could never notice — it reads nothing but
-the disk, and a folder that was never written checks clean.
-
-**Sync copies raws and regenerates XMP sidecars** from the manifest's capture times and
-the GPX tracks, exactly as phase 5 does — it never copies a sidecar, and it writes one
-only where none exists. Sync does not accept `--force-xmp`: decision 16's invariant has
-one door, and it is on the nightly command.
-
-> **Both halves were settled at design review to block two data-loss paths that decision
-> 11's correction has since closed on their own.** The reasoning was: *regenerate rather
-> than copy*, because at home the laptop's sidecars are Lightroom's and carry develop
-> settings that must not leak onto an archive; and *write only where none exists*,
-> because a regenerate-all sync pointed at the laptop would overwrite those settings.
-> **No copy this tool writes is ever edited**, so there are no develop settings anywhere
-> to leak or overwrite.
+> **`offload sync <DEST>` was designed here and deleted on 2026-08-06 without being built.**
+> It would have backfilled a destination that missed a night, sourcing from the laptop copy
+> because the cards are formatted by the time the disk returns.
 >
-> **Both halves stay anyway, and now rest on a plainer reason: a sidecar is derived
-> data, and the tool that can derive it should.** Copying a sidecar propagates whatever
-> it happens to be; regenerating it from the manifest's capture time and the tracks
-> produces the same answer everywhere, which is what keeps four copies matching. And
-> writing only where none exists keeps decision 16's invariant intact — one door through
-> it, on the nightly command. The conclusion does not move; only the argument for it
-> got simpler and truer.
-
-Regeneration also completes phase 5 recovery: sidecars missing on any destination, for
-any reason — a crash, a `--no-gpx` night (decision 26) — are rebuilt by sync with no
-dedicated machinery. Pointed at a destination for that purpose, sync's copy step simply
-finds nothing to do and regeneration is all that runs.
+> **Terry's actual procedure makes the problem it solved impossible:** *"if a drive failed mid
+> trip, I'd remove it from APPDATA config and finish out. It's why I bring four, because the
+> mantra in photography is 'if you don't have three copies, you have none.' This way we are at
+> N+1 and can still have that three with a failure."* **Four minus one is three, and three is the
+> number that counts as backed up** — so there is no hole to backfill, and nothing to reconcile
+> on the flight home.
+>
+> **The rig's specification absorbed the failure mode the feature existed for**, which is the
+> better answer: no flag, no per-night decision, no machinery. [`CONOPS.md`](CONOPS.md) carries
+> the procedure. **The subcommand was removed from the CLI the same day** — it had been
+> advertised in `--help` for weeks while being a stub that printed an error and exited.
 
 ### 21. A file whose EXIF cannot be read lands in `_unfiled`, not on the floor
 
@@ -2020,7 +1973,7 @@ Such a file is still hashed, still written to all four destinations, still verif
 everything phase 3 does — but under `_unfiled\<run-id>\<original-name>` instead of a date
 folder. Outside the `YYYY\` tree, so Lightroom never sees it; the per-run subfolder makes
 name collisions impossible without collision logic. `_unfiled` carries a manifest like
-any date folder, so `verify` covers it and `sync` carries it (decision 20). The report
+any date folder, so `verify` covers it (decision 20). The report
 calls it out loudly and the exit code is 2, but the verdict stays SAFE — every bit on
 the card is verified in four places, which is what SAFE means. Phase 4 corroborates
 these files like any other, and a mismatch there follows decision 3.
@@ -2381,16 +2334,29 @@ naming it.
 ### 25. A destination missing at offload is declared, not configured around
 
 The destination mirror of decision 7, and it closes a real gap: decision 9 refuses to
-run unless all four destinations are present, `sync` exists to backfill a disk that
-missed an offload — and nothing said how an offload could legitimately happen without
-one. As previously written, an SSD that died mid-trip would have blocked every
-remaining night.
+run unless all four destinations are present, and nothing said how an offload could
+legitimately happen without one. As previously written, an SSD that died mid-trip would
+have blocked every remaining night.
+
+> **Two cases, and 2026-08-06 established that they take different answers.** The rejected
+> alternative below — editing the config — was rejected for a drive that is *temporarily*
+> absent, and it is the right call there: the config describes the rig, so removing a disk that
+> is coming back makes it lie and owes a second edit.
+>
+> **A drive that has *died* is not that case.** The rig genuinely changed, one edit is the whole
+> of it, and nothing is owed on return. Terry's procedure: *"if a drive failed mid trip, I'd
+> remove it from APPDATA config and finish out. It's why I bring four... this way we are at N+1
+> and can still have that three with a failure."*
+>
+> **So `--without` is for tonight and a config edit is for the rest of the trip**, and neither
+> is a workaround for the other.
 
 The default stays refusal, in the first ten seconds, naming the fix:
 
 ```
 DESTINATION MISSING — SSD-C (SanDisk E61 2312A9...) not connected.
-Plug it in, or re-run with --without SSD-C and sync the disk when it returns.
+Plug it in, or re-run with --without SSD-C and re-run the night when it returns.
+If the drive is dead, remove it from config.json and finish the trip on three.
 ```
 
 Proceeding requires naming what is missing: **`--without <LABEL>`**, taking a config
@@ -2404,14 +2370,21 @@ destination this run was asked to cover." LANDED and the eject gate are scoped t
 way; the verdict carries the scar (decision 14) and the exit code is 2 (decision 18).
 
 The destination on this machine's own disk cannot be excluded: it is not a device that
-can be left behind, so it cannot be missing —
-and it is `sync`'s copy source, the thing that makes exclusion recoverable at all.
+can be left behind, so it cannot be missing.
 
-Recovery is `sync`, never the next run. The next offload ingests from cards that by
-then hold a different session, so the missed session survives only on the laptop copy,
-and reading that is `sync`'s charter (decision 20), not the card pipeline's.
-Format-after-eject stays safe for the same reason: the ejected disks and the laptop
-copy hold everything, and `sync` needs no cards.
+**Recovery is the next run, and only while the cards still hold the session.** Re-run the whole
+night once the disk is back and decision 13's resume writes exactly what it missed. **After the
+cards are formatted there is no recovery path at all**, and that is accepted rather than
+overlooked — `offload sync` was designed for precisely this and withdrawn on 2026-08-06.
+
+> **What that costs, stated plainly: an archive that is permanently asymmetric.** A night run
+> under `--without` on a disk that returns after the next format lives on three copies rather
+> than four, forever. **No photograph is at risk** — three is the number the operator's own
+> standard calls backed up — but the four disks are no longer interchangeable, and `verify` will
+> not notice, because a disk with no manifest for that night has nothing to report missing.
+>
+> **This is the price of not building `sync`, and it is worth re-reading if `--without` ever
+> gets used in anger.** Until then it is a cost nobody has paid.
 
 Two alternatives were rejected. Editing the config makes the rig description lie — the
 config describes the rig, not tonight's subset — owes a second edit when the disk
@@ -2452,7 +2425,7 @@ were never in its subject (decisions 12 and 14). The report body carries the lin
 Unlike decision 7's waived corroboration, nothing is permanently lost. Capture times
 are already stashed in the manifest (decision 10), so sidecars need no card: tracks
 that turn up before the next format are applied by a plain re-run, which converges and
-tags what is untagged (decision 13); after the format, `sync` regenerates them on every
+tags what is untagged (decision 13); after the format, nothing regenerates them on every
 destination from the manifest and the tracks (decision 20), the laptop included.
 
 The fatal is about *zero* tracks, nothing subtler. Tracks that exist but fail to cover
@@ -2547,7 +2520,7 @@ load-bearing for verification is. That is the same compatible-versus-breaking li
 `TRIP-HYGIENE.md` already draws around semver, applied to this project's own artifact.
 
 **The photo facts are a stable core that no bump may redefine.** Decision 12 has the
-four copies cross-checking each other's manifests, and decision 20 lets `sync`
+four copies cross-checking each other's manifests, and decision 20 would let a repair
 rewrite one disk's manifest years after its siblings were written — so a cross-check
 will eventually span two schema versions, and it can only work if the fields it rests on
 still mean what they meant: `name`, `status`, `sha256`, `bytes`, `captured_utc`. A bump
@@ -3290,15 +3263,17 @@ on 2026-08-06 rather than remembered.
 
 | | State |
 |---|---|
-| **`offload sync <DEST>`** (decision 20) | **A stub.** `--help` advertises it and `dispatch` prints *"sync is not implemented yet"* and exits FAILURE. `--without <LABEL>`'s help text points at it too |
+| ~~`offload sync <DEST>`~~ | **Withdrawn 2026-08-06, not deferred.** The rig is specified at N+1 so a dead drive is a config edit, which leaves nothing to backfill — decision 20 and [`CONOPS.md`](CONOPS.md) carry the reasoning |
 | **Stray reporting** (decision 24) | The walk does not carry non-CR3 files out of pre-flight, so `exit_code` has nothing to consult. Named in `main.rs`'s own comment |
 | **The Defender check** (decision 9) | `windows-registry` is declared in the workspace and imported by nothing |
 | **Throughput history** (decision 33) | No history is written or read; `runlog` and `config` have no such field |
 | **`offload geotag`** (decision 30) | No subcommand. RawGeotag stays the tool Terry travels with until this lands |
 | **Four verdict suffixes** | `SAFE, NOT EJECTED`, `— BUT CHECK YOUR SDXC CARD`, `— SINGLE SOURCE, NEVER CORROBORATED`, `— SSD-C EXCLUDED` — see *Specified here and never built* under decision 14 |
 
-> **`sync` is the one that can mislead a person rather than a session.** It is offered by the
-> CLI with a description that reads like a working feature, and the only way to discover
-> otherwise is to run it. **If it is not going to be built soon, the honest move is to stop
-> advertising it** — a subcommand that fails on use is worse than one that is absent, and
-> `CLAUDE.md`'s rule about configuration that is never used applies to subcommands too.
+> **`sync` was the one that could mislead a person rather than a session**, and it was withdrawn
+> the day this list was written. The CLI offered it with a description that read like a working
+> feature and the only way to find out otherwise was to run it. **A subcommand that fails on use
+> is worse than one that is absent** — `CLAUDE.md`'s rule about configuration that is never used
+> applies to subcommands too.
+>
+> **Everything still listed above fails honestly**: it is absent, and nothing claims otherwise.

@@ -71,24 +71,7 @@ SDDR-409 has already produced a number worth beating: 281 MB/s** — which retir
 247 was that reader's ceiling, so the other two readers now have a real bar rather than an
 assumed one.
 
-## 2. `offload sync` is advertised and not built — OPEN
-
-**Found 2026-08-06 by auditing the docs against the source.** `--help` offers *"Backfill a
-destination that missed an offload"*; `dispatch` prints *"sync is not implemented yet"* and exits
-FAILURE. `--without <LABEL>`'s help text points at it as well, and `DESIGN.md` decision 20
-describes it across ~150 lines as though it exists.
-
-**Two honest options, and this is Terry's call:**
-
-- **Build it.** Decision 20 has the whole design and it is the backfill path for `--without`.
-- **Stop advertising it** until then — a subcommand that fails on use is worse than an absent
-  one, and `CLAUDE.md`'s rule about configuration that is never used applies to subcommands.
-
-**`DESIGN.md` now has a `Still to build` section** naming this and four other designed-but-absent
-features — the stray check, the Defender check, throughput history, and `offload geotag`. Two
-documents already pointed at that section; it did not exist until now.
-
-## 3. Put the docs and tests on a diet — IN PROGRESS
+## 2. Put the docs and tests on a diet — IN PROGRESS
 
 **Terry raised the priority on 2026-08-06** and set the framing: *"pretty aggressive... this is a
 hobby project, we aren't launching nuclear missiles, nobody's gonna die. Use a fresh pair of
@@ -161,6 +144,12 @@ Kept briefly so a resumed session does not re-open them.
 - Cards ejected sequentially, so Primary could starve Secondary
 - A card already ejected reported as `still mounted`
 - **OBE** — concurrency as the veto cause, overtaken by the settle-time explanation
+- **`offload sync` — withdrawn 2026-08-06, not deferred.** It was advertised in `--help` and was
+  a stub that exited with an error. **The rig's own specification had already absorbed the
+  problem it solved**: four destinations is N+1, so a dead drive is one config edit and the
+  remaining three still clear the *three copies or you have none* bar, with no hole to backfill.
+  Terry: *"it's why I bring four."* Subcommand removed, design replaced by the reasoning, and
+  `preflight`'s DESTINATION MISSING message no longer names a command that does not exist
 - **Eject vetoes — closed 2026-08-06.** Cause found (the retry re-dismounted before every
   attempt, so it never once asked about a *settled* volume; exFAT answers a freshly remounted one
   with `PNP_VETO_TYPE(6)`, which never yields). `Prepare::FirstAttemptOnly` shipped as the tool's
