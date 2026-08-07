@@ -300,6 +300,42 @@ than size**, and `WRITING.md` rule 5 gained the rule that would have caught all 
 stating what a program prints MUST have those strings grepped against the source, and **the
 pattern MUST be proven able to find something before its silence is believed.**
 
+## Build decision 34: the body check — OPEN
+
+**Opened 2026-08-07 at Terry's request**, off the diet pass's finding that decision 34 is fully
+designed and **entirely unbuilt**: `config.rs` has no `body` field and `main.rs` prints no `Body`
+line. Three places now say so — the decision's own header, *Still to build*, and
+[`../CLAUDE.md`](../CLAUDE.md), whose *Report lines you must act on* row had been instructing
+Claude to act on a line that has never appeared.
+
+**What ships:**
+
+1. `config.json` gains `"body": { "model": "Canon EOS R5", "serial": "..." }`.
+2. Pre-flight reads `Make`, `Model` and `CameraSerialNumber` from the **first frame on each card**
+   and compares.
+3. The report prints a `Body` line beside decision 23's timezone line.
+
+**INFO only — it MUST NOT touch the verdict or the exit code.** Decision 34 rejected exit 2 on the
+grounds that a mismatch *persists*: replace the body or shoot a rental, and it is true on every run
+until the config is edited, which is exactly how a scarce signal stops meaning anything.
+
+**The hard question is already answered, so this is not research.** The R5 writes the serial into
+**standard EXIF**, not MakerNotes — `crates/geotag/examples/body-identity.rs` returns
+`CameraSerialNumber 092023000050` through the same call shape `raw.rs` already makes for capture
+time. No MakerNote decoding, no new dependency, no strain on binding constraint 1.
+
+**The payoff is decision 23, not the contract-nag it looks like.** A body that does not record
+`OffsetTimeOriginal` sends **every frame to `_unfiled`** — discovered today only after the whole
+day has streamed through phase 3. One frame at pre-flight turns a 35-minute discovery into a
+ten-second one, while the fix is still a decision about tonight.
+
+**The lens MUST NOT be checked**, though the same probe returns it. Terry rents glass constantly,
+so a lens check fires on most interesting trips — and the very frame that settled the serial
+question carries an `RF24-105mm` he does not own, which would have been its first false positive.
+
+> **TERRY'S MOVE, small:** the config needs his real serial. Running `body-identity.rs` against one
+> of his CR3s produces it, so this does not block the build — only the final config value.
+
 ## Test all three USB-C→USB-A adapters — CLOSED 2026-08-07
 
 > **2 good, 1 dud. C→A costs nothing measurable — 275 MB/s through an adapter against 275 native.**
