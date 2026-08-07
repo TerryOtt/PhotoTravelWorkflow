@@ -555,7 +555,19 @@ when only two tracks were on the laptop; with the real tracks, the picture chang
 | **2022-09-27** | `+01:00` | **WRONG — 200/200 naive, 49.9 km.** Holds against the NAS track too, so not a wrong-track artifact |
 | 2021-08-08 | `-06:00` | **Correct** — 200/200 honor the offset |
 | 2022-01-11 | `-05:00` | **Correct** — 200/200 honor the offset |
+| **2022-09-29** | `+01:00` | **Correct** — 0 naive, on a Lake Louise → Waterton driving day |
+| **2023-09-14** | `+01:00` | **Correct** — 0 naive, on a Forks → Victoria driving day |
 | 2022-09-28 | `+01:00` | **Indeterminate** — classified naive, but **worst displacement 0.2 km**: he was stationary, so the two readings are indistinguishable |
+
+> **2022-09-27 is anomalous inside its own trip**, which is the tell. The day before is
+> indeterminate and the day after is clean, on the same camera, the same offset and the same
+> logger. **The likely story: it is the day the bug was found on.** `FIXTURES.md` cut
+> `cr3-offset-nonzero` from `_50A0001.CR3` — a 2022-09-27 frame — so that day was the test case,
+> tagged with the buggy build, and never re-tagged once the rest of the trip was done correctly.
+>
+> **Two driving days were chosen deliberately for the last checks.** A day of movement is the
+> only kind that can discriminate; on a stationary day both readings land in the same place and
+> the method says nothing.
 
 **So the error is not systemic**, and the "25 days / 50,319 sidecars" framing below overstated
 it. **Magnitude matters more than the classification**: a day where the subject barely moved
