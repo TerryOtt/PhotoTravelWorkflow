@@ -1335,34 +1335,28 @@ the unit — not any one badge. That has three consequences, all of them RFC 211
    come out green is the check that cannot fail — `REVIEWING.md`'s standing objection.
 
 **Yellow is not a severity. It is a stop signal on a physical act.** This is the part that gets
-mis-implemented, because "warning" reads as "something is wrong." Terry, on the same day, giving
-the case that settles it:
-
-> *"It could be as easy as I pointed it at the wrong GPX. And that's great. It does mean stop and
-> don't yank drives."*
-
-**A completely benign cause still gets yellow, and that is correct rather than a false alarm.**
-The badge does not grade how bad the news is; it gates whether the next thing he does is unplug
+mis-implemented, because "warning" reads as "something is wrong." Terry's case that settles it:
+*"It could be as easy as I pointed it at the wrong GPX. And that's great. It does mean stop and
+don't yank drives."* **A benign cause still gets yellow, and that is correct rather than a false
+alarm** — the badge does not grade the news, it gates whether the next thing he does is unplug
 five devices in a dark hotel room. Grading belongs in the words underneath, which he reads
 *because* the badge stopped him.
 
-**And that is what makes `--no-eject` a deliberate yellow rather than an exemption.** The flag is
-used constantly in development, and a run that used it has drives that are still mounted — so the
-one output that would be actively dangerous is a green column. Terry: *"the no-eject flag
-guarantees a yellow flag, and for a very damn good reason — it stops my muscle memory from
+**That is what makes `--no-eject` a deliberate yellow rather than an exemption.** The flag is used
+constantly in development, and a run that used it has drives still mounted — so the one output
+that would be actively dangerous is a green column. Terry: *"it stops my muscle memory from
 yanking SSDs that are still mounted. You say NTFS can survive that. I do not want to TEST that
 personally with those drives."*
 
-**Note what that rules out: a "nothing to report" grey or an omitted badge for a skipped stage.**
-Both would read as *not yellow*, which under the operator's own rule reads as *go*. **A stage
-that did not run MUST be yellow**, because the physical state of the rig after it is exactly the
-state yellow exists to stop him acting on.
+**That rules out a "nothing to report" grey and an omitted badge for a skipped stage.** Both read
+as *not yellow*, which under his rule reads as *go*. **A stage that did not run MUST be yellow**,
+because the state of the rig after it is exactly what yellow exists to stop him acting on.
 
 ### The report's layout rules, settled 2026-08-06
 
-**RFC 2119 keywords, and the capitals are load-bearing.** These came out of an evening of the
-operator reading real output on a real terminal, which is the only place several of them were
-visible at all. **They are written down because they were re-derived three times in one session.**
+**RFC 2119 keywords, and the capitals are load-bearing.** These came out of an evening of reading
+real output on a real terminal, which is the only place several of them were visible at all —
+**and they are written down because they were re-derived three times in one session.**
 
 **Indentation carries the hierarchy, and nothing else does:**
 
@@ -1385,18 +1379,17 @@ asking what it was for.
 
 **`Eject`'s steps are `Progress Log`, `Travel SSDs`, `Cards` and `Safe to Unhook`.** The live
 per-attempt lines are the `Progress Log`'s rows at column 8 — **not** loose content under the
-phase heading, which is how they read before they had a step of their own and where they became
-an unattached preamble once `Travel SSDs` appeared beneath them.
+phase heading, where they read as an unattached preamble.
 
 **`Safe to Unhook` is last because it is the roll-up and the decision**, and green only when
-every SSD *and* every card released. `--no-eject` therefore guarantees yellow, deliberately.
+every SSD *and* every card released.
 
 > **`Eject` cannot carry the badge itself, and the reason is timing rather than taste.** Its
-> heading is printed before the stage runs, because `watch_attempt` starts writing the moment the
-> first device is asked and a header arriving after its own rows would read backwards. It also
-> could not roll up the cards without waiting for a retry that can run for minutes — and
-> reporting the SSDs the moment they are down, rather than behind a stuck card, was a deliberate
-> fix. **Both constraints point the same way, which is usually the sign of a real boundary.**
+> heading prints before the stage runs, because `watch_attempt` starts writing the moment the
+> first device is asked and a header arriving after its own rows would read backwards. Nor could
+> it roll up the cards without waiting for a retry that can run for minutes, where reporting the
+> SSDs the moment they are down was a deliberate fix. **Both constraints point the same way,
+> which is usually the sign of a real boundary.**
 
 **Blank lines above a heading MUST be:** two for a phase, one for a subsection, **none for a
 status line.** A status line is content, not a heading, so `Corroborating` is followed
@@ -1425,13 +1418,10 @@ about the `LANDED` banner: *"leave landed alone, it looks better as is."*
 reads as a clock and this is a measurement, and never dropping the minutes below sixty seconds,
 because the same quantity in two formats is what the consistency is for.
 
-Serials on every destination line so a glance confirms four genuinely distinct disks. The
-verdict is the last line and that phrase appears nowhere else, so it cannot be confused
-with anything above it. Its forms:
-
-**The headline is a badge**, in the same two colours as the rest of the report and green in
-exactly one case — see *the badge column is a go/no-go on unplugging things*. Every row below
-was checked against `verdict()` on 2026-08-06.
+Serials on every destination line so a glance confirms four genuinely distinct disks. The verdict
+is the last line and that phrase appears nowhere else, so it cannot be confused with anything
+above it. **The headline is a badge**, in the same two colours as the rest of the report and green
+in exactly one case. Every row below was checked against `verdict()` on 2026-08-06.
 
 > **This table is the authority; the run records further down are not.** Those quote what the
 > tool printed on the night they were written — `EJECTED — SAFE TO STORE` and similar — and are
@@ -1466,9 +1456,10 @@ from the one card present is accounted for — corroboration was waived*.
 ### Specified here and never built
 
 **These four rows sat in the table above as though they were behavior, and none of them has ever
-been printed.** Found 2026-08-06 by grepping the source for each string; all four returned
-nothing. They are kept because they may still be wanted — **but they belong in `Still to build`,
-not in a table describing output.**
+been printed.** Re-checked 2026-08-07: all four strings return nothing, while `SAFE TO STORE` and
+`--allow-single-source` are found — so the grep works and the absence is real. They are kept
+because they may still be wanted, and `Still to build` lists the same four.
+[`WRITING.md`](WRITING.md) rule 5 carries the general lesson.
 
 | Condition | Intended verdict |
 |---|---|
@@ -1480,12 +1471,6 @@ not in a table describing output.**
 **The single-source case is partly covered already**, by the second form of the claim rather than
 by a suffix — so building it means deciding whether the suffix adds anything the claim does not,
 rather than starting from nothing.
-
-> **This is the failure a spec document is uniquely good at hiding.** Every row read as a
-> description of the tool, the four false ones had been there long enough to look settled, and
-> **nothing in a Markdown table fails a test.** The lesson generalises past this file: when a
-> document states what a program prints, the strings are checkable, so check them — a grep per
-> row costs seconds and is the only thing standing between a specification and fiction.
 
 Because writes are write-through and verify reads unbuffered, the rates are real device
 throughput rather than page-cache artifacts — which is what makes the per-destination

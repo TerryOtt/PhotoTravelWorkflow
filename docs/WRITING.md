@@ -145,6 +145,15 @@ sections marked **COMPLETE** before any design.
 5. **Correct by appending, never by rewriting.** A note saying what was previously claimed
    and why it was wrong is worth more than a clean-looking record — the reader learns the
    shape of the mistake, which is what stops it recurring.
+   **A document that says what a program prints MUST have those strings grepped against the
+   source before the claim lands, and again whenever the section is touched.** They are
+   checkable, so check them; **nothing in a Markdown table fails a test**, and a spec is
+   uniquely good at hiding this — every row reads as a description of the tool, and a false
+   one that has sat there a while looks the most settled of all. Four rows of decision 14's
+   verdict table described output that had never been printed, and four rows of `DESIGN.md`
+   described modules that did not exist. **Prove the pattern can find something before
+   believing it found nothing** — a grep that was pointed at the wrong thing and a grep that
+   found nothing are the same empty result, and the first one reads as *clean*.
 6. **Numbers ≥ 1,000 carry thousands separators**, in prose as well as in program output.
    Exceptions: Rust literals, text quoted verbatim from another tool so it stays
    greppable, and years, model numbers, offsets and coordinates.
