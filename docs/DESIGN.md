@@ -2511,7 +2511,7 @@ rather than per module at the moment each phase is written.
 | `serde` (derive) | 1.0 | config, run log, manifest, report — four artifacts, one derive |
 | `serde_json` | 1.0 | those four; the run log is the same serializer a line at a time |
 | `sha2` | 0.11 | SHA-256 with SHA-NI selected at runtime (decision 17) |
-| `rayon` | 1.12 | the `--jobs` CPU pool of decision 15 |
+| `rayon` | 1.12 | **`crates/geotag` only** — phase 5's `--jobs` pool. `pipeline.rs` carries why phase 3 deliberately has none |
 | `walkdir` | 2.5 | card walks, destination walks, `verify`'s date-folder sweep |
 | `tempfile` | 3.27 | temp-then-rename, and the prefix pre-flight's orphan sweep keys on |
 | `indicatif` | 0.18 | `MultiProgress` — one bar per destination, **at a terminal only**; it hides itself off-tty, so `progress.rs` wraps it in a three-mode enum |
@@ -2519,15 +2519,24 @@ rather than per module at the moment each phase is written.
 | `thiserror` | 2.0 | the two error types a caller must branch on, below |
 | `anyhow` | 1.0 | every other error, which decision 18 makes fatal |
 | `windows` | 0.62 | volume and disk identity, unbuffered I/O, lock/dismount/eject, sleep inhibit |
-| `windows-registry` | 0.6 | the Defender exclusion read of decision 9, including its unreadable outcome |
 | `nom-exif` | 3.6 | CR3 capture time — arrives with the engine (decision 17) |
 | `gpx` | 0.10 | tracks — arrives with the engine |
 | `chrono` | 0.4 | the program's instant and duration types — arrives with the engine |
 | `time` | 0.3 | `gpx`'s public type only, converted at one named boundary |
 
-Versions are what crates.io served on 2026-08-03, confirmed rather than recalled;
-[`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) has the standing order and now names the pre-1.0 entries
-that go stale silently.
+**Four more are declared and are deliberately *not* in the binary's `[dependencies]`.** They were
+missing from this table until 2026-08-07, which made it a set that omitted a quarter of itself:
+
+| Crate | Ver | Where it actually lives |
+|---|---|---|
+| `blake3` | 1.8 | optional, behind the `hash-experiments` feature; also a dev-dependency for `examples/hash-rate.rs` |
+| `xxhash-rust` | 0.8 | as above — `OFFLOAD_HASH` selects it, and the default build has neither the branch nor the crate |
+| `sha3` | 0.12 | **dev-dependency only.** `hash-rate` measures it; nothing ships it |
+| `windows-registry` | 0.6 | workspace-declared and **imported by nothing** — decision 9's Defender read is in *Still to build*, and this row is the evidence |
+
+Versions re-verified against `Cargo.lock` on 2026-08-07 rather than recalled;
+[`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) has the standing order and names the pre-1.0 entries that go
+stale silently.
 
 **Three choices in that table are genuine judgment calls rather than the only answer,
 and a reviewer should know they were made deliberately.**
@@ -2573,10 +2582,6 @@ and a reviewer should know they were made deliberately.**
   > independent.* A night where the **writing** rows separate would mean a destination had
   > fallen out of the queue discipline — a failure mode nothing else in this tool watches for,
   > and one the display would show in the first minute.
-  >
-  > A second-order effect worth knowing, since it costs nothing: **the order the verify ETCs
-  > appear in is the speed ranking**, because reaching the 10 % display threshold first means
-  > being fastest. The threshold was added purely to suppress noisy early estimates.
 
 **The rebuttals for the crates that were taken live in `Cargo.toml`, not here** — beside
 the version string each is about, where they cannot drift away from what they describe.
@@ -2606,23 +2611,18 @@ crates/offload/       the binary: CLI, five phases and eject, the Windows storag
 A member's own manifest lists only what its code imports today, so a manifest never
 claims a dependency nothing uses.
 
-**The lift moved the engine unrewritten, which was the point.** Decision 17 accepts
-these three sub-problems as solved on the strength of their validation, so a lift that
-took the opportunity to tidy them would have spent exactly what it was trying to save;
-the 67 unit tests came across with the code and the two changes made were the minimum
-`offload` could not do without. `raw::capture_time_in_memory` is one — decision 10 has
-every file in RAM already, and re-reading it from the card to find its capture time
-would be the waste that decision exists to avoid. `xmp::render` taking the writing
-tool's identity is the other: two tools emit these packets now, and a sidecar whose
-`x:xmptk` names the wrong one is a small lie in a file whose whole job is provenance.
+**The lift moved the engine unrewritten, which was the point** (decision 17). The 67 unit tests
+came across with the code, and exactly two changes were made. `raw::capture_time_in_memory` is
+one — decision 10 has every file in RAM already, and re-reading it from the card to find its
+capture time is the waste that decision exists to avoid. `xmp::render` taking the writing tool's
+identity is the other: two tools emit these packets now, and a sidecar whose `x:xmptk` names the
+wrong one is a small lie in a file whose whole job is provenance.
 
-The in-memory path was checked against real frames rather than argued about, since no
-committed test can reach its success path without a fixture: it agrees with the
-path-based function on a `+01:00` CR3, a `+00:00` CR3, and a NEF with no offset at all.
-That last one matters more than it looks — it is why `capture_time_in_memory` still
-consults `read_strategy` instead of assuming that bytes in memory make the distinction
-moot. The strategy records which *parser path* a format survives, not how much of the
-file to read, and NEF parses through only one of them.
+The in-memory path was checked against real frames rather than argued about, since no committed
+test can reach its success path without a fixture: it agrees with the path-based function on a
+`+01:00` CR3, a `+00:00` CR3, and a NEF with no offset at all. That last one is why
+`capture_time_in_memory` still consults `read_strategy` — the strategy records which *parser
+path* a format survives, not how much of the file to read, and NEF parses through only one.
 
 **The lift has one coupling worth writing down before it happens.**
 [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) sends the reader to RawGeotag's `docs/LIGHTROOM-XMP.md`
