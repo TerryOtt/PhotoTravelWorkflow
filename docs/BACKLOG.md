@@ -39,7 +39,7 @@ that's both a) eligible to be worked, and b) not complete."*
 | Eligible to be worked, not complete — **by either of them** | **yes** |
 | **Waiting on Terry** — a format, a shoot, a cable swap | **yes.** This is *not* blocked; it is his move, and the checklist is how he sees it |
 | **BLOCKED** — outside both their control: hardware not delivered, a vendor, a release not shipped | **no.** It lives here until the world changes |
-| Complete | **no.** It moves to the closed list below |
+| Complete | **no — and `TaskUpdate status: deleted`, not `completed`.** It moves to the closed list below |
 
 **"Blocked" is reserved and narrow.** Terry, 2026-08-06, correcting the first version of this
 rule: *"blocked on Terry is not blocked. Blocked means blocked on some factor outside either of
@@ -58,6 +58,15 @@ about warnings that fire when you cannot act.
 **Each item carries its status in its heading** — `OPEN`, `IN PROGRESS`, `BLOCKED`, or moved to
 the closed list — so what is *missing* from the checklist is explained here rather than simply
 absent.
+
+> **A finished item MUST be *deleted* from the CLI checklist, never left showing `completed`.**
+> Standing order, Terry, 2026-08-07: *"anything completed in the checklist should be removed from
+> the checklist — I only want to see work either eligible to be worked or in progress."*
+>
+> **`TaskUpdate status: completed` is not the end of the job; `status: deleted` is.** Marking an
+> item completed leaves it on screen, and the checklist shows at most five — so a finished item
+> is occupying a slot that a workable one needs. **This file is what makes deleting safe**: the
+> permanent record lives here, so nothing is lost when the line disappears from his view.
 
 ### Every checklist item MUST be prefixed `C: ` or `T: `
 
