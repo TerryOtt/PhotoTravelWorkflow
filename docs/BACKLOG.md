@@ -483,6 +483,26 @@ exactly the storage that measurement was taken against.
 **Recommendation: A**, because decision 30 is already authorized and B makes it worse. **His
 call because it is scope**, not because the engineering is unclear.
 
+## ⚠ Guard `--force-xmp` against foreign sidecars — OPEN, and it blocks the re-tag below
+
+**`xmp::render` writes a GPS-only packet** — seven `exif:GPS*` fields, verified 2026-08-07 from
+the source *and* from a sidecar it produced. Right for the nightly run, whose destinations
+Lightroom never opens (decision 11's correction). **Wrong when `offload geotag` is pointed at a
+Lightroom-managed archive**, where the packets carry `crs:`, `crd:` and `xmpMM:` — develop
+settings, ratings, keywords. **`--force-xmp` replaces the file; it does not merge.**
+
+**What saves you today is decision 16's invariant** — an existing sidecar is never rewritten
+*without* `--force-xmp`. **So the default is safe and the flag is the hazard**, which is a thin
+guard for an operation whose whole purpose is fixing an archive that already has sidecars.
+
+**The fix: read the existing packet's `x:xmptk` before overwriting, and refuse if it is not this
+tool's.** Deliberately **not** rushed — it touches phase 5's shared write path and was found with
+under an hour left in a work window. **A safety feature added hastily to a shared write path is
+worse than a documented gap.**
+
+> **This blocks the re-tag below in practice.** Whatever the geotag positions say, no
+> Lightroom-managed day gets `--force-xmp` until this is settled.
+
 ## ⚠ 2022-09-27's archive geotags are ~50 km wrong — OPEN, TERRY'S MOVE
 
 **Found 2026-08-07 while validating `offload geotag` against the archive, and it is a fact about

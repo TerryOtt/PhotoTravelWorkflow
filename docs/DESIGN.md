@@ -2759,6 +2759,27 @@ the worst moment, which is trip hygiene.
 >                                [--dry-run]
 > ```
 >
+> ### ⚠ `--force-xmp` here can destroy Lightroom's work, and nothing stops it
+>
+> **`xmp::render` writes a GPS-only packet** — seven `exif:GPS*` fields, verified 2026-08-07 by
+> reading both the source and a sidecar it produced. That is exactly right for the nightly run,
+> whose destinations Lightroom never opens (decision 11's correction).
+>
+> **It is not right when this subcommand is pointed at a Lightroom-managed archive.** Those
+> sidecars carry `crs:`, `crd:` and `xmpMM:` namespaces — develop settings, ratings, keywords —
+> and **`--force-xmp` would replace the file, not merge into it.** `Q:\Lightroom\Images` is full
+> of exactly such packets.
+>
+> **Nothing currently warns.** The invariant that saves you is decision 16's: an existing sidecar
+> is never rewritten *without* `--force-xmp`. **So the default is safe and the flag is the
+> hazard** — which is a thin guard for an operation whose whole purpose is fixing an archive
+> that already has sidecars.
+>
+> **The obvious fix, not built and deliberately not rushed:** before overwriting, read the
+> existing packet's `x:xmptk`; if it is not this tool's, refuse or require a second flag. It
+> touches phase 5's shared write path, so it wants a considered change rather than a fast one.
+> **Tracked in [`BACKLOG.md`](BACKLOG.md).**
+
 > **`--dry-run` came across because losing it would have been a regression.** RawGeotag had one,
 > and this subcommand writes into a directory of existing photographs rather than into
 > destinations the tool created. It is **the same pass with no destinations** — every count is
