@@ -1,16 +1,17 @@
-//! Capture-time extraction.
+//! Reading EXIF facts out of a raw file — the capture instant, and the camera's identity.
 //!
 //! `MediaParser` pools internal buffers and is worth reusing, but sharing one
 //! across threads behind a mutex would serialize the whole run. Callers pass one
 //! in; `main` builds a parser per rayon worker with `map_init`.
 
+use std::fmt;
 use std::fs;
 use std::io::Cursor;
 use std::path::Path;
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, FixedOffset, Utc};
-use nom_exif::{Error as ExifError, Exif, ExifDateTime, ExifIter, MediaSource};
+use nom_exif::{Error as ExifError, Exif, ExifDateTime, ExifIter, ExifTag, MediaSource};
 
 use crate::format::{RawFormat, ReadStrategy};
 
@@ -99,9 +100,28 @@ pub fn capture_time(
     format: RawFormat,
     utc_offset: Option<FixedOffset>,
 ) -> Result<Capture> {
-    // The two arms build different `MediaSource` types, so they cannot be joined
-    // before the parse — they converge on its result instead.
-    let parsed = match format.read_strategy() {
+    let parsed = parse_path(parser, path, format)?;
+
+    resolve(parsed, format, utc_offset)
+        .with_context(|| format!("reading EXIF from {}", path.display()))
+}
+
+/// Parse a file's EXIF, honoring the format's read strategy.
+///
+/// The two arms build different `MediaSource` types, so they cannot be joined before the
+/// parse — they converge on its result instead. The parse error is returned *unwrapped*
+/// because [`resolve`] distinguishes several kinds of it; the `Result` around it carries
+/// only the I/O failures.
+///
+/// **Shared so `read_strategy` is honored in exactly one place.** Getting it wrong is
+/// silent and format-specific — NEF parses through the memory path and not the seeking
+/// one — so a second copy of this match is a second chance to lose a whole format.
+fn parse_path(
+    parser: &mut MediaParser,
+    path: &Path,
+    format: RawFormat,
+) -> Result<std::result::Result<ExifIter, ExifError>> {
+    Ok(match format.read_strategy() {
         ReadStrategy::Streaming => {
             let source =
                 MediaSource::open(path).with_context(|| format!("opening {}", path.display()))?;
@@ -113,10 +133,7 @@ pub fn capture_time(
                 .with_context(|| format!("reading {}", path.display()))?;
             parser.parse_exif(source)
         }
-    };
-
-    resolve(parsed, format, utc_offset)
-        .with_context(|| format!("reading EXIF from {}", path.display()))
+    })
 }
 
 /// Read the capture instant from bytes the caller already holds.
@@ -148,6 +165,84 @@ pub fn capture_time_in_memory(
         };
 
     resolve(parsed, format, utc_offset).context("reading EXIF from the in-memory copy")
+}
+
+/// What a frame says about the camera that took it (`DESIGN.md` decision 34).
+///
+/// **Every field is optional, because absence is a real answer rather than a failure.**
+/// Canon has historically written the body serial into MakerNotes instead of standard
+/// EXIF, and binding constraint 1 rules out decoding those by hand. The R5 does put it in
+/// standard EXIF — `examples/body-identity.rs` confirmed that across nine frames spanning
+/// 2021 to 2026 — but a future body need not, and *this tag is not here* is worth saying
+/// where an empty string would read as a body whose serial is blank.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct BodyIdentity {
+    pub make: Option<String>,
+    pub model: Option<String>,
+    pub serial: Option<String>,
+}
+
+impl BodyIdentity {
+    /// True when nothing identifying was found at all.
+    ///
+    /// Distinguishes *this frame says nothing about its camera* from *this frame disagrees
+    /// with the config*, which are different reports and one of them is not a mismatch.
+    pub fn is_empty(&self) -> bool {
+        self.make.is_none() && self.model.is_none() && self.serial.is_none()
+    }
+}
+
+impl fmt::Display for BodyIdentity {
+    /// `Canon EOS R5 · 082021001047`, with `unknown` standing in for a tag the frame did
+    /// not carry.
+    ///
+    /// **`make` is deliberately not printed.** Canon writes `Model` as the full
+    /// `Canon EOS R5`, so including the make renders `Canon · Canon EOS R5` — which reads
+    /// as two bodies. It is still collected, because a frame carrying a make and no model
+    /// is evidence about *which* vendor's tag layout defeated the parse.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let unknown = "unknown";
+        write!(
+            f,
+            "{} · {}",
+            self.model.as_deref().unwrap_or(unknown),
+            self.serial.as_deref().unwrap_or(unknown)
+        )
+    }
+}
+
+/// Read the camera's identity from `path`.
+///
+/// Two tags beyond the one [`capture_time`] already reads, from an identical parse — so
+/// `DESIGN.md` decision 34's claim that this costs microseconds holds only because
+/// pre-flight asks it of **one** frame rather than of the day.
+pub fn body_identity(
+    parser: &mut MediaParser,
+    path: &Path,
+    format: RawFormat,
+) -> Result<BodyIdentity> {
+    let iter = parse_path(parser, path, format)?
+        .with_context(|| format!("reading EXIF from {}", path.display()))?;
+    let exif: Exif = iter.into();
+
+    Ok(BodyIdentity {
+        make: tag_text(&exif, ExifTag::Make),
+        model: tag_text(&exif, ExifTag::Model),
+        serial: tag_text(&exif, ExifTag::CameraSerialNumber),
+    })
+}
+
+/// One EXIF tag as trimmed text, or `None` when it is absent or blank.
+///
+/// **Blank collapses to absent deliberately.** A tag present and empty tells the operator
+/// exactly as much as a tag that is missing, and letting `""` through would make it
+/// compare unequal to every configured value — turning a body that simply did not record
+/// its serial into a mismatch report about the wrong thing.
+fn tag_text(exif: &Exif, tag: ExifTag) -> Option<String> {
+    exif.get(tag)
+        .and_then(|value| value.as_str().map(str::trim))
+        .filter(|text| !text.is_empty())
+        .map(str::to_owned)
 }
 
 /// Everything about capture time that does not depend on how the bytes arrived.
@@ -265,6 +360,38 @@ mod tests {
     use chrono::{NaiveDate, TimeZone};
 
     use super::*;
+
+    /// `Display` renders what the report prints, and **absence must not look like a value**.
+    ///
+    /// The `unknown` placeholder is the point: an empty string here would render
+    /// `Canon EOS R5 · ` and read as a body whose serial is blank rather than as a tag the
+    /// frame never carried.
+    #[test]
+    fn a_body_renders_model_and_serial_and_names_what_is_missing() {
+        let full = BodyIdentity {
+            make: Some("Canon".to_owned()),
+            model: Some("Canon EOS R5".to_owned()),
+            serial: Some("082021001047".to_owned()),
+        };
+        assert_eq!(full.to_string(), "Canon EOS R5 · 082021001047");
+        assert!(!full.is_empty());
+
+        // `make` is collected and deliberately not printed — Canon writes `Model` as the
+        // full `Canon EOS R5`, so including it would render `Canon · Canon EOS R5`.
+        assert!(!full.to_string().starts_with("Canon ·"));
+
+        let partial = BodyIdentity {
+            make: Some("Canon".to_owned()),
+            ..BodyIdentity::default()
+        };
+        assert_eq!(partial.to_string(), "unknown · unknown");
+        assert!(
+            !partial.is_empty(),
+            "a make with no model is still something the frame said"
+        );
+
+        assert!(BodyIdentity::default().is_empty());
+    }
 
     #[test]
     fn exif_style_offsets_parse() {

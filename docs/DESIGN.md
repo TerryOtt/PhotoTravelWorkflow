@@ -782,9 +782,13 @@ Config is JSON:
       "volume_guid": "{a1b2c3d4-...}",
       "subpath": "Images" }
   ],
-  "gpx_dir": "C:\\Travel\\GPX"
+  "gpx_dir": "C:\\Travel\\GPX",
+  "body": { "model": "Canon EOS R5", "serial": "082021001047" }
 }
 ```
+
+`body` is **optional** and names the one camera the fleet has (decision 34); every other key
+is required.
 
 **There is no `role` field, as of decision 11's correction.** It carried `working` and
 `archive`, and those named a distinction that does not exist — all four copies are
@@ -1219,6 +1223,12 @@ about already settled.
 > `Geotagging`, `Travel SSDs`, `Cards`, `Safe to Unhook` — all pinned to one absolute column, and
 > the verdict's headline is itself a badge. **Read this block for structure, never for the exact
 > bytes**; the sections below the sample are what is kept current.
+>
+> **Two of its rows are not where they appear, checked 2026-08-07.** `Body` **is built** but
+> prints in **pre-flight's card block**, ten seconds in rather than at the end — decision 34
+> records why. `Timezone` **has never been printed at all**; decision 23's timezone reporting
+> exists only as geotag's *misses look systematic* line. **Do not move the code to match this
+> sketch** — the sketch is the thing that is out of date.
 
 **Sizes are whole GiB and rates carry one decimal**, added 2026-08-06 at the operator's
 request: *"at no point will I care about fractional GB"*, and for rates *"single digit after
@@ -2912,31 +2922,63 @@ destination history needs.
 
 ### 34. The body is named in the config, and an unexpected one is reported
 
-> **⚠ Designed, not built — checked 2026-08-07 and listed in *Still to build*.** `config.rs` has
-> no `body` field and `main.rs` prints no `Body` line; the only thing that exists is
-> `crates/geotag/examples/body-identity.rs`, the probe that settled the EXIF question below.
-> **Read every present tense in this decision as the design's, not the tool's** — including the
-> `Body` row in decision 14's sample report, which has never printed.
+> **✔ Built 2026-08-07.** `config.rs` carries an optional `body`, `preflight::check_body` reads
+> the first frame, and the `Body` row prints in the card block. **Two things differ from what is
+> written below, both deliberate and both recorded where they happen:**
+>
+> | Written here | Shipped | Why |
+> |---|---|---|
+> | the first frame **on each card** | the **source card only** | decision 27's gate has since made the second read redundant — a two-card run has already proved the pair holds one identical listing before this point, and a single-source run has no second card |
+> | beside decision 23's **timezone line** | in **pre-flight's card block** | *there is no timezone line.* It was never built, and pre-flight is where this decision's own payoff argument puts it — see *the payoff is decision 23* below |
+>
+> **Decision 14's sample report still shows a `Body` row in the `LANDED` block.** That sample is
+> a layout sketch and says so; the row now prints, ten seconds in, rather than at the end.
 
 **`CONOPS.md`'s shooting-day contract opens with "the fleet is one body — a Canon EOS R5",
-and nothing observes it.** Every other clause of that contract has a check behind it: two
-cards present (decision 7), the pair holding one listing (decision 27), CR3 only (decision
-24), tracks present (decision 26). The body is the one the tool takes entirely on trust.
+and until 2026-08-07 nothing observed it.** Every other clause of that contract has a check
+behind it: two cards present (decision 7), the pair holding one listing (decision 27), CR3 only
+(decision 24), tracks present (decision 26). The body was the one the tool took entirely on
+trust.
 
 So the config names it, and pre-flight compares:
 
 ```json
-"body": { "model": "Canon EOS R5", "serial": "..." }
+"body": { "model": "Canon EOS R5", "serial": "082021001047" }
 ```
+
+> **`body` is optional and its absence is silent**, which is what let this ship without
+> breaking a config file that predates it. **Absence is the only way to switch the check off**,
+> and it prints nothing rather than nagging — a *body not configured* line would appear on every
+> run and never vary, which is the warning decisions 9, 12 and 34 all argue against.
+>
+> **Take the serial from a real frame, never from this page.**
+> `cargo run --release --example body-identity -- <a .CR3>` reads it. The value above is Terry's
+> body, confirmed across nine frames spanning 2024-09 to 2026-07 — **and an earlier serial
+> recorded in this document matched none of the four R5 bodies he has shot.** A wrong serial
+> here mismatches on every run forever and is indistinguishable from the feature working.
 
 **It reports; it never refuses.** Frames from an unexpected body are perfectly good
 photographs that still need four verified copies, and refusing would leave the night with
 zero backups over a *process* violation — the inversion decisions 7 and 25 both reject.
 
 **And it is INFO, not a warning — settled by the operator 2026-08-05, correcting a first
-draft that made it exit 2.** The body goes in the report body as a plain line beside decision
-23's timezone line, which is the same kind of fact about the camera rather than about the
-data. **It does not touch the verdict and it does not touch the exit code.**
+draft that made it exit 2.** The body prints as a plain row in pre-flight's card block, a fact
+about the camera rather than about the data. **It does not touch the verdict, it does not touch
+the exit code, and it carries no badge** — a mismatch is not a reason to leave drives plugged
+in, and the badge column answers only that question.
+
+**The four things it can say**, all INFO:
+
+| | The row reads |
+|---|---|
+| Agrees | `Canon EOS R5 · 082021001047 — as configured` |
+| Disagrees | `... — does not match the config (expected Canon EOS R5 · 082021001047)` |
+| The frame carries no camera tags | `the first frame records no camera identity` |
+| The frame could not be read | `could not be read — <why>` |
+
+**The last two are separate on purpose.** *This frame says nothing* and *this is the wrong
+camera* send the operator to different places, and a read failure that printed nothing would be
+indistinguishable from a match.
 
 **The reason is that a mismatch persists, and exit 2 is a signal that must not.** A different
 body is not a one-night event: replace the R5, or shoot a trip on a rental, and the mismatch
@@ -3207,7 +3249,7 @@ code on 2026-08-07 rather than remembered.
 | **Throughput history** (decision 33) | No history is written or read; `runlog` and `config` have no such field |
 | **`offload geotag`** (decision 30) | No subcommand. RawGeotag stays the tool Terry travels with until this lands |
 | **Four verdict suffixes** | `SAFE, NOT EJECTED`, `— BUT CHECK YOUR SDXC CARD`, `— SINGLE SOURCE, NEVER CORROBORATED`, `— SSD-C EXCLUDED` — see *Specified here and never built* under decision 14 |
-| **The body check** (decision 34) | Added 2026-08-07. `config.rs` has no `body` field and no `Body` line is printed. Only `geotag`'s `body-identity.rs` probe exists, which is why the decision reads as though it shipped — and why `CLAUDE.md` carried an instruction to act on a line that cannot appear |
+| ~~**The body check**~~ (decision 34) | **Built 2026-08-07**, the same day it was found missing. Optional `body` in the config, `preflight::check_body` on the first frame, a `Body` row in the card block |
 
 > **`sync` was the one that could mislead a person rather than a session**, and it was withdrawn
 > the day this list was written. The CLI offered it with a description that read like a working

@@ -82,12 +82,14 @@ to *you* as much as to him, and **relaying one is not acting on it.**
 |---|---|
 | **`Body`** disagreeing with the config (decision 34) | Ask what changed — new body, rental, borrowed? — and **offer to update `config.json` to match.** Never let it pass as a printed line |
 
-> **⚠ The `Body` row is not live yet, established 2026-08-07.** Decision 34 is designed and
-> unbuilt: there is no `body` field in `config.json` and the tool prints no `Body` line, so this
-> instruction has never had anything to fire on. It stays because the behavior is the moment the
-> line ships — **but Claude MUST NOT report having checked it**, and MUST NOT infer from a run
-> with no `Body` line that the body matched. *Not printed* and *checked and agreed* are the two
-> things this project most consistently refuses to conflate.
+> **✔ Live as of 2026-08-07** — it prints in **pre-flight's card block**, ten seconds in, not in
+> the closing summary. Four forms: *as configured*, *does not match the config (expected ...)*,
+> *the first frame records no camera identity*, and *could not be read — ...*.
+>
+> **A run that prints no `Body` row at all means the config names no body**, not that the body
+> matched. The check is off unless `config.json` has a `body` key, and **Claude MUST NOT read a
+> missing row as agreement** — offer to add the key instead.
+> `cargo run --release --example body-identity -- <a .CR3>` produces the serial.
 
 **"Every time" is literal, and it is not the nagging that exit 2 was rejected for.** That code
 was rejected because a machine repeating a signal teaches a human to filter it. You are not a

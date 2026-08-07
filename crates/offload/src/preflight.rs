@@ -14,8 +14,11 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
+use geotag::format::RawFormat;
+use geotag::raw::{self, BodyIdentity, MediaParser};
+
 use crate::cards::{self, Card, Speed};
-use crate::config::Config;
+use crate::config::{self, Config};
 use crate::destinations::{self, Survey};
 use crate::pipeline::cr3_files;
 use crate::storage::{self, Volume};
@@ -37,6 +40,32 @@ pub struct Cards {
     /// True when two cards presented one identical listing (decision 27). False only on
     /// a declared single-source run, where nothing agreed and nothing claims to have.
     pub agreed: bool,
+    /// What the first frame says the camera was (decision 34). `None` when the config
+    /// names no body, which is the only way to switch this off.
+    pub body: Option<BodyReport>,
+}
+
+/// What decision 34's check found. **INFO in every arm** — none of these touches the
+/// verdict or the exit code, because a body mismatch persists across every night of a trip
+/// and a signal that repeats is one the operator learns to read past.
+#[derive(Debug, PartialEq, Eq)]
+pub enum BodyReport {
+    /// The frame and the config agree, model and serial.
+    AsConfigured { model: String, serial: String },
+    /// They disagree. Carries both sides so the report can name the difference rather than
+    /// asserting one, which is what lets Claude offer the config edit.
+    Unexpected {
+        observed: BodyIdentity,
+        configured: config::Body,
+    },
+    /// The frame carries no `Make`, `Model` or `CameraSerialNumber` at all.
+    ///
+    /// **Not a mismatch**, and kept separate for that reason: *this frame says nothing*
+    /// and *this is the wrong camera* would send the operator to different places.
+    FrameSaysNothing,
+    /// The frame could not be read. **Never fatal** — decision 34 reports and never
+    /// refuses, and a night's shooting is not held up by a reporting feature failing.
+    Unreadable(String),
 }
 
 /// What phase 2 established: whether the rig can take it.
@@ -105,6 +134,11 @@ pub fn phase1(config: &Config, volumes: &[Volume], allow_single_source: bool) ->
         .map(|meta| meta.len())
         .sum();
 
+    let body = config
+        .body
+        .as_ref()
+        .map(|configured| check_body(files.first(), configured));
+
     Ok(Cards {
         source: chosen.source,
         source_speed: chosen.source_speed,
@@ -112,7 +146,69 @@ pub fn phase1(config: &Config, volumes: &[Volume], allow_single_source: bool) ->
         files,
         bytes,
         agreed,
+        body,
     })
+}
+
+/// Decision 34 — is this the camera the config names?
+///
+/// **One frame, from the source card only.** Decision 34 was written as *the first frame on
+/// each card*; decision 27's gate has since made the second read redundant, because a
+/// two-card run has already proved the pair holds one identical listing before this point,
+/// and a single-source run has no second card to read. Reading both would ask a question
+/// that is answered above.
+///
+/// **The payoff is decision 23, not contract policing.** A body that does not record
+/// `OffsetTimeOriginal` sends *every* frame to `_unfiled` (decision 21) — and without this,
+/// that is discovered only after the whole day has streamed through phase 3. One frame here
+/// turns a 35-minute discovery into a ten-second one, while the fix is still a decision
+/// about tonight rather than a fact about it.
+fn check_body(first: Option<&PathBuf>, configured: &config::Body) -> BodyReport {
+    let Some(path) = first else {
+        // An empty card cannot reach here — phase 1 needs files to compute N — but the
+        // signature admits it, and inventing a mismatch from no evidence is the one
+        // outcome this check must never produce.
+        return BodyReport::FrameSaysNothing;
+    };
+
+    let mut parser = MediaParser::new();
+    match raw::body_identity(&mut parser, path, RawFormat::Cr3) {
+        Ok(observed) => compare_body(observed, configured),
+        Err(error) => BodyReport::Unreadable(format!("{error:#}")),
+    }
+}
+
+/// Everything about the body check that does not depend on reading a file.
+///
+/// Split out for the same reason `raw::resolve` is: **no CR3 is committed to this
+/// repository**, so a test that had to open one could not run. The comparison is the part
+/// that can be wrong in a way nobody notices — a match declared on a body that is not his —
+/// and it is now the part under test.
+fn compare_body(observed: BodyIdentity, configured: &config::Body) -> BodyReport {
+    if observed.is_empty() {
+        return BodyReport::FrameSaysNothing;
+    }
+
+    // **Trimmed, never normalized further.** Camera-written EXIF strings are padded often
+    // enough to be worth trimming; folding case or stripping punctuation could map two real
+    // bodies onto one string, which is the failure this check exists to catch.
+    let same = |observed: Option<&String>, expected: &str| {
+        observed.is_some_and(|value| value.trim() == expected.trim())
+    };
+
+    if same(observed.model.as_ref(), &configured.model)
+        && same(observed.serial.as_ref(), &configured.serial)
+    {
+        BodyReport::AsConfigured {
+            model: configured.model.clone(),
+            serial: configured.serial.clone(),
+        }
+    } else {
+        BodyReport::Unexpected {
+            observed,
+            configured: configured.clone(),
+        }
+    }
 }
 
 /// Decision 27 — both cards must present the same listing, name for name and size for
@@ -372,5 +468,85 @@ mod tests {
         };
 
         assert!(gate(&a, &b).is_err());
+    }
+
+    fn configured() -> config::Body {
+        config::Body {
+            model: "Canon EOS R5".to_owned(),
+            serial: "082021001047".to_owned(),
+        }
+    }
+
+    fn observed(model: Option<&str>, serial: Option<&str>) -> BodyIdentity {
+        BodyIdentity {
+            make: Some("Canon".to_owned()),
+            model: model.map(str::to_owned),
+            serial: serial.map(str::to_owned),
+        }
+    }
+
+    /// The agreeing case, including the padding cameras actually write.
+    ///
+    /// **Trimming is the only normalization allowed**, so this pins it from the permissive
+    /// side; `a_body_that_is_not_his_is_never_reported_as_configured` pins the other.
+    #[test]
+    fn the_configured_body_matches_after_trimming() {
+        let report = compare_body(
+            observed(Some("Canon EOS R5 "), Some(" 082021001047")),
+            &configured(),
+        );
+
+        assert_eq!(
+            report,
+            BodyReport::AsConfigured {
+                model: "Canon EOS R5".to_owned(),
+                serial: "082021001047".to_owned(),
+            }
+        );
+    }
+
+    /// **The test this feature exists for.** Every row is a body Terry has actually shot or
+    /// could shoot, and every one MUST come out `Unexpected` — a false `AsConfigured` is
+    /// indistinguishable from the check working, which is what makes it worth pinning by case.
+    #[test]
+    fn a_body_that_is_not_his_is_never_reported_as_configured() {
+        let cases = [
+            (
+                "a rented R5 — same model, different serial, the case a model check misses",
+                observed(Some("Canon EOS R5"), Some("212024001418")),
+            ),
+            (
+                "a different model entirely",
+                observed(Some("Canon EOS R6"), Some("082021001047")),
+            ),
+            (
+                "a frame carrying no serial at all",
+                observed(Some("Canon EOS R5"), None),
+            ),
+            (
+                "a serial that differs only in its leading digit",
+                observed(Some("Canon EOS R5"), Some("182021001047")),
+            ),
+        ];
+
+        for (case, identity) in cases {
+            assert!(
+                matches!(
+                    compare_body(identity, &configured()),
+                    BodyReport::Unexpected { .. }
+                ),
+                "{case} was reported as the configured body"
+            );
+        }
+    }
+
+    /// A frame with no camera tags is **not** a mismatch, and conflating them would send the
+    /// operator hunting for a body swap that did not happen.
+    #[test]
+    fn a_frame_with_no_camera_tags_is_not_a_mismatch() {
+        assert_eq!(
+            compare_body(BodyIdentity::default(), &configured()),
+            BodyReport::FrameSaysNothing
+        );
     }
 }

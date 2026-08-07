@@ -29,9 +29,11 @@
 //! **Reads one file and writes nothing**, so it is safe to point at a live card — which is
 //! the only place a real frame lives, since no CR3 is committed to this repository.
 
+use std::path::Path;
 use std::process::ExitCode;
 
-use geotag::raw::MediaParser;
+use geotag::format::RawFormat;
+use geotag::raw::{self, MediaParser};
 use nom_exif::{Exif, ExifIter, ExifTag, MediaSource};
 
 fn main() -> ExitCode {
@@ -42,56 +44,45 @@ fn main() -> ExitCode {
 
     let mut parser = MediaParser::new();
 
-    // The same two calls `raw::capture_time` makes for a CR3 — a seekable source and
-    // `parse_exif` — so this probe reads the file exactly the way the engine does. Guessing
-    // a tidier-looking API here cost a compile; the engine was the authority all along.
-    let source = match std::fs::File::open(&path)
-        .map_err(|e| e.to_string())
-        .and_then(|file| MediaSource::seekable(file).map_err(|e| e.to_string()))
-    {
-        Ok(source) => source,
+    // **The body fields go through `raw::body_identity`, which is what pre-flight calls.**
+    // A probe with its own copy of the extraction can agree with the engine on this rig and
+    // disagree on the next body — and it would be the probe everyone believed. The lens
+    // fields below are read directly because the engine has no reason to expose them.
+    let body = match raw::body_identity(&mut parser, Path::new(&path), RawFormat::Cr3) {
+        Ok(body) => body,
         Err(error) => {
-            eprintln!("opening {path}: {error}");
+            eprintln!("{error:#}");
             return ExitCode::FAILURE;
         }
     };
-
-    let iter: ExifIter = match parser.parse_exif(source) {
-        Ok(iter) => iter,
-        Err(error) => {
-            eprintln!("parsing EXIF from {path}: {error}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let exif: Exif = iter.into();
 
     println!();
     println!("  {path}");
     println!();
 
-    // The three that matter to decision 34, plus the lens serial as a control: if the lens
-    // one is present and the body one is not, that is Canon's tag layout rather than this
-    // parser failing to reach the block.
-    let fields = [
-        ("Make", ExifTag::Make),
-        ("Model", ExifTag::Model),
-        ("CameraSerialNumber", ExifTag::CameraSerialNumber),
-        ("LensModel", ExifTag::LensModel),
-        ("LensSerialNumber", ExifTag::LensSerialNumber),
-    ];
-
-    let mut have_serial = false;
-    for (label, tag) in fields {
-        match exif.get(tag).and_then(|v| v.as_str().map(str::to_owned)) {
-            Some(value) => {
-                println!("  {label:<20} {value}");
-                if matches!(tag, ExifTag::CameraSerialNumber) && !value.trim().is_empty() {
-                    have_serial = true;
-                }
-            }
+    for (label, value) in [
+        ("Make", &body.make),
+        ("Model", &body.model),
+        ("CameraSerialNumber", &body.serial),
+    ] {
+        match value {
+            Some(text) => println!("  {label:<20} {text}"),
             None => println!("  {label:<20} —  (absent from standard EXIF)"),
         }
     }
+
+    // The lens serial is the **control**: present alongside a missing body serial, that is
+    // Canon's tag layout rather than this parser failing to reach the block. Decision 34
+    // records why the lens is deliberately never *checked* — Terry rents glass constantly.
+    let lens = lens_fields(&mut parser, &path);
+    for (label, value) in lens {
+        match value {
+            Some(text) => println!("  {label:<20} {text}"),
+            None => println!("  {label:<20} —  (absent from standard EXIF)"),
+        }
+    }
+
+    let have_serial = body.serial.is_some();
 
     println!();
     if have_serial {
@@ -105,4 +96,28 @@ fn main() -> ExitCode {
     }
 
     ExitCode::SUCCESS
+}
+
+/// The two lens tags, read straight from `nom-exif`.
+///
+/// Deliberately *not* on [`geotag::raw::BodyIdentity`]: decision 34 refuses to check the
+/// lens, and a field on the shipping type would be an invitation to start. Here it is a
+/// control for this probe and nothing else, so a failure to read it costs an em dash.
+fn lens_fields(parser: &mut MediaParser, path: &str) -> [(&'static str, Option<String>); 2] {
+    let exif: Option<Exif> = std::fs::File::open(path)
+        .ok()
+        .and_then(|file| MediaSource::seekable(file).ok())
+        .and_then(|source| parser.parse_exif(source).ok())
+        .map(|iter: ExifIter| iter.into());
+
+    let read = |tag: ExifTag| {
+        exif.as_ref()
+            .and_then(|exif| exif.get(tag))
+            .and_then(|value| value.as_str().map(str::to_owned))
+    };
+
+    [
+        ("LensModel", read(ExifTag::LensModel)),
+        ("LensSerialNumber", read(ExifTag::LensSerialNumber)),
+    ]
 }

@@ -21,6 +21,35 @@ pub struct Config {
     /// Where the GPS logger's tracks are copied to. Pre-flight refuses an empty
     /// directory unless `--no-gpx` declares the night genuinely trackless (decision 26).
     pub gpx_dir: PathBuf,
+
+    /// The one body the fleet has (decision 34). Absent means the check does not run.
+    ///
+    /// **Optional so a config written before this field existed still parses**, which is
+    /// the same promise decision 28 makes for manifests and for the same reason: the file
+    /// on Terry's machine predates the field, and a required key would refuse the run over
+    /// a *reporting* feature. `skip_serializing_if` keeps it out of a rewritten config that
+    /// never had one.
+    ///
+    /// **Absence is silent, deliberately.** Printing *body not configured* on every run
+    /// would be a line that never varies, which is the warning decisions 9, 12 and 34 all
+    /// argue against — and it would nag about a check whose whole design is INFO.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body: Option<Body>,
+}
+
+/// The camera the shooting-day contract names (`CONOPS.md`, decision 34).
+///
+/// **Both fields are required once `body` is present**, and the serial is the one that
+/// earns the feature: a *model* check passes cleanly on a rented R5, and Terry rented one
+/// from 2021 until buying his own in 2024. Four distinct R5 serials appear in his archive.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct Body {
+    pub model: String,
+    /// Verbatim, and compared verbatim after trimming — **never normalized.** The same
+    /// argument as `disk_serial` above: a transform that folds case or strips punctuation
+    /// can map two real bodies onto one string, and this value's entire job is to tell one
+    /// R5 from another.
+    pub serial: String,
 }
 
 /// One of the four copies.
@@ -187,6 +216,32 @@ mod tests {
       ],
       "gpx_dir": "C:\\Travel\\GPX"
     }"#;
+
+    /// **A config written before decision 34 existed MUST still run**, and `REAL` above is
+    /// exactly that file. This is the promise that let `body` ship as optional: a required
+    /// key would have refused the night's offload over a *reporting* feature.
+    #[test]
+    fn body_is_optional_and_absent_means_the_check_does_not_run() {
+        let without = parse(REAL).expect("a config predating decision 34 still parses");
+        assert!(without.body.is_none());
+
+        let with = parse(
+            r#"{
+              "destinations": [{ "label": "laptop", "path": "C:\\Travel\\Images" }],
+              "gpx_dir": "C:\\Travel\\GPX",
+              "body": { "model": "Canon EOS R5", "serial": "082021001047" }
+            }"#,
+        )
+        .expect("a config naming the body parses");
+
+        assert_eq!(
+            with.body,
+            Some(Body {
+                model: "Canon EOS R5".to_owned(),
+                serial: "082021001047".to_owned(),
+            })
+        );
+    }
 
     /// The two shapes, and that each resolves to the variant that decides whether it
     /// gets ejected.

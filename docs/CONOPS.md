@@ -321,9 +321,13 @@ the deal:
   owns an RF 24-240 and rents specialized lenses eagerly and often — an ultra-wide for
   Monument Valley in 2024 — so a *new lens is a no-op* as far as this tool is concerned and
   must never be reported as anything. Nothing about the guarantees depends on which lens shot
-  a frame ([`DESIGN.md`](DESIGN.md) decision 34 records why the body is *to be* checked and the
-  lens explicitly is not — **that check is designed and unbuilt as of 2026-08-07**, so nothing
-  today reports either).
+  a frame ([`DESIGN.md`](DESIGN.md) decision 34 records why the body is checked and the lens
+  explicitly is not).
+
+  **Pre-flight names the body from the first frame, as of 2026-08-07** — one row in the card
+  block, ten seconds in. It is INFO: it never refuses the run and never changes the verdict.
+  **The check only runs if `config.json` names a body**, so a run with no `Body` row means the
+  config is silent rather than that the camera agreed.
 
   **Two card slots is a purchase criterion, not merely something to verify afterwards.**
   This is the part worth knowing before money is spent: "another Canon R body" does not

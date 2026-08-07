@@ -492,6 +492,9 @@ const SECONDARY_LABEL: &str = "Secondary";
 /// See [`PRIMARY_LABEL`].
 const SOLE_LABEL: &str = "Sole";
 
+/// Decision 34's row in the card block. Screen only — nothing stores it.
+const BODY_LABEL: &str = "Body";
+
 /// How long after launch eject stops trying (decision 22).
 ///
 /// **Ninety minutes, the top of the dinner window.** It was sixty until 2026-08-06, on the
@@ -1583,6 +1586,14 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
         ));
     }
 
+    // **Decision 34's line sits in the card block, not in the final summary.** The decision
+    // placed it "beside decision 23's timezone line"; no such line exists, and pre-flight is
+    // where the decision's own payoff argument puts it — a body that records no UTC offset
+    // sends every frame to `_unfiled`, and knowing that in ten seconds rather than after
+    // phase 3 is the whole point. It shares the card labels' column and carries **no badge**:
+    // INFO never touches the verdict, and a mismatch is not a reason to leave drives plugged in.
+    let body_row: Option<String> = cards.body.as_ref().map(body_line);
+
     let dest_rows: Vec<(&str, String, String, &str)> = rig
         .survey
         .found
@@ -1609,6 +1620,7 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
         .map(|(label, ..)| *label)
         .chain(dest_rows.iter().map(|(label, ..)| *label))
         .chain(rig.survey.missing.iter().map(|m| m.label.as_str()))
+        .chain(body_row.iter().map(|_| BODY_LABEL))
         .collect();
     let places: Vec<&str> = card_rows
         .iter()
@@ -1633,6 +1645,10 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
     println!("    Camera Cards");
     for (label, place, rate) in &card_rows {
         println!("        {label:<label_column$}{place:<place_column$}{rate:>number_column$} MB/s");
+    }
+    // Last in the block, because it describes what wrote the cards rather than a card.
+    if let Some(line) = &body_row {
+        println!("        {BODY_LABEL:<label_column$}{line}");
     }
 
     println!();
@@ -2211,6 +2227,40 @@ fn report_corroboration(report: Option<&phase4::Report>, heading_was_erased: boo
     }
 }
 
+/// Decision 34's line — **INFO in every arm**, and that is load-bearing rather than mild.
+///
+/// **No `!` prefix and no badge in any branch.** A `!` block is the report's WARNING level and
+/// carries exit 2; a body mismatch is true on *every* run until the config is edited, so
+/// spending exit 2 on it would train the operator to read past a code that also means unfiled
+/// frames, a confirmed mismatch and a refused eject. Decision 34 rejected exactly that.
+///
+/// **What makes INFO sufficient rather than lax is the other reader.** `../CLAUDE.md` binds
+/// Claude to act on this line every time it disagrees — ask what changed, offer the config
+/// edit — while a tired human sees a plain fact about his camera. The line must still stand
+/// alone, because hotel internet does not.
+fn body_line(report: &preflight::BodyReport) -> String {
+    match report {
+        preflight::BodyReport::AsConfigured { model, serial } => {
+            format!("{model} · {serial} — as configured")
+        }
+        // Both sides, always. Naming only the observed one would make the reader go and look
+        // up what was expected, at the moment he is deciding whether tonight is normal.
+        preflight::BodyReport::Unexpected {
+            observed,
+            configured,
+        } => format!(
+            "{observed} — does not match the config (expected {} · {})",
+            configured.model, configured.serial
+        ),
+        preflight::BodyReport::FrameSaysNothing => {
+            "the first frame records no camera identity".to_owned()
+        }
+        // The run is unaffected — this arm exists so a reporting feature that fails says so
+        // instead of silently printing nothing, which would be indistinguishable from a match.
+        preflight::BodyReport::Unreadable(why) => format!("could not be read — {why}"),
+    }
+}
+
 fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool, destinations: usize) {
     let Some(report) = report else {
         // Always headed: the skipped path never drew bars, so nothing put the word on screen.
@@ -2291,6 +2341,37 @@ fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool, dest
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// **A mismatch line MUST name both sides**, and that is what a tidy-up would drop.
+    ///
+    /// Shortening this to *"does not match the config"* would leave Terry, at 11pm, to go and
+    /// find out what the config actually says — at the moment he is deciding whether tonight
+    /// is normal. It is also what lets Claude offer the exact edit rather than asking him to
+    /// read the value out.
+    #[test]
+    fn the_body_line_names_both_sides_of_a_mismatch() {
+        let line = body_line(&preflight::BodyReport::Unexpected {
+            observed: geotag::raw::BodyIdentity {
+                make: Some("Canon".to_owned()),
+                model: Some("Canon EOS R5".to_owned()),
+                serial: Some("212024001418".to_owned()),
+            },
+            configured: config::Body {
+                model: "Canon EOS R5".to_owned(),
+                serial: "082021001047".to_owned(),
+            },
+        });
+
+        assert!(line.contains("212024001418"), "the observed serial: {line}");
+        assert!(
+            line.contains("082021001047"),
+            "the configured serial: {line}"
+        );
+
+        // INFO, not WARNING. A `!` prefix is the report's exit-2 level, and decision 34
+        // rejected exit 2 for a signal that repeats on every night of a trip.
+        assert!(!line.starts_with('!'), "must not read as a warning: {line}");
+    }
 
     fn released(label: &str, outcome: eject::Outcome, attempts: u32) -> Released {
         Released {
