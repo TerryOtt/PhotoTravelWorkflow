@@ -294,11 +294,27 @@ the source found four defects in one file:
 | **Decision 34 is designed and unbuilt** | No `body` field in `config.rs`, no `Body` line printed — **and `CLAUDE.md` instructed Claude to act on that line "every time it appears."** Now marked in three places, with a MUST NOT against reading a missing line as agreement |
 | A verbatim duplicate | *"Both badges are five cells wide"* stated twice, 90 lines apart, inside one section |
 
-**Net lines moved barely at all — and that is the honest result.** Decision 14 lost 41, decisions
-17 and 29 lost narrative, but the corrections added tables back. **The pass bought accuracy rather
-than size**, and `WRITING.md` rule 5 gained the rule that would have caught all four: a document
-stating what a program prints MUST have those strings grepped against the source, and **the
-pattern MUST be proven able to find something before its silence is believed.**
+**Then the sweep widened, and found four more:**
+
+| Also found | |
+|---|---|
+| **The manifest sample was flat** | Decision 12 showed `schema`/`date_utc`/`destination`/`runs`/`files` at top level. The real shape is `{ schema, checksum, body: { ... } }`. **`checksum` covers `body` and nothing else**, so a flat sample did not omit a field — it contradicted the mechanism the next paragraph explains. **The highest-stakes sample in the repo**: decision 28 promises a stranger reads these disks in 2031 with this block |
+| **Decisions 9 and 33 read as built** | The Defender check and the throughput history, both present tense, both absent. `history.json`, `uptime_min`, `read_mb_s`, `write_mb_s`, `verify_mb_s` appear nowhere in `crates/` |
+| **`Still to build` was the only correction** | A reader arriving at decision 9, 33 or 34 directly had nothing telling them the behavior was absent. **A list of exceptions only works if the exceptions know they are on it** — all four now carry a marker at the decision |
+| **Where this stands** | Module inventory re-checked mechanically. **Clean** — every `offload` module named, geotag's four covered by its crate row |
+
+**Two sweeps came back clean, which is worth as much as the finds.** Every flag quoted in docs is
+legitimate — explicitly marked absent, explicitly RawGeotag's, or another tool's — and
+`config.json`'s sample matches `config.rs` exactly. **The defect class was output claims and JSON
+shapes, not the CLI surface.**
+
+**The docs got BIGGER, and that is the honest result.** `DESIGN.md` 3,245 → 3,236 with decision 14
+down 41 and decision 22 down 30, because the corrections added more than the narrative cuts
+removed. **The pass bought accuracy, not size.** `WRITING.md` rule 5 gained what would have caught
+all of it: a document stating what a program prints or writes MUST have those strings grepped
+against the source; **the pattern MUST be proven able to find something before its silence is
+believed**; and a phrase with a variable in it is never present literally, so search the invariant
+half.
 
 ## Build decision 34: the body check — OPEN
 
