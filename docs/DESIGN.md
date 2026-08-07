@@ -2704,36 +2704,18 @@ aiming at the verification record of code that no longer lives beside it — a
 one-canonical-place violation ([`WRITING.md`](WRITING.md) rule 2) that would surface at
 the worst moment, which is trip hygiene.
 
-> **Corrected while doing the lift (2026-08-03), in both directions.**
+> **Two corrections from doing the lift (2026-08-03), and one lesson that outlived them.**
+> `thiserror` is earned by the manifest schema reader alone — `raw::Capture` was *already* an
+> enum of outcomes, so the error type this design asked for had been made unnecessary before it
+> was requested. **A design that reasons about code it has not read will invent types the code
+> already made redundant.**
 >
-> **The `thiserror` count above is one, not two.** The capture-time site named in the
-> second bullet does not exist: `raw::Capture` is *already* an enum of outcomes —
-> `Resolved`, `NeedsOffset`, `NoCaptureTime` — so the distinction decision 21 needs was
-> solved in RawGeotag before this design asked for it. The in-memory entry point closes
-> the gap the rest of the way: with the bytes already in RAM there is no I/O failure
-> left to tell apart from a defective file, so *every* non-`Resolved` outcome routes to
-> `_unfiled` and nothing has to branch on an error type. `thiserror` is therefore
-> earned by the manifest schema reader (decision 28) alone, and it stays declared but
-> unused until that lands. The general lesson is worth more than the correction: a
-> design that reasons about code it has not read will invent error types the code
-> already made unnecessary.
+> **`LIGHTROOM-XMP.md` stays in RawGeotag** because its procedure *drives* `rawgeotag.exe` rather
+> than describing it, and `offload` cannot write a sidecar yet. A document whose first instruction
+> is unrunnable in the repository holding it is the failure [`WRITING.md`](WRITING.md) opens with.
 >
-> **And the document cannot move ahead of the binary.** `LIGHTROOM-XMP.md` was copied
-> here and then removed, because its procedure is not prose about the engine — it
-> *drives* `rawgeotag.exe`, staging real frames through it and diffing the sidecars
-> against Lightroom's. `offload` cannot write a sidecar yet, so the document's first
-> instruction would be unrunnable in the repository holding it, which is precisely the
-> failure [`WRITING.md`](WRITING.md) opens with. The pointer in `TRIP-HYGIENE.md` stays
-> aimed at RawGeotag, and the move happens when phase 5 can execute the procedure.
->
-> **So the lift leaves a deliberate duplication, and it is not resolvable from here.**
-> RawGeotag was not modified: it keeps its own copy of these four modules and still
-> builds and runs exactly as before. Until it takes a path dependency on `geotag` or is
-> retired, the engine exists twice and a fix applied to one copy does not reach the
-> other. That is a change in *another repository*, and it is the maintainer's call
-> rather than something this decision may assume. **It was made the same day:
-> decision 30 retires RawGeotag rather than making it a consumer, and cannot start
-> until phase 5 works.**
+> **The engine therefore exists twice and a fix to one copy does not reach the other**, until
+> decision 30 retires RawGeotag — which cannot start until phase 5 works.
 
 ### 30. RawGeotag retires into `offload`
 

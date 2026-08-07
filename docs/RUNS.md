@@ -1,20 +1,27 @@
 # Run records
 
-**What a full end-to-end run actually cost, and what went wrong in it.** Newest first. Every
-entry here is a real run on the real rig under [`FULL-RUN.md`](FULL-RUN.md) — clean build, cold
-cache, wiped destinations — so the numbers are comparable to each other.
+**What a full end-to-end run actually cost.** Every entry is a real run on the real rig under
+[`FULL-RUN.md`](FULL-RUN.md) — clean build, cold cache, wiped destinations — so the numbers are
+comparable to each other.
 
-**Split out of [`DESIGN.md`](DESIGN.md) on 2026-08-06**, which had grown to 4,599 lines with a
-third of that being run narratives. The design document is for someone changing the design; this
-one is for someone asking *what happened last time*. **Nothing was cut in the move** — the split
-is structure, not deletion, and the same reasoning that put the eject tally in
-[`EJECT-SERIES.md`](EJECT-SERIES.md).
+| Date | Frames | Size | LANDED | Whole run | What it established |
+|---|---|---|---|---|---|
+| **2026-08-06** | 7,395 | **386.6 GiB** | **35 m 29 s** | 89 m 59 s | The largest day on record. Phase 3 scales **super-linearly** — 2.06× the data cost 3.25× the time — and the first eject that never recovered |
+| 2026-08-05 | 3,883 | 187.5 GiB | **10 m 55 s** | 27 m 06 s | The interleaved verify read; the fastest LANDED on record |
+| 2026-08-04 | 3,883 | 187.5 GiB | 13 m 28 s | 34 m 51 s | First run under the procedure. **Splitting the SSDs off the dock onto the laptop's own ports: 2.7×**, and the TB5 hub does not help |
+| 2026-08-04 | 3,883 | 187.5 GiB | — | 20 m 27 s | Corroboration's first real run — 3,883 matched, 0 mismatched |
+| 2026-08-04 | 3,883 | 187.5 GiB | — | 16 m 55 s | Both SSDs on the dock. Superseded the same day |
+
+**Never extrapolate LANDED from a smaller run** — the top row is why.
 
 > **These narratives quote what the tool printed on the night they were written.** Verdict
 > wording, badge shapes and flags have changed since — `--eject-prepare` no longer exists, and
 > `EJECTED — SAFE TO STORE` is now a badge. **Do not read an old record as current behavior**;
 > `DESIGN.md` decision 14 is the authority for what the report says today. Editing these to match
 > would destroy the record.
+>
+> **Several also carry durable *hardware* findings** — port topology, the TB5 hub result, the
+> Gen 2x2 question — which do not age with the run that happened to discover them.
 
 ---
 
