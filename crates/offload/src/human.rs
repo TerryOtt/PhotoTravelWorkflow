@@ -27,31 +27,24 @@ pub fn count(n: usize) -> String {
 
 /// Bytes as **whole GiB, rounded up**, for anything answering *how much is there to move*.
 ///
-/// **Whole rather than fractional at the operator's request** (2026-08-06): *"at no point will
-/// I care about fractional GB."* A tenth of a GiB is 107 MB — below the resolution of any
-/// decision made from this figure, and one more digit to skip past on every line carrying one.
+/// **Whole rather than fractional**, at the operator's request — a tenth of a GiB is 107 MB,
+/// below the resolution of any decision made from this figure.
 ///
 /// **Up rather than to-nearest, and the direction is load-bearing.** This renders payloads and
-/// requirements, where overstating is the safe error: `387` for a 386.6 GiB day can never
-/// promise that something fits when it does not. Free space rounds the other way, in
-/// [`gib_down`], so the two always move *apart*. That is what stops `NOT ENOUGH ROOM` from
-/// printing two identical numbers while refusing the run — which is exactly what one shared
-/// rounding would produce at 386.2 GiB free against 386.6 GiB needed.
+/// requirements, where overstating is the safe error. Free space rounds the other way in
+/// [`gib_down`], so the two always move *apart* — which is what stops `NOT ENOUGH ROOM` printing
+/// two identical numbers while refusing the run, as one shared rounding would at 386.2 GiB free
+/// against 386.6 needed.
 ///
-/// **Integer arithmetic, not `f64::ceil`.** `div_ceil` is exact at every input, where a float
-/// path has to be reasoned about at the boundary — the same class of trap that once had a test
-/// in this file asserting `1,688.0` for a value stored as `1687.949999...`.
+/// **Integer arithmetic, not `f64::ceil`.** `div_ceil` is exact at every input; a float path has
+/// to be reasoned about at the boundary — the trap that once had a test here asserting `1,688.0`
+/// for a value stored as `1687.949999...`.
 ///
-/// **Capacity is GiB and rates are decimal, and the split is deliberate.** Windows is what the
-/// operator checks a figure against — Explorer, PowerShell's `/1GB`, the drive's own properties
-/// dialog all divide by 2^30 — so a payload reported in decimal `GB` as `202` sends him to a
-/// file manager that says `188` and invites him to wonder which is lying. Neither is; they are
-/// the same bytes in two units, and the one matching his other instruments wins.
-///
-/// **Throughput stays decimal** (`GB/s`, `Gbps`) because a link's speed is decimal by
-/// definition — 10 Gbps is 10^10 bits — and a rate expressed in GiB/s cannot be compared to
-/// the number printed on the cable. So sizes are GiB, rates are GB, and each is the unit its
-/// own question is asked in.
+/// **Sizes are GiB, rates are decimal, and neither is negotiable.** Windows is what the operator
+/// checks a size against — Explorer and `/1GB` both divide by 2^30 — so a payload printed as
+/// decimal `202` sends him to a file manager saying `188`. Throughput stays decimal because a
+/// link's speed is decimal by definition, and GiB/s cannot be compared to the number on the
+/// cable. **Each is the unit its own question is asked in.**
 pub fn gib_up(bytes: u64) -> String {
     if bytes < DECIMAL_BELOW {
         return tenths((bytes * 10).div_ceil(GIB));

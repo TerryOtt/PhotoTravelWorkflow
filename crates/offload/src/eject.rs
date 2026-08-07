@@ -1,46 +1,43 @@
 //! Eject — the only code here that dismounts a live volume.
 //!
-//! Decision 22. The nightly ritual used to end with three trips to the tray icon, usually
-//! twice per device out of fear that bytes were still sitting in a cache. **By the time
-//! this runs that fear is structurally dead**: writes were write-through and every byte was
-//! read back off the media (decision 2), so ejection *confirms* persistence rather than
-//! providing it.
+//! Decision 22. **By the time this runs, the fear it used to answer is structurally dead**:
+//! writes were write-through and every byte was read back off the media (decision 2), so
+//! ejection *confirms* persistence rather than providing it.
 //!
-//! # Three steps, in this order, and none of them is optional
+//! # Three steps, and when each one happens
 //!
-//! 1. **Lock** (`FSCTL_LOCK_VOLUME`), retried with backoff. Windows refuses the lock while
-//!    anything holds an open handle, and immediately after a run something usually does —
-//!    Defender scanning freshly written files, or the search indexer. The retry window is
-//!    what turns "eject failed" into "eject waited".
+//! 1. **Lock** (`FSCTL_LOCK_VOLUME`), retried with backoff — Windows refuses while anything
+//!    holds an open handle, and immediately after a run something usually does. The retry
+//!    window is what turns "eject failed" into "eject waited".
 //! 2. **Dismount** (`FSCTL_DISMOUNT_VOLUME`), which flushes and detaches the filesystem.
-//! 3. **Power down** (`CM_Request_Device_Eject`), which is exactly what the tray icon does.
+//! 3. **Power down** (`CM_Request_Device_Eject`), which is what the tray icon does.
 //!
-//! **All three run for camera cards too, which is a correction.** They used to get steps 1
-//! and 2 only, on the reasoning that a card is pulled from a reader that stays put. A
-//! dismount releases nothing — it detaches a filesystem and leaves the volume and its drive
-//! letter, and Windows remounts on next access — so both cards sat in the tray after every
-//! run that claimed to have settled them. Decision 22 has the measurement.
+//! **Steps 1 and 2 run on the FIRST attempt only** — see [`Prepare`]. This header claimed for
+//! three days that all three were mandatory every time, and that claim was the defect: repeating
+//! them meant never asking about a *settled* volume, which exFAT refuses forever.
+//!
+//! **All three apply to camera cards too.** They once got steps 1 and 2 only, on the reasoning
+//! that a card is pulled from a reader that stays put — but a dismount releases nothing, so both
+//! cards sat in the tray after every run that claimed to have settled them.
 //!
 //! # Why this is not simply `IOCTL_STORAGE_EJECT_MEDIA`
 //!
-//! That control code ejects *media* from a drive — a disc from an optical drive, a card
-//! from a reader. A USB or Thunderbolt SSD reports non-removable media in a removable
-//! enclosure, so it succeeds at nothing. Powering the enclosure down is a *device* operation
-//! and belongs to the configuration manager, which is why this walks to the device node.
+//! That ejects *media* from a drive. An SSD reports non-removable media in a removable
+//! enclosure, so it succeeds at nothing; powering the enclosure down is a *device* operation
+//! belonging to the configuration manager, which is why this walks to the device node.
 //!
-//! **That paragraph is right about SSDs and was wrong to stop there, which cost real time.**
-//! It names a card in a reader as the case where media eject *does* work, so the card path
-//! inherited an exclusion argued for a different device — and nobody checked. Measured
-//! 2026-08-05: media eject reports success and releases neither card, and the physical-drive
-//! handle that might have behaved differently needs administrator rights (binding constraint
-//! 4). See [`eject_media`], which is kept as a harness rather than a code path.
+//! **That argument is right about SSDs and was wrong to stop there, which cost real time.** It
+//! names a card in a reader as the case where media eject *does* work, so the card path
+//! inherited an exclusion argued for a different device and nobody checked. Measured 2026-08-05:
+//! it reports success and releases neither card, and the handle that might have behaved
+//! differently needs administrator rights (binding constraint 4). [`eject_media`] is kept as a
+//! harness, not a code path.
 //!
 //! # A refused eject is a result, not a failure
 //!
-//! The data guarantees were settled before eject was attempted, so nothing here can
-//! downgrade them. A volume something else is holding is named per device and the verdict
-//! says *eject it by hand* (decision 14). This module therefore returns an [`Outcome`] and
-//! reserves `Err` for the cases where it could not even ask.
+//! The data guarantees were settled before eject was attempted, so nothing here can downgrade
+//! them. This module returns an [`Outcome`] and reserves `Err` for the cases where it could not
+//! even ask.
 
 use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::io::AsRawHandle;
