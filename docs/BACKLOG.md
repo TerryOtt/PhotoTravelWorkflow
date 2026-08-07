@@ -544,7 +544,27 @@ offload geotag "Q:\Lightroom\Images\2022\2022-09-27" "C:\Travel\GPX\not-tonight\
 >    packet**, so a rewrite would discard develop settings. That has to be checked, not assumed.
 > 2. **The scope is larger than one day** — see below.
 
-### The candidate set: 26 days, ~50,319 sidecars
+### ✗ The scope is much narrower than first recorded — two days checked came back CORRECT
+
+**Corrected 2026-08-07, an hour after the first scoping, by finding the track archive at
+`Q:\Photo GPX Tracks\` — every trip's tracks, by year.** The candidate list below was written
+when only two tracks were on the laptop; with the real tracks, the picture changes:
+
+| Day | Offset | Verdict |
+|---|---|---|
+| **2022-09-27** | `+01:00` | **WRONG — 200/200 naive, 49.9 km.** Holds against the NAS track too, so not a wrong-track artifact |
+| 2021-08-08 | `-06:00` | **Correct** — 200/200 honor the offset |
+| 2022-01-11 | `-05:00` | **Correct** — 200/200 honor the offset |
+| 2022-09-28 | `+01:00` | **Indeterminate** — classified naive, but **worst displacement 0.2 km**: he was stationary, so the two readings are indistinguishable |
+
+**So the error is not systemic**, and the "25 days / 50,319 sidecars" framing below overstated
+it. **Magnitude matters more than the classification**: a day where the subject barely moved
+cannot distinguish the two readings at all, and 0.2 km is not a wrong geotag.
+
+**What is actually established: one day is definitely wrong.** The rest of the candidate list
+needs the same check against its own track, which is now possible and cheap.
+
+### The original candidate set, kept because the offsets are still the right filter
 
 **Scanned `Q:\Lightroom\Images` 2019–2026, one sidecar per date folder, read-only.** Only a
 **non-zero** offset can carry this error; a UTC day is unaffected because the offset is a no-op.

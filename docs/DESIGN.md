@@ -2842,6 +2842,16 @@ the worst moment, which is trip hygiene.
 > the fixture exists to guard. **Tracked in [`BACKLOG.md`](BACKLOG.md); re-tagging is Terry's
 > call and is not obviously safe, because Lightroom now owns those packets.**
 >
+> **It is one day, not an era.** Checked against their own tracks from `Q:\Photo GPX Tracks\`,
+> **2021-08-08 (`-06:00`) and 2022-01-11 (`-05:00`) are correct** — 200/200 honoring the offset.
+> A first scoping pass that had no tracks flagged 25 days as candidates purely on having a
+> non-zero offset; **that overstated it and is corrected in the backlog.**
+>
+> > **The methodological catch, worth more than the finding:** a day where the photographer
+> > barely moved **cannot distinguish the two readings at all.** 2022-09-28 classifies as naive
+> > with a worst displacement of **0.2 km** — which is not a wrong geotag, it is a stationary
+> > subject. **Judge by displacement, never by which reading is nearer.**
+>
 > **What is still not checked**: sidecar *content* against a reference implementation. The
 > comparison above is against the **track**, which is better for position and says nothing about
 > the rest of the packet.
