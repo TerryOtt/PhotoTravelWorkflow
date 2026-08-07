@@ -1130,22 +1130,14 @@ wedge the tool for good.
 
 ### 14. The report separates "your raws are safe" from "everything went well"
 
-> **The four per-destination lines are where the answer is *earned*, and the operator named
-> them as the payload.** 2026-08-05, watching a run finish: *"That's the biggest warm fuzzy of
-> the whole run. Genuine blood pressure drop at those four lines."*
->
-> That is worth recording because it corrects an assumption this decision could otherwise
-> invite. The verdict is the *last* line and the one that must be unambiguous — but it is a
-> summary, and a summary is believed rather than checked. **The relief comes from seeing each
-> destination account for itself**: `3,883 written · 0 skipped · 3,883 verified`, four times,
-> with a badge that could have been red and is not.
->
-> So those lines get the visual weight: white on green when a destination verified clean, white
-> on red when it did not. **The colour is a signal rather than decoration**, which is the test
-> `REVIEWING.md` applies — this badge reports a comparison made moments earlier against every
-> file, and a failure in it is exactly the difference between LANDED and `NOT SAFE`. Contrast
-> pre-flight's capacity tick, which is a receipt for a check that already refused the run and
-> therefore can only ever be green.
+> **The four per-destination lines are the payload, not the verdict.** 2026-08-05, watching a
+> run finish: *"That's the biggest warm fuzzy of the whole run. Genuine blood pressure drop at
+> those four lines."* The verdict is a summary, and a summary is believed rather than checked;
+> the relief comes from each destination accounting for itself — `3,883 written · 0 skipped ·
+> 3,883 verified`, four times. So those lines get the visual weight, and their badge is a
+> signal rather than decoration: it reports a comparison made moments earlier against every
+> file. Contrast pre-flight's capacity tick, a receipt for a check that already refused the run
+> and therefore can only ever be green.
 
 Phase 3 is the product and the rest is gravy, so **only phase 3 may change the verdict.**
 A geotag miss or a track that didn't cover the evening walk is a count in the body, never
@@ -1251,58 +1243,35 @@ the strong pairing there.
 reasoning that preceded them.**
 
 **It MUST NOT be bold, and that is the non-obvious one.** `black().bold()` emits `ESC[1;30m`, and
-this console renders bold black as *intense* black — **grey**. Terry, on seeing it: *"it's almost
-a gray and getting washed out on the yellow."* **The attribute added to make it louder was the
-thing silencing it.** The green badge keeps `bold` because there the same promotion helps: bold
-white is *bright* white. Same attribute, opposite effect, entirely because of which base colour
-it is applied to.
+this console renders bold black as *intense* black — **grey**. Terry: *"it's almost a gray and
+getting washed out on the yellow."* **The attribute added to make it louder was the thing
+silencing it.** The green badge keeps `bold` because bold white is *bright* white — same
+attribute, opposite effect, entirely because of the base colour.
 
-> **Why terminals do this**, since it looks like a bug and is not. On the original hardware bold
-> was not a font weight — it was more beam current, so bold meant *brighter*. Sixteen-colour
-> palettes kept faith with that by mapping bold + colour *N* onto colour *N+8*, the bright half.
-> For seven colours that is exactly right. Index 0 is black and index 8 is **"bright black"**,
-> which is the palette's name for grey — so black is the one colour where brighter moves *toward*
-> a light background. Terry: *"first time in my life I've seen bold go backwards."* It only bites
-> when black sits on a light ground, which in a terminal is rare and is exactly what a hazard
-> badge wants.
+> **Why, since it looks like a bug:** bold once meant more beam current, so palettes map bold +
+> colour *N* onto *N+8*, the bright half. Index 8 is "bright black", the palette's name for grey
+> — so black is the one colour where brighter moves *toward* a light ground.
 
 **The palette's yellow was the other half of the washout.** `SGR 43` is `#C19C00` in Windows
-Terminal's default scheme — a dark mustard gold — so black on it was low contrast before bold got
-involved. **Two causes were dulling the same badge and each was hiding the other**, which is why
-the first fix improved things without fixing them.
+Terminal's default scheme — a dark mustard gold. **Two causes were dulling the same badge and
+each was hiding the other**, which is why the first fix improved things without fixing them.
 
 **Pure yellow beat the road-sign amber it was expected to lose to.** `#FFD500` was the reasoned
-choice — hazard tape, highway signage, the colour the association argues for — and lost a
-side-by-side instantly: *"for my eyes, pure yellow is the clear winner, that does what an
-attention badge should."* **Maximum luminance beat the correct reference.** Signage amber is
-chosen partly for how it holds up under sun, rain and retroreflective sheeting, none of which
-applies to an emissive panel two feet from a face.
+choice and lost a side-by-side instantly: *"for my eyes, pure yellow is the clear winner."*
+Signage amber is chosen for how it holds up under sun and retroreflective sheeting, none of which
+applies to an emissive panel two feet from a face. **And it is a true colour rather than a
+palette index**, so it survives a theme change — a signal whose entire job is instant recognition
+must not have to be re-learned.
 
-**And it is a true colour rather than a palette index**, so it is identical on the laptop panel
-and the 4K monitor and survives a theme change. For a signal whose entire job is instant
-recognition, a colour that moves with the current scheme is one that has to be re-learned.
+**The clean badge stays on `SGR 42`, reviewed against three candidates on 2026-08-06 and
+deliberately not changed.** **So the pair is half true-colour and half palette**, accepted rather
+than overlooked: pinning the green would harden it against a theme change that has never
+happened, at the cost of freezing a colour chosen by eye under one scheme.
 
-**The clean badge stays on `SGR 42`, reviewed and deliberately not changed.** Three greens were
-put beside the new yellow on 2026-08-06 and Terry kept the one already shipping: *"going darker
-against the white check helped. The SGR 42 green looks right to me."* **So the pair is
-deliberately half true-colour and half palette**, and that asymmetry is accepted rather than
-overlooked — pinning the green would harden it against a theme change that has never happened,
-at the cost of freezing a colour chosen by eye under one scheme.
-
-> **The scheme is Campbell, and that is verified rather than assumed.** Windows Terminal's
-> `settings.json` sets no `colorScheme` on the defaults, on any profile, or as a custom scheme,
-> so the built-in default applies — which is what makes `SGR 43` `#C19C00` and bright black
-> `#767676`. `intenseTextStyle` is likewise unset and therefore `bright`, which is the promotion
-> that greyed the badge. **Re-check all three before trusting this paragraph on another machine**;
-> every colour statement above is downstream of them.
-
-> **The method note, which outlived every colour decision above.** The first comparison used a
-> single thin `!` and could not have distinguished black from grey whatever the truth was —
-> anti-aliasing smears a one-pixel stroke into whatever is behind it. It produced a confident
-> reading that was then *retracted* on equally thin evidence. The test that settled it set a wide
-> bar of bold black against an **explicitly** bright-black one, so the two either match or they
-> do not; they matched exactly. **An instrument that cannot fail cannot confirm either** — the
-> same rule this project applies to a verification tool, applied to a screenshot.
+> **The scheme is Campbell, verified rather than assumed.** Windows Terminal's `settings.json`
+> sets no `colorScheme` anywhere, and leaves `intenseTextStyle` unset and therefore `bright` —
+> the promotion that greyed the badge. That is what makes `SGR 43` `#C19C00`. **Re-check both on
+> another machine**; every colour statement above is downstream of them.
 
 **His reasoning, and it is about the moment the badge is read rather than about the fact it
 reports:** *"let's be gentle with 11pm Terry and just flag it as 'hey this needs your attention,
@@ -1315,26 +1284,16 @@ card that would not release, a frame outside the track, a destination that needs
 **The data is on four verified copies before any of it prints** — decision 2 — so a red badge
 would be reporting a crisis the run has already made impossible.
 
-**And the cost of getting it wrong is asymmetric in the same way decision 12 describes for
-warnings.** A red badge at 11pm on night three produces a jolt of adrenaline and a bad half
-hour; it does not produce a faster fix. Spend that often enough and the operator either stops
-reading badges or starts dreading the run — and this tool exists so he can walk away and sleep.
+**And the cost of getting it wrong is asymmetric**, the same argument decision 12 makes for
+warnings: a red badge at 11pm on night three buys adrenaline rather than a faster fix, and spent
+often enough it teaches the operator to stop reading badges.
 
-**The glyph is `!!!`, and `⚠` (U+26A0) was tried and rejected on 2026-08-06.** It renders on this
-console with *emoji presentation* — an orange-filled triangle that supplies its own colours and
-ignores the foreground set for it — so on the yellow ground it came out orange-on-yellow and
-muddy. The triple is the universal form and is unambiguous at a distance.
-
-**Width was the worry going in and was never the problem; legibility was.** `⚠` draws
-single-width here, so nothing would have shifted. **That is worth remembering as a method
-failure rather than a colour one:** the risk that was reasoned about in advance was not the risk
-that materialised, and only rendering both candidates side by side on the real terminal
-distinguished them. A screenshot of the glyph in *another* renderer — Claude Code's own output —
-suggested double-width and was wrong about that too.
-
-**Both badges are five cells wide**: `!!!` is two characters wider than `✓`, so the tick carries
-one extra space each side. They sit at the end of their lines, so an uneven pair would not break
-the column — it would merely look unfinished.
+**The glyph is `!!!`, and `⚠` (U+26A0) was tried and rejected on 2026-08-06.** It renders here
+with *emoji presentation* — an orange-filled triangle that supplies its own colours and ignores
+the foreground set for it — so on yellow it came out orange-on-yellow and muddy. **Width was the
+worry going in and was never the problem; legibility was**, and only a side-by-side on the real
+terminal showed that. A screenshot from Claude Code's own renderer suggested double-width and was
+wrong about that too.
 
 **The ban is total, and the last exception was closed on 2026-08-06.** The per-destination badge
 in the `LANDED` block — ` N UNVERIFIED ` — was red, and had an argument for it: it reports a
