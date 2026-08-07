@@ -393,59 +393,25 @@ evidence of being current.** `TRIP-HYGIENE.md` names which crates here are expos
 
 ## The build chain is checked live, once a day, on the first build
 
-**Standing order, Terry, 2026-08-06, in his words: *"it's important to me to keep my
-buildtool chains within 24 hours of current."*** He calls it an obsession; treat it as a
-requirement.
+**The rule, the three outcomes and the reasoning live in the global `~/.claude/CLAUDE.md`** —
+*build chains stay within 24 hours of current* — and are not repeated here. A hook enforces it
+(`~/.claude/hooks/rust-toolchain-check.py`), scoped by `~/.claude/toolchain-projects.json`,
+which names this repository.
 
-**A hook does it, so neither of us has to remember.**
-`~/.claude/hooks/rust-toolchain-check.py` fires on the first
-`cargo build|test|clippy|run|bench` and is scoped by `~/.claude/toolchain-projects.json`,
-which names this repository. It **MUST** ask the network every time. It **MUST NOT** answer
-from recall, from a cached version, or from anything written in this file — a freshness check
-that trusts a memory is not a freshness check.
+**The three things that are this project's rather than the machine's:**
 
-**Three outcomes, three volumes, and Terry is shown all three:**
+- **Cite the versions the hook just read** instead of re-running `rustup check`. It asked the
+  network; you did not.
+- **A `behind` banner is raised with Terry before further work.** *Could not confirm* is a real
+  answer and MUST NOT be reported as either current or stale — the same rule
+  [`docs/REVIEWING.md`](docs/REVIEWING.md) applies to `offload verify`.
+- **After any toolchain or linker change, `cargo clean` before anything you intend to trust.**
+  Cargo fingerprints `rustc` and not the linker, so an incremental build re-checks bytes the old
+  toolset produced and passes. [`docs/TRIP-HYGIENE.md`](docs/TRIP-HYGIENE.md) carries why.
 
-| What it established | How it appears | What you do |
-|---|---|---|
-| **Confirmed current** | one quiet line per toolchain, naming the latest stable it just read and that the installed one matches | nothing. **Cite those version numbers** rather than re-running `rustup check` |
-| **Could not confirm** — offline, missing tool | a short informational note | nothing. **Offline is not stale**, and you MUST NOT report it as though it were |
-| **Confirmed behind** | an unmissable banner | **raise it with Terry before further work**, and offer to run the update |
-
-**The middle row is the one to get right.** *I could not check* is a real answer and MUST NOT
-be spelled like *current* — the same rule [`docs/REVIEWING.md`](docs/REVIEWING.md) applies to
-`offload verify`, and the reason a flight with no wi-fi MUST NOT manufacture an alarm.
-
-**And it is deliberately *quiet*, which is the part a future session will try to "improve".**
-Volume tracks **actionability, not importance.** Terry, 2026-08-06: *"we need to never train
-my brain to treat warnings as something to ignore. A warning that fires when I don't care —
-e.g. on a plane and I can't fix the versions — is a warning that loses its teeth. It needs to
-be a confirmed positive that I have learned to care about and be highly motivated to act
-upon."*
-
-**The banner is a conditioned response and every firing spends a little of it.** Fire it where
-he cannot act and it buys nothing while costing some of the reflex; spend that often enough
-and it becomes scenery, and then the evening it means *your linker is a release behind and
-this measured run is worthless* he reads straight past it. **The loud shape is therefore
-reserved for a confirmed positive** — proven by the network, fixed by one command, now.
-*Could not confirm* may be the more worrying state and stays quiet anyway, because it is not
-one he can act on.
-
-**This project already makes that argument three times** — decision 12 (a verification tool
-whose warnings you learn to ignore is worse than one that checks less and means it), decision
-9 (a warning that fires regardless of the truth is the one you learn to read past), and
-decision 34 (a repeating fact is INFO however much it matters). **Claude MUST NOT make the
-unreachable case louder.**
-
-**The cadence is deliberately two rules.** A clean result is suppressed for 24 hours; a
-**behind** result re-fires once per session until it is fixed. A stale chain is actionable and
-one command from repaired, so repeating it is correct — the opposite of decision 34's rented
-body, which repeats *unfixably* and is INFO for exactly that reason.
-
-**After any toolchain or linker change, `cargo clean` before anything you intend to trust.**
-Cargo fingerprints `rustc` and not the linker, so an incremental build re-checks bytes the old
-toolset produced and passes. The banner says so;
-[`docs/TRIP-HYGIENE.md`](docs/TRIP-HYGIENE.md) carries the reasoning.
+> **The unreachable case is deliberately quiet and Claude MUST NOT make it louder.** Volume
+> tracks actionability, not importance. This project already argues that three times —
+> decisions 9, 12 and 34 — so the reasoning is available without restating it.
 
 ## The workflow
 
