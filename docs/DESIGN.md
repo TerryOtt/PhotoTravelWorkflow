@@ -1531,25 +1531,50 @@ of the evidence, on the machine that will still be there when someone asks about
 
 ### 15. `--jobs` sizes the CPU pool, not the I/O fan-out
 
-> **⚠ `--jobs` is parsed and never read — found 2026-08-07, and it has never done anything.**
-> `main.rs` declares it with an `available_parallelism` default; **no other line in `crates/`
-> mentions it.** `phase5::run` is a plain sequential `for photo in landed` loop with no pool,
-> no threads and no `rayon` — `offload` does not even depend on `rayon`, which is
-> `crates/geotag`'s.
+> **`--jobs` was parsed and never read until 2026-08-07.** `phase5::run` was a sequential loop,
+> nothing in `offload` built a pool, and `pipeline.rs` asserted that *"`--jobs` governs phase
+> 5"* — the sentence that made it look settled. Found while starting decision 30, because
+> retiring RawGeotag into a *sequential* tagger would have been a regression.
 >
-> **So every present tense below describes a design, not the tool**, including *"EXIF
-> extraction and XMP generation ride the same pool"* and `pipeline.rs`'s claim that
-> *"`--jobs` governs phase 5"*, which is the specific sentence that made this look settled.
+> ### ✔ Built and measured 2026-08-07 — and the gain is real, but it is not RawGeotag's
 >
-> **It is on the critical path for decision 30**, which is why it surfaced. RawGeotag's `-j`
-> is *load-bearing* — 3,883 CR3s in 5.8 s at `-j 20` against 48 s at `-j 2`, and ~12× over
-> SMB — so retiring it into a sequential `offload geotag` would make the workflow Terry
-> actually runs **slower**, on exactly the storage the measurement was taken against.
+> `phase5::run` now takes `jobs`, builds its own `rayon` pool and correlates frames in
+> parallel. **`--jobs` is read at exactly one call site**, which is the whole of this decision
+> as built: phase 3 takes no pool, for the reason `pipeline.rs` gives.
 >
-> **Two honest options, and choosing is a scope call:** implement the pool for phase 5, which
-> makes this decision true and decision 30 viable; or delete the flag under the standing order
-> that *a config item that is never used MUST NOT exist*, and accept that `offload geotag`
-> inherits a sequential tagger. **Tracked in [`BACKLOG.md`](BACKLOG.md).**
+> **7,395 frames × 4 destinations against a real 4.9 MB track, clean build, sidecars to a
+> temp directory on the laptop's own NVMe.** `cargo run --release --example geotag-rate`
+> re-runs it. Two runs:
+>
+> | `--jobs` | run 1 | run 2 | vs 1 thread |
+> |---|---|---|---|
+> | 1 | 10.45 s | 8.88 s | — |
+> | 2 | 7.20 s | 6.61 s | ~1.4× |
+> | **4** | **6.01 s** | **5.40 s** | **~1.7× — the knee** |
+> | 8 | 5.89 s | 5.82 s | ~1.6× |
+> | 12 | 6.47 s | 5.81 s | ~1.6× |
+> | 20 | 5.96 s | 6.30 s | ~1.6× |
+>
+> **~1.5–1.8×, quoted as a range because the baseline does not reproduce.** The single-thread
+> rows differ by **18 %** between two runs minutes apart. That is expected rather than sloppy:
+> this is 26,900 small file *writes*, and writes on this rig have never reproduced the way
+> reads do. **A point estimate here would be false precision** — the same failure decision 22
+> records about the eject budget.
+>
+> **It plateaus at four threads, which is this decision's own argument arriving as a
+> measurement.** NTFS serializes *metadata* operations within a single directory, and a day is
+> one directory per destination (decision 31) — so past four workers they queue on the same
+> lock. **RawGeotag's ~12× was SMB**, where the work is latency-bound and threads hide round
+> trips. Local NVMe is metadata-bound. Same code, different storage, an order of magnitude
+> apart in what parallelism buys.
+>
+> **The default stays at `available_parallelism`** — 20 here, past the knee and costing nothing
+> measurable. Lowering it to 4 would trade a real NAS case, which is unmeasured, for noise.
+>
+> > **What this does NOT establish, said plainly: the NAS case.** RawGeotag's 12× came from
+> > SMB, and nothing here has measured `offload` against the NAS. **Decision 30 cannot claim
+> > parity with RawGeotag until it does** — the pool removes the regression on local storage
+> > and says nothing about the storage RawGeotag was actually tuned for.
 
 `--jobs N`, defaulting to logical CPU count, following RawGeotag's finding that this
 problem class parallelizes well into double-digit thread counts.

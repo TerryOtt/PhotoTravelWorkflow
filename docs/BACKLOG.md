@@ -432,7 +432,28 @@ nobody can use is worse than one that is absent.
 **Why it is his call:** the engineering is not in doubt; withdrawing a designed feature is a scope
 decision.
 
-## Decide `--jobs`: implement the phase 5 pool, or delete the flag — OPEN, TERRY'S MOVE
+## Implement the phase 5 pool and wire `--jobs` — CLOSED 2026-08-07
+
+> **Terry chose to build it, and it is built and measured.** `phase5::run` takes `jobs`, builds
+> its own `rayon` pool, and correlates frames in parallel; `--jobs` is read at exactly one call
+> site. **188 tests still pass**, output is unchanged.
+>
+> **~1.5–1.8× on local NVMe, knee at four threads.** 7,395 frames × 4 destinations against a
+> real track: 10.45 s / 8.88 s single-threaded against 6.01 s / 5.40 s at `-j 4`.
+> **Quoted as a range because the single-thread baseline differs 18 % between two runs** — this
+> is 26,900 small writes, and writes on this rig have never reproduced like reads.
+> `cargo run --release --example geotag-rate` re-runs it.
+>
+> **It is not RawGeotag's 12×, and decision 15 predicted exactly that**: NTFS serializes
+> metadata within a directory and a day is one directory, so local work plateaus where SMB's
+> latency-bound case kept scaling.
+>
+> **Two things this did not do**, both recorded at decision 15: the **NAS case is unmeasured**,
+> so decision 30 cannot yet claim parity with RawGeotag; and `Progress::Bar` had to become
+> thread-safe — `Cell`/`RefCell` became one `Mutex`, because splitting the print decision
+> across atomics would let two threads emit the same row.
+
+## ~~Decide `--jobs`: implement the phase 5 pool, or delete the flag~~ — the finding
 
 **Found 2026-08-07 in the first ten minutes of decision 30, which is what makes it urgent
 rather than tidy.** `--jobs` is **parsed and never read**: `main.rs` declares it with an

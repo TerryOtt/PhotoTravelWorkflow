@@ -1984,12 +1984,17 @@ fn geotag_phase(
         max_meters: args.max_gap_meters,
     };
 
+    // **`--jobs` is read here and nowhere else, which is the whole of decision 15 as built.**
+    // Phase 3 does not take a pool — `pipeline.rs` records why its five hash streams already
+    // spread across cores structurally — so phase 5, thousands of small sidecars into a few
+    // directories, is the one place the flag means anything.
     phase5::run(
         &outcome.landed,
         targets,
         &plan.rig.tracks,
         limits,
         args.force_xmp.is_some(),
+        args.jobs,
         progress,
     )
     .map(Some)

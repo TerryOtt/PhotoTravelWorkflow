@@ -29,6 +29,8 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, TimeDelta, Utc};
 use geotag::track::{GapLimits, Lookup, Track};
 use geotag::xmp;
+use rayon::ThreadPoolBuilder;
+use rayon::prelude::*;
 
 use crate::pipeline::Destination;
 
@@ -213,6 +215,7 @@ pub fn run(
     tracks: &[PathBuf],
     limits: GapLimits,
     force: bool,
+    jobs: usize,
     progress: &Progress,
 ) -> Result<Report> {
     let track = Track::load(tracks).context("loading the GPX tracks")?;
@@ -227,63 +230,67 @@ pub fn run(
     let bar = progress.bar("Frames", landed.len(), crate::progress::PHASE);
     bar.set_message("correlating and writing sidecars");
 
-    for photo in landed {
-        bar.inc();
-        match track.lookup(photo.captured, limits) {
-            Lookup::Found(fix) => {
+    // **A pool built here, not rayon's global one.** `--jobs` has to size *this phase*, and
+    // the global pool can be configured only once per process — a rule that turns any future
+    // second caller into a silent no-op. Building locally also keeps the width visible at the
+    // one place it means something.
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(jobs)
+        .build()
+        .context("building the geotag thread pool")?;
+
+    let outcomes: Vec<Outcome> = pool.install(|| {
+        landed
+            .par_iter()
+            .map(|photo| {
+                let outcome = correlate(photo, &track, destinations, limits, force, first, last);
+                bar.inc();
+                outcome
+            })
+            .collect::<Result<Vec<_>>>()
+    })?;
+
+    // **Folded sequentially, in input order, and that is not fussiness.** `Report::misses`
+    // feeds `systematic_offset`, which takes `seconds[len / 2]` *without sorting* — safe only
+    // because the spread is bounded first, but a value that would drift run to run if the
+    // vector arrived in completion order. `par_iter().map(..).collect()` preserves input
+    // order, so this report is identical to the one the serial loop produced.
+    for outcome in outcomes {
+        match outcome {
+            Outcome::Tagged { skipped, written } => {
                 report.tagged += 1;
-
-                // Rendered once and written to every destination, so all four copies
-                // carry byte-identical sidecars (decision 11).
-                let packet = xmp::render(&fix, photo.captured, WRITER);
-
-                for destination in destinations {
-                    let sidecar = xmp::sidecar_path(&destination.root.join(&photo.relative));
-
-                    // The invariant: an existing sidecar is never rewritten without
-                    // being asked (decision 16). Phase 5 tags what is untagged and
-                    // skips the rest, which is also what makes a re-run converge.
-                    if sidecar.exists() && !force {
-                        report.skipped += 1;
-                        continue;
-                    }
-
-                    xmp::write_atomic(&sidecar, &packet)?;
-                    report.written += 1;
-                }
+                report.skipped += skipped;
+                report.written += written;
             }
 
-            Lookup::OutsideTrack => {
+            // Which side matters more than the count. Everything after the last point is the
+            // signature of a logger that stopped -- forgotten, out of battery, or never
+            // restarted after a break -- and that is a named risk of this workflow.
+            Outcome::Outside { miss, before } => {
                 report.outside_track += 1;
-
-                // Which side matters more than the count. Everything after the last
-                // point is the signature of a logger that stopped -- forgotten, out of
-                // battery, or never restarted after a break -- and that is a named risk
-                // of this workflow, not a surprise.
-                if photo.captured < first {
+                if before {
                     report.before_track += 1;
-                    report.misses.push(photo.captured - first);
                 } else {
                     report.after_track += 1;
-                    report.misses.push(photo.captured - last);
                 }
+                report.misses.push(miss);
             }
 
-            Lookup::InGap(gap) => {
+            // *Which kind* of hole is the actionable part. A break between recording sessions
+            // means the logger stopped — signal lost, app backgrounded, battery — and that is
+            // a different conversation from a logger that ran continuously but sparsely.
+            Outcome::InGap {
+                across_segments,
+                duration,
+            } => {
                 report.in_gap += 1;
-
-                // *Which kind* of hole is the actionable part. A break between recording
-                // sessions means the logger stopped — signal lost, app backgrounded,
-                // battery — and that is a different conversation from a logger that ran
-                // continuously but sparsely.
-                if gap.across_segments {
+                if across_segments {
                     report.across_segments += 1;
                 } else {
                     report.within_segment += 1;
                 }
-
-                if report.widest_gap.is_none_or(|widest| gap.duration > widest) {
-                    report.widest_gap = Some(gap.duration);
+                if report.widest_gap.is_none_or(|widest| duration > widest) {
+                    report.widest_gap = Some(duration);
                 }
             }
         }
@@ -291,6 +298,81 @@ pub fn run(
 
     bar.finish();
     Ok(report)
+}
+
+/// One frame's result, carried out of the parallel pass so the counting stays sequential.
+///
+/// The counters are all commutative and could have been atomics; `misses` is not, and mixing
+/// the two would leave a reader guessing which fields were order-sensitive. One value per
+/// frame keeps that answer in the type.
+enum Outcome {
+    Tagged {
+        skipped: usize,
+        written: usize,
+    },
+    Outside {
+        miss: TimeDelta,
+        before: bool,
+    },
+    InGap {
+        across_segments: bool,
+        duration: TimeDelta,
+    },
+}
+
+/// Correlate one frame and write its sidecars. **The whole of the parallel work.**
+fn correlate(
+    photo: &Landed,
+    track: &Track,
+    destinations: &[Destination],
+    limits: GapLimits,
+    force: bool,
+    first: DateTime<Utc>,
+    last: DateTime<Utc>,
+) -> Result<Outcome> {
+    match track.lookup(photo.captured, limits) {
+        Lookup::Found(fix) => {
+            // Rendered once and written to every destination, so all four copies carry
+            // byte-identical sidecars (decision 11).
+            let packet = xmp::render(&fix, photo.captured, WRITER);
+            let mut skipped = 0;
+            let mut written = 0;
+
+            for destination in destinations {
+                let sidecar = xmp::sidecar_path(&destination.root.join(&photo.relative));
+
+                // The invariant: an existing sidecar is never rewritten without being asked
+                // (decision 16). Phase 5 tags what is untagged and skips the rest, which is
+                // also what makes a re-run converge.
+                if sidecar.exists() && !force {
+                    skipped += 1;
+                    continue;
+                }
+
+                xmp::write_atomic(&sidecar, &packet)?;
+                written += 1;
+            }
+
+            Ok(Outcome::Tagged { skipped, written })
+        }
+
+        Lookup::OutsideTrack => Ok(if photo.captured < first {
+            Outcome::Outside {
+                miss: photo.captured - first,
+                before: true,
+            }
+        } else {
+            Outcome::Outside {
+                miss: photo.captured - last,
+                before: false,
+            }
+        }),
+
+        Lookup::InGap(gap) => Ok(Outcome::InGap {
+            across_segments: gap.across_segments,
+            duration: gap.duration,
+        }),
+    }
 }
 
 #[cfg(test)]

@@ -20,7 +20,6 @@
 //! Two genuine behaviors and an absence is a plain enum, not the trait `CLAUDE.md` says to push
 //! back on.
 
-use std::cell::{Cell, RefCell};
 use std::io::IsTerminal;
 use std::sync::Mutex;
 
@@ -326,9 +325,7 @@ impl Progress {
                     prefix: prefix.to_owned(),
                     indent: indent + STEP,
                     len,
-                    position: Cell::new(0),
-                    reported: Cell::new(0),
-                    message: RefCell::new(String::new()),
+                    state: Mutex::default(),
                 }),
             },
             Self::Silent => Bar {
@@ -366,9 +363,22 @@ struct Plain {
     prefix: String,
     indent: usize,
     len: usize,
-    position: Cell<usize>,
-    reported: Cell<usize>,
-    message: RefCell<String>,
+    /// **One lock rather than three atomics, and that is the correctness choice.** Deciding
+    /// whether to print reads `position` *and* `reported` and then writes both; split across
+    /// atomics, two threads can both conclude it is time to report and emit the same row.
+    ///
+    /// The cost is nothing. Phase 3 still owns a bar per destination thread, so the lock is
+    /// uncontended there; phase 5 takes it once per frame against an XMP render and four file
+    /// writes.
+    state: Mutex<PlainState>,
+}
+
+/// Everything about a plain bar that changes as it advances.
+#[derive(Default)]
+struct PlainState {
+    position: usize,
+    reported: usize,
+    message: String,
 }
 
 impl Bar {
@@ -380,14 +390,18 @@ impl Bar {
 
         let Some(plain) = &self.plain else { return };
 
-        let position = plain.position.get() + 1;
-        plain.position.set(position);
+        // **The whole decision happens under one lock**, so the row that prints is the row
+        // whose position was just claimed. Reading the counters and then re-taking the lock to
+        // print would let two threads interleave into one duplicated or skipped line.
+        let mut state = plain.state.lock().expect("the progress lock");
+        state.position += 1;
+        let position = state.position;
 
         // Ceiling division, so a day with fewer frames than `UPDATES_PER_PASS` still steps by
         // at least one and cannot divide by zero.
         let step = plain.len.div_ceil(UPDATES_PER_PASS).max(1);
-        if position - plain.reported.get() >= step || position == plain.len {
-            plain.reported.set(position);
+        if position - state.reported >= step || position == plain.len {
+            state.reported = position;
             // Same columns and the same formatting as the bars, so a log and a terminal
             // describe one run rather than looking like two tools.
             let indent = plain.indent;
@@ -398,7 +412,7 @@ impl Bar {
                 crate::human::count(position),
                 crate::human::count(plain.len),
                 crate::human::percent(position, plain.len),
-                plain.message.borrow()
+                state.message
             );
         }
     }
@@ -412,7 +426,7 @@ impl Bar {
     /// needs it.
     pub fn set_pass(&self, pass: &str) {
         if let Some(plain) = &self.plain {
-            *plain.message.borrow_mut() = pass.to_owned();
+            plain.state.lock().expect("the progress lock").message = pass.to_owned();
         }
     }
 
@@ -422,7 +436,7 @@ impl Bar {
             bar.set_message(message.to_owned());
         }
         if let Some(plain) = &self.plain {
-            *plain.message.borrow_mut() = message.to_owned();
+            plain.state.lock().expect("the progress lock").message = message.to_owned();
         }
     }
 
@@ -435,8 +449,9 @@ impl Bar {
             bar.set_position(0);
         }
         if let Some(plain) = &self.plain {
-            plain.position.set(0);
-            plain.reported.set(0);
+            let mut state = plain.state.lock().expect("the progress lock");
+            state.position = 0;
+            state.reported = 0;
         }
     }
 
@@ -463,9 +478,10 @@ impl Bar {
         if let Some(plain) = &self.plain {
             // The log gets a closing line so a captured run and a watched one end the same
             // way. Position is forced to `len` for the case where a pass ends early.
-            let repeat = closing_line_would_repeat(plain.reported.get(), plain.len);
-            plain.position.set(plain.len);
-            plain.reported.set(plain.len);
+            let mut state = plain.state.lock().expect("the progress lock");
+            let repeat = closing_line_would_repeat(state.reported, plain.len);
+            state.position = plain.len;
+            state.reported = plain.len;
             if repeat {
                 return;
             }
@@ -478,7 +494,7 @@ impl Bar {
                 crate::human::count(plain.len),
                 crate::human::count(plain.len),
                 crate::human::percent(plain.len, plain.len),
-                plain.message.borrow()
+                state.message
             );
         }
     }
