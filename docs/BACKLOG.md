@@ -277,7 +277,11 @@ prose reduction rather than relocation.
 the "considered and rejected" material exists to stop re-proposals. **The real fat is the same
 argument restated in three places**, so the likely answer is structure rather than deletion.
 
-## 2. Test all three USB-C→USB-A adapters — IN PROGRESS
+## Test all three USB-C→USB-A adapters — CLOSED 2026-08-07
+
+> **2 good, 1 dud. C→A costs nothing measurable — 275 MB/s through an adapter against 275 native.**
+> Unit 1 packaged for Amazon replacement. **A USB-C reader can live on a USB-A port in the travel
+> case**, which was not known to be true before today.
 
 **All three get tested, not just the one that failed.** Terry owns three UGREEN C-female→A-male
 adapters from one 3-pack; one has already been proven USB 2.0 only. **The question a single
@@ -287,8 +291,41 @@ the answer decides whether this is a return, a purchase, or a capability the tra
 | # | PnP chain | Verdict |
 |---|---|---|
 | **1** | plain `Generic USB Hub`, Intel 3.10 | **USB 2.0 ONLY — proven**, firmly seated, two variables changed |
-| **2** | **`Generic SuperSpeed USB Hub`**, Intel 3.20 | **SuperSpeed** — throughput confirming |
-| **3** | — | to test |
+| **2** | **`Generic SuperSpeed USB Hub`**, Intel 3.20 | **GOOD — 273–276 MB/s, transparent.** Confirmed across a replug |
+| **3** | **`Generic SuperSpeed USB Hub`**, Intel 3.20 | **GOOD — 275 MB/s** (273–276), spread **1.1 %** |
+
+**Adapter 3 got the clean full run and is the one to quote: 275 mean, 1.1 % spread, flat.** Adapter
+2's run was interrupted by a mid-measurement replug and reads 273–276 across nine clean windows
+either side of the gap — good enough to confirm the unit, not a figure to cite.
+
+**275 through an adapter against 275 native is not "close enough", it is indistinguishable.** The
+reader measured 275 plugged straight into a USB-C port earlier the same afternoon.
+
+> **Why adapter 3 got a throughput run at all, when the chain had already answered.** It is going
+> into the travel case, and this project's standing gate is that **gear entering the case is
+> measured before it goes in** — the same rule the card acceptance test enforces. **A working chain
+> proves a link negotiates; it does not prove it sustains.**
+
+**Two good, one dud. The 10 Gbps claim is honest and unit 1 is a bad item** — which is the
+cleanest return there is: not an advertising dispute, one defective adapter out of a three-pack
+with two working siblings as the control. **Adapter 1 was packaged for Amazon replacement
+2026-08-07.**
+
+**The capability is the real gain.** C→A works with no measurable penalty, so a USB-C reader can
+live on a USB-A port in the travel case. **That was not known to be true before today**, and the
+first adapter tested would have taught the opposite.
+
+> **⚠ RIG PROTOCOL, added 2026-08-07 after Claude broke it.** A swap request and a running
+> measurement were issued in the same message, and the rig was — correctly — swapped mid-run.
+> **Two states, and Claude MUST name the current one whenever it changes:**
+>
+> | Signal | Means |
+> |---|---|
+> | **RIG FREE** | Nothing is reading. Swap, pull, replug anything |
+> | **HANDS OFF** | A measurement is running. Do not touch the rig until Claude says otherwise |
+>
+> **A request to swap hardware MUST NOT appear in the same message as a running measurement.**
+> The operator cannot be expected to reconcile the contradiction, and the cost is a lost run.
 
 **Adapter 2 changes the conclusion, and it is the more useful outcome.** A working unit from the
 same pack means **the design does carry SuperSpeed and unit 1 is defective** — so the 10 Gbps
@@ -384,6 +421,10 @@ UHS-I problem completely, so no reading on this path could have been misattribut
 
 ## Closed 2026-08-07
 
+- **USB-C→USB-A adapters — 2 of 3 good, 1 defective.** Full record above. **C→A is a real
+  capability for the travel case at zero measurable cost**, and the dud went back to Amazon. The
+  session's most reusable lesson came from the near-miss: stopping at the first failure would have
+  condemned a product line on one unit
 - **Reader characterization — all three cleared at 275–280 MB/s.** Full record is above rather
   than here, because the protocol is worth re-reading before the next matrix and moving 120 lines
   would bury it. **What it produced beyond the numbers:** a seating failure that reads as a
