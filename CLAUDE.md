@@ -314,8 +314,14 @@ exercised rather than merely available.
 
 **`cargo clean`, then `cargo build --release`, before any run whose result will be quoted.**
 Standing order, and [`docs/FULL-RUN.md`](docs/FULL-RUN.md) places it *before* the reboot —
-a full rebuild is 31 seconds here, and doing it after boot loads a machine that is already
+a full rebuild is **51 seconds** here, and doing it after boot loads a machine that is already
 busy and refills the page cache the reboot exists to clear.
+
+> **That figure was 31 seconds and was re-measured at 50.6 s on 2026-08-07** — the workspace has
+> grown dependencies since. **The argument is unchanged and that is the point**: 51 seconds against
+> a run measured in tens of minutes is still near zero, so the conclusion never depended on the
+> number being small. **Re-measure it rather than trusting it** the next time it is quoted; it will
+> keep drifting upward.
 
 **There is no informal run.** If a number, a timing or a behavior reaches a document, a
 commit message or Terry, it was measured and this applied.
