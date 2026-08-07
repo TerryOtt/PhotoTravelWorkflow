@@ -321,8 +321,9 @@ the deal:
   owns an RF 24-240 and rents specialized lenses eagerly and often — an ultra-wide for
   Monument Valley in 2024 — so a *new lens is a no-op* as far as this tool is concerned and
   must never be reported as anything. Nothing about the guarantees depends on which lens shot
-  a frame ([`DESIGN.md`](DESIGN.md) decision 34 records why the body is checked and the lens
-  explicitly is not).
+  a frame ([`DESIGN.md`](DESIGN.md) decision 34 records why the body is *to be* checked and the
+  lens explicitly is not — **that check is designed and unbuilt as of 2026-08-07**, so nothing
+  today reports either).
 
   **Two card slots is a purchase criterion, not merely something to verify afterwards.**
   This is the part worth knowing before money is spent: "another Canon R body" does not
@@ -350,8 +351,12 @@ the deal:
 - **Only CR3 raw stills are ever shot.** The camera can produce JPG, HEIF and video;
   none of it is used, and this project's scope is exactly what is shot — the raw
   stills. A non-CR3 file on a card is a contract violation: the tool does not back it
-  up, and the report names it so the decision about it happens before the next
-  in-camera format, not after ([`DESIGN.md`](DESIGN.md) decision 24).
+  up, and the report is *to* name it so the decision happens before the next in-camera
+  format, not after ([`DESIGN.md`](DESIGN.md) decision 24).
+
+  > **⚠ The naming half is unbuilt as of 2026-08-07** — `main.rs` says so itself: *"the walk does
+  > not yet carry them out of pre-flight."* **A stray is silently not backed up today**, which is
+  > the safe half of the behavior and not the half this clause promises. In *Still to build*.
 - **Cards are formatted in the camera body. Only ever, by anything.** Not by Windows,
   not by a disk utility, not by a repair tool, and not by this tool — which never writes
   to a card at all (`DESIGN.md` non-goals). The camera writes the exact filesystem
