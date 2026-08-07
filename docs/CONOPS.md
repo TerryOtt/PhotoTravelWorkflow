@@ -616,6 +616,36 @@ SSDs eject the moment nothing remains.
 Fatal errors are deliberate ([`DESIGN.md`](DESIGN.md) decision 18): the tool stops and
 says why rather than improvising. The recovery is always the same re-run.
 
+### A card reading slow is a link problem, and the number says which one
+
+**Pre-flight prints each card's speed. Three bands, three causes, three fixes** — and none of
+them requires knowing which reader is in the bag, which is why this is a table rather than a
+question anyone has to be asked.
+
+| SD read | What it means | What to do |
+|---|---|---|
+| **~275–280 MB/s** | Healthy. Every reader in the case measures here | Nothing |
+| **at or below ~104** — typically a flat 90–95 | **The card negotiated UHS-I.** It is seated on the first row of pins only | **Pull the card fully out and push it home.** Not a nudge — see below |
+| **~40** | **The link negotiated USB 2.0** | Reseat the reader and any adapter, firmly, both orientations. Check it is not on a USB 2.0 port |
+
+**A UHS-II card slot has two rows of pins, and the second row *is* the UHS-II interface.** A card
+that reaches the first row and not the second enumerates normally, mounts, reads every file and
+errors at nothing — at exactly one third of the speed. **Nothing anywhere reports a fault.**
+
+> **A push is not a reseat.** SD bus speed is negotiated when the card **initializes**, so pressing
+> a seated card deeper improves contact without renegotiating anything and the number does not
+> move. **Only a full removal and reinsertion works.** Measured both ways on 2026-08-07.
+
+**104 MB/s is UHS-I's SDR104 ceiling and it is the load-bearing number in that table**, because it
+separates a link fault from an ordinary slow reading. Pre-flight's figure is a *burst* sample and
+swings with how long the machine has been up — the same healthy card has read **168 MB/s at 17
+minutes of uptime and 218 at 129**. **Both are still far above 104**, so a reading at or under that
+ceiling is never just a busy machine.
+
+**Do not diagnose this by which reader is in use.** All three readers in the case measure within
+1.8 % of each other, the machine identifies them by name and serial without being told, and **the
+remedy is the same whichever one it is.**
+
 ### A dead drive is a config edit, and four destinations is why
 
 **Terry's own procedure, 2026-08-06:** *"if a drive failed mid trip, I'd remove it from APPDATA
