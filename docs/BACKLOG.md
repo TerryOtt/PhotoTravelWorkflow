@@ -320,9 +320,17 @@ grounds that a mismatch *persists*: replace the body or shoot a rental, and it i
 until the config is edited, which is exactly how a scarce signal stops meaning anything.
 
 **The hard question is already answered, so this is not research.** The R5 writes the serial into
-**standard EXIF**, not MakerNotes — `crates/geotag/examples/body-identity.rs` returns
-`CameraSerialNumber 092023000050` through the same call shape `raw.rs` already makes for capture
-time. No MakerNote decoding, no new dependency, no strain on binding constraint 1.
+**standard EXIF**, not MakerNotes — `crates/geotag/examples/body-identity.rs` reads it through the
+same call shape `raw.rs` already makes for capture time. No MakerNote decoding, no new dependency,
+no strain on binding constraint 1.
+
+> **✔ The config value is `082021001047`, established 2026-08-07 and no longer TERRY'S MOVE.**
+> Read from nine frames on `Q:\Lightroom\Images`, unchanged 2024-09-29 → 2026-07-17.
+>
+> **The serial DESIGN.md had recorded — `092023000050` — matches none of the five R5 bodies in
+> his archive** (two rentals, the purchased body a robbery took, and the current one). It was
+> never read off his rig. **A wrong serial here mismatches on every run forever**, and would have
+> been indistinguishable from the feature working correctly.
 
 **The payoff is decision 23, not the contract-nag it looks like.** A body that does not record
 `OffsetTimeOriginal` sends **every frame to `_unfiled`** — discovered today only after the whole
@@ -333,8 +341,7 @@ ten-second one, while the fix is still a decision about tonight.
 so a lens check fires on most interesting trips — and the very frame that settled the serial
 question carries an `RF24-105mm` he does not own, which would have been its first false positive.
 
-> **TERRY'S MOVE, small:** the config needs his real serial. Running `body-identity.rs` against one
-> of his CR3s produces it, so this does not block the build — only the final config value.
+**Nothing is waiting on Terry** — the serial is established above, so this is buildable end to end.
 
 ## Test all three USB-C→USB-A adapters — CLOSED 2026-08-07
 

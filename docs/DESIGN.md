@@ -3027,13 +3027,42 @@ microseconds and no new dependency.
 > serial means decoding Canon's structure by hand.
 >
 > ✔ **Settled 2026-08-05: the R5 writes it into standard EXIF.**
-> `crates/geotag/examples/body-identity.rs` against a real frame returns
-> `Make Canon · Model Canon EOS R5 · CameraSerialNumber 092023000050`, read with
+> `crates/geotag/examples/body-identity.rs` reads it with
 > `exif.get(ExifTag::CameraSerialNumber)` — the same call shape `raw.rs` already makes for
 > capture time. **No MakerNote decoding, no new dependency, no strain on binding constraint
 > 1.** The lens fields returned too, which was the control: a lens serial present with the
 > body serial absent would have meant Canon's tag layout rather than the parser failing to
 > reach the block, and there is no such ambiguity to chase.
+>
+> **⚠ The serial that probe recorded matches nothing he has ever shot, and it is the exact
+> number this feature compares against.** It recorded `092023000050`. **The body is
+> `082021001047`** — read 2026-08-07 from nine frames on `Q:\Lightroom\Images`, unchanged from
+> 2024-09-29 through the newest frame in the archive.
+>
+> **The archive holds five distinct R5 serials, which is the operating history the config has
+> to survive.** Terry rented an R5 from 2021 until buying his own; a robbery then took that
+> body:
+>
+> | Seen | Serial | |
+> |---|---|---|
+> | 2021-08 | `082021002254` | rental |
+> | 2022-01 | `142028002232` | rental |
+> | 2023-09 → 2024-05 | `212024001418` | the purchased body the robbery took |
+> | **2024-09 → 2026-07** | **`082021001047`** | **his body now — this is the config value** |
+>
+> `092023000050` is none of them. **So the number was never read off his rig**, and the lens the
+> probe reported (`RF24-105mm F4-7.1 IS STM`) is the 2021–2022 *rental kit* lens rather than
+> evidence about his own kit.
+>
+> **The conclusion survives and the datum does not.** *The serial is in standard EXIF* is now
+> confirmed nine times on his own frames. But **`092023000050` MUST NOT reach `config.json`** —
+> a wrong serial there mismatches on **every run forever**, which is precisely the read-past-it
+> conditioning this decision rejected exit 2 to avoid. **The failure would have been
+> indistinguishable from the feature working**, which is what makes it worth this much space.
+>
+> **The lens argument is unharmed; only its example was.** It rests on his renting glass
+> constantly — independently true, and now *better* evidenced, since the archive shows the kit
+> lens changing with each rental. It MUST NOT be cited as *"a rental lens on his own body."*
 >
 > The fallback is therefore unneeded, and recorded only because it shaped the design: had the
 > serial been unreachable, **`model` alone still carried the decision 23 payoff** — the part
