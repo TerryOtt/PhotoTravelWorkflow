@@ -159,6 +159,12 @@ sections marked **COMPLETE** before any design.
    `" {} UNVERIFIED "`. **Search the invariant half of the string**, not the rendered form —
    otherwise the sweep manufactures a defect in code that is correct, which costs the same
    trust as missing a real one.
+   **`python scripts/doc-claims-check.py` automates the corner of this that is mechanical** —
+   links, cited paths, invisible dependencies, the red-badge ban. **It is not the rule**: it
+   cannot read an output string out of a format argument or tell a built decision from a
+   designed one, so a green run means only that the cheap claims still hold. Deliberately not
+   in the pre-commit hook, so a doc edit mid-thought is not blocked by a link that resolves two
+   commits later.
 6. **Numbers ≥ 1,000 carry thousands separators**, in prose as well as in program output.
    Exceptions: Rust literals, text quoted verbatim from another tool so it stays
    greppable, and years, model numbers, offsets and coordinates.
