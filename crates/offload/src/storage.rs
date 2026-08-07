@@ -18,7 +18,13 @@
 //! for **no access rights at all** (`access_mode(0)`), which is enough for the two
 //! IOCTLs used here and needs no administrator. Asking for read access would work on
 //! this machine and fail on a locked-down one, for a query that never reads a byte of
-//! data. Decision 9 makes the same point about the Defender check.
+//! data.
+//!
+//! Binding constraint 4 is not a preference, and decision 9's Defender check is what it
+//! costs: that check was **withdrawn** on 2026-08-07 because both ways of reading the
+//! exclusion list throw on an unelevated process, and elevating was never on the table.
+//! A capability that only works elevated does not exist for this tool's purposes — so the
+//! access rights get designed down to what the query actually needs, here and everywhere.
 
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
