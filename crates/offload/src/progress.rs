@@ -1,27 +1,17 @@
 //! Progress reporting — the difference between *working* and *hung*.
 //!
-//! **This exists because the operator watched a drive's activity LED to work out which phase
-//! was running.** The run printed `ingesting 3,883 files...` and then nothing for twelve
-//! minutes, then nothing again for the sixteen phase 4 takes. His words are the whole
-//! specification: *"I feel like I shouldn't need to guess at that."*
-//!
-//! Decision 22 had already won this argument for a different stage — eject became a *timed*
-//! stage because "an unlabeled twenty-minute silence reads as a hang while a timed one reads
-//! as persistence" — and the conclusion was never carried across to the phases that take
-//! twelve and sixteen minutes rather than fifteen seconds. **For a walk-away tool, a screen
-//! that cannot say whether it is working is the one thing that makes an operator stay and
-//! watch it.**
+//! **This exists because the operator watched a drive's activity LED to work out which phase was
+//! running.** The run printed `ingesting 3,883 files...` and then nothing for twelve minutes.
+//! **For a walk-away tool, a screen that cannot say whether it is working is the one thing that
+//! makes an operator stay and watch it.**
 //!
 //! # Three modes, because a progress bar is useless in a log file
 //!
-//! `indicatif` disables itself when its stream is not a terminal — `draw_target.rs` returns a
-//! hidden target on `!term.is_term()`. **That would have made this feature invisible in
-//! exactly the mode it is most needed**: `CONOPS.md`'s shooting-day contract has the operator
-//! running the offload through Claude whenever there is internet, which means captured to a
-//! file, which means not a terminal. The bars would have looked right when he ran them by hand
-//! and rendered nothing every time they ran for him.
-//!
-//! So there are three real modes rather than a display and a no-op:
+//! **`indicatif` disables itself when its stream is not a terminal** — `draw_target.rs` returns a
+//! hidden target on `!term.is_term()`. That would have made this invisible in exactly the mode it
+//! is most needed: `CONOPS.md` has the operator running the offload through Claude whenever there
+//! is internet, which means captured to a file. **The bars would have looked right by hand and
+//! rendered nothing every time they ran for him.**
 //!
 //! | Mode | When | What it does |
 //! |---|---|---|
@@ -29,13 +19,8 @@
 //! | [`Progress::Lines`] | stderr is redirected | a plain line to **stdout** every tenth of a pass |
 //! | [`Progress::Silent`] | tests | nothing |
 //!
-//! **The log arguably needs this more than the terminal does.** At a terminal you can at least
-//! glance at the drive lights — which is precisely what the operator was reduced to — while a
-//! captured log is the only evidence a session that was not watching will ever have.
-//!
-//! That three-way split is also why there is no `Progress` *trait*: two of these are genuine,
-//! different behaviors and the third is absent, which is a plain enum rather than the
-//! speculative extension point `CLAUDE.md` says to push back on.
+//! Two genuine behaviors and an absence is a plain enum, not the trait `CLAUDE.md` says to push
+//! back on.
 
 use std::cell::{Cell, RefCell};
 use std::io::IsTerminal;
