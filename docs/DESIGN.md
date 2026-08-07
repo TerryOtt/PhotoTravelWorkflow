@@ -3015,16 +3015,20 @@ microseconds and no new dependency.
 > `082021001047`** — read 2026-08-07 from nine frames on `Q:\Lightroom\Images`, unchanged from
 > 2024-09-29 through the newest frame in the archive.
 >
-> **The archive holds five distinct R5 serials, which is the operating history the config has
-> to survive.** Terry rented an R5 from 2021 until buying his own; a robbery then took that
-> body:
+> **The archive holds four distinct R5 serials, which is the operating history the config has
+> to survive.** He rented an R5 from 2021 until buying his own in 2024 — so **every R5 before
+> the current one was a rental**, and the body the robbery took was the D3300 (`CONOPS.md`), a
+> Nikon that shoots NEF and therefore appears in no CR3 sweep at all:
 >
 > | Seen | Serial | |
 > |---|---|---|
 > | 2021-08 | `082021002254` | rental |
 > | 2022-01 | `142028002232` | rental |
-> | 2023-09 → 2024-05 | `212024001418` | the purchased body the robbery took |
-> | **2024-09 → 2026-07** | **`082021001047`** | **his body now — this is the config value** |
+> | 2023-09 → 2024-05 | `212024001418` | rental |
+> | **2024-09 → 2026-07** | **`082021001047`** | **owned, bought 2024 — this is the config value** |
+>
+> **The changeover is visible in the data**: the serial moves between 2024-05-02 and
+> 2024-09-29, which is the purchase.
 >
 > `092023000050` is none of them. **So the number was never read off his rig**, and the lens the
 > probe reported (`RF24-105mm F4-7.1 IS STM`) is the 2021–2022 *rental kit* lens rather than

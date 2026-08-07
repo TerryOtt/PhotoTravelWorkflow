@@ -327,10 +327,10 @@ no strain on binding constraint 1.
 > **✔ The config value is `082021001047`, established 2026-08-07 and no longer TERRY'S MOVE.**
 > Read from nine frames on `Q:\Lightroom\Images`, unchanged 2024-09-29 → 2026-07-17.
 >
-> **The serial DESIGN.md had recorded — `092023000050` — matches none of the five R5 bodies in
-> his archive** (two rentals, the purchased body a robbery took, and the current one). It was
-> never read off his rig. **A wrong serial here mismatches on every run forever**, and would have
-> been indistinguishable from the feature working correctly.
+> **The serial DESIGN.md had recorded — `092023000050` — matches none of the four R5 bodies in
+> his archive** (three rentals from 2021, then the owned body from 2024). It was never read off
+> his rig. **A wrong serial here mismatches on every run forever**, and would have been
+> indistinguishable from the feature working correctly.
 
 **The payoff is decision 23, not the contract-nag it looks like.** A body that does not record
 `OffsetTimeOriginal` sends **every frame to `_unfiled`** — discovered today only after the whole
