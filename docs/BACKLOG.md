@@ -190,6 +190,32 @@ prose reduction rather than relocation.
 the "considered and rejected" material exists to stop re-proposals. **The real fat is the same
 argument restated in three places**, so the likely answer is structure rather than deletion.
 
+## 3. Settle the USB-C→USB-A adapter — OPEN, TERRY'S MOVE
+
+**Opened 2026-08-07 out of the reader matrix, as a side quest rather than a blocker** — the
+matrix does not need an adapter, because the Lexar is natively USB-A and the other two are
+natively USB-C.
+
+**What happened:** a UGREEN passive adapter, blue-flagged and advertised at 10 Gbps, put the
+SanDisk SDDR-409 on **USB 2.0** — 40 MB/s flat against its 280 MB/s baseline. **The port is
+innocent**, proven by substitution: the Lexar reader in that same front USB-A port landed on the
+SuperSpeed hub while the adapted SanDisk landed on the USB 2.0 companion hub.
+
+**Why it is worth closing rather than shrugging at.** Terry has three of these, and the question
+is whether he can *ever* put a USB-C device on a USB-A port at speed. A yes buys the travel case
+a genuine option; a no means three adapters that look useful, carry a 10 Gbps label, and would
+silently cost 7× the first night someone reached for one in a hotel.
+
+**The test, and it is two minutes each.** SDDR-409 in the same Element 5 front USB-A port through
+each spare, then read the PnP parent chain — **`Generic SuperSpeed USB Hub` means it works,
+plain `Generic USB Hub` means USB 2.0.** No throughput run needed; the chain answers it, and the
+40 MB/s only ever confirmed what the chain already said.
+
+> **Three causes were never separated and MUST NOT be collapsed into "counterfeit":** a defective
+> unit, a design wired for USB 2.0 only, and a plug seated 90 % of the way — deep enough for the
+> USB 2.0 contacts, short of the SuperSpeed pins. **Reseat firmly and try both orientations before
+> condemning any of the three**, since the cheapest explanation costs nothing to rule out.
+
 ---
 
 ## Closed 2026-08-06
