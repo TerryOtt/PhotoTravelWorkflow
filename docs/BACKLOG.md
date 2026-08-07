@@ -496,12 +496,19 @@ call because it is scope**, not because the engineering is unclear.
 > tree prints `NOTHING TO TAG` and exits 2. A sidecar was read back carrying
 > `x:xmptk="offload 0.1.0"`, real coordinates and a matching `GPSTimeStamp`.
 >
-> ### ✔ And it agrees with a recorded run on 7,395 frames
+> ### ✔ And it agrees with **two** recorded runs, 11,278 frames, exactly
 >
-> **`offload geotag --dry-run` over the real 2024-10-02 archive day**, read-only, 3 m 28 s:
-> **7,319 tagged · 0 outside track · 76 in a gap** — **identical to the 415 GB run's phase 5**
-> ([`RUNS.md`](RUNS.md)), and reached by a different route: phase 5 used capture times handed
-> forward from phase 3's buffers, this re-read every frame's EXIF off the NAS.
+> **`offload geotag --dry-run` over the archive with each day's own track**, read-only:
+>
+> | Day | Frames | `RUNS.md` | `offload geotag` |
+> |---|---|---|---|
+> | 2024-10-02 | 7,395 | 7,319 · 0 outside · 76 in a gap | **7,319 · 0 · 76** |
+> | 2022-09-27 | 3,883 | 2,394 tagged | **2,394** |
+>
+> Reached by a different route: phase 5 used capture times handed forward from phase 3's
+> buffers, this re-read every frame's EXIF off the NAS. **The 2022 day is the harder test** —
+> 772 recording breaks put 1,489 frames in gaps, so reproducing 2,394 exactly means the gap rule
+> and the `<trkseg>` refusal behave identically on both paths.
 >
 > **It still does not replace the fixture corpus**: nothing was written, so sidecar *content* is
 > unchecked; NEF takes a different `read_strategy`; and the `+01:00` case cannot come from

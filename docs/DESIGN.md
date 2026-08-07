@@ -2780,21 +2780,24 @@ the worst moment, which is trip hygiene.
 > **`--utc-offset` did not come across, as specified below.** A frame with no timezone is
 > counted and reported rather than guessed at.
 >
-> ### ✔ Cross-checked against a recorded run, 7,395 frames, and it agrees exactly
+> ### ✔ Cross-checked against **two** recorded runs, 11,278 frames, and it agrees exactly
 >
-> **`offload geotag --dry-run` over `Q:\...\2024\2024-10-02` with that day's track**, read-only,
-> 3 m 28 s over SMB:
+> **`offload geotag --dry-run` over the archive with each day's own track**, read-only:
 >
-> | | The 415 GB run's phase 5 ([`RUNS.md`](RUNS.md)) | `offload geotag` |
-> |---|---|---|
-> | Tagged | 7,319 | **7,319** |
-> | Outside track | 0 | **0** |
-> | In a gap | 76 | **76** |
+> | Day | Frames | [`RUNS.md`](RUNS.md) recorded | `offload geotag` | Wall |
+> |---|---|---|---|---|
+> | **2024-10-02** | 7,395 | 7,319 tagged · 0 outside · 76 in a gap | **7,319 · 0 · 76** | 3 m 28 s |
+> | **2022-09-27** | 3,883 | 2,394 tagged | **2,394** | 2 m 44 s |
 >
-> **Three numbers, 7,395 frames, identical** — and the two arrived by *different routes*. Phase 5
-> used capture times handed forward from phase 3's in-memory buffers (decision 10); the
-> subcommand re-read every frame's EXIF off the NAS. **So this checks the re-read path against
-> the in-memory one on a real day**, which is the coupling most likely to be quietly wrong.
+> **Every number identical, and the two sides arrived by different routes.** Phase 5 used capture
+> times handed forward from phase 3's in-memory buffers (decision 10); the subcommand re-read
+> every frame's EXIF off the NAS. **So this checks the re-read path against the in-memory one**,
+> which is the coupling most likely to be quietly wrong.
+>
+> **The second day is the harder test.** Its track carries 772 recording breaks, so 1,489 of
+> 3,883 frames fall in gaps — **38 % untagged, by design.** Reproducing 2,394 exactly means the
+> gap rule and the `<trkseg>` refusal behave identically on both paths, which a clean-track day
+> could never have shown.
 >
 > **What it does NOT check, and the fixture corpus is still the thing that would:** sidecar
 > *content* (nothing was written), and the **`+01:00`** case, which is the one where a dropped
