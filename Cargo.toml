@@ -90,7 +90,6 @@ windows = { version = "0.62", features = [
   "Win32_Storage_FileSystem",                  # volume enumeration, volume serials
   "Win32_System_IO",                           # DeviceIoControl
   "Win32_System_Ioctl",                        # storage properties, disk extents, lock
-  "Win32_System_Power",                        # SetThreadExecutionState
   "Win32_Devices_DeviceAndDriverInstallation", # CM_Request_Device_Eject
 ] }
 # `windows-registry` was declared here for decision 9's Defender exclusion check and was

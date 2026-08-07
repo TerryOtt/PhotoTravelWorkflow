@@ -51,6 +51,13 @@ write. A drive that was reformatted since the last trip, a reader that now enume
 differently, or a config entry pointing at an SSD that is in a drawer all surface here
 rather than at 11pm in a hotel.
 
+**Confirm the laptop never sleeps on wall power.** *Settings → System → Power & battery →
+Screen and sleep* → **plugged in, never**. The shooting-day contract assumes it
+([`CONOPS.md`](CONOPS.md)), and **nothing in the tool checks it** — deliberately, since a check
+like that would fire on the one night the laptop is on battery in a hotel and the operator can
+do nothing about it. It replaced a `SetThreadExecutionState` guard that was deleted 2026-08-07;
+a power-plan setting survives a closed lid and a Windows update, and the guard survived neither.
+
 **Has Lightroom Classic had a major version since the last trip?** If so, run the two
 checks in RawGeotag's `docs/LIGHTROOM-XMP.md` — the XMP engine lives there and that is
 where its verification stays. **That repository is not cloned on this machine** (checked

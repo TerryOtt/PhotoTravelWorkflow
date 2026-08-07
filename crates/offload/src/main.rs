@@ -25,7 +25,7 @@ use offload::human::count;
 use offload::pipeline::Destination;
 use offload::runlog::RunLog;
 use offload::{
-    cards, config, destinations, eject, manifest, marker, naming, phase4, phase5, pipeline, power,
+    cards, config, destinations, eject, manifest, marker, naming, phase4, phase5, pipeline,
     preflight, storage, verify,
 };
 
@@ -207,7 +207,6 @@ fn dispatch(cli: &Cli) -> Result<ExitCode> {
 /// eject cannot be attempted until they are done.
 fn offload(args: &Offload) -> Result<ExitCode> {
     let config = config::load()?;
-    let awake = power::StayAwake::request();
 
     // **Created before pre-flight, not after, because pre-flight is the first thing that
     // makes the operator wait.** Walking both cards takes two to four seconds with nothing on
@@ -253,7 +252,7 @@ fn offload(args: &Offload) -> Result<ExitCode> {
         &args.without,
         args.no_gpx,
     )?;
-    report(&plan, &awake);
+    report(&plan);
 
     let run_id = Utc::now().format("%Y-%m-%dT%H-%M-%SZ").to_string();
 
@@ -1556,10 +1555,6 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
 fn dry_run(offload: &Offload) -> Result<ExitCode> {
     let config = config::load()?;
 
-    // Held for the length of the plan, so a long walk over a slow card cannot be
-    // interrupted by the machine suspending (decision 9).
-    let awake = power::StayAwake::request();
-
     let plan = preflight::run(
         &config,
         offload.allow_single_source,
@@ -1567,7 +1562,7 @@ fn dry_run(offload: &Offload) -> Result<ExitCode> {
         offload.no_gpx,
     )?;
 
-    report(&plan, &awake);
+    report(&plan);
     let unnameable = plan_names(&plan)?;
 
     Ok(if unnameable == 0 {
@@ -1579,7 +1574,7 @@ fn dry_run(offload: &Offload) -> Result<ExitCode> {
 }
 
 /// The summary that actually lets you leave (decision 9).
-fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
+fn report(plan: &preflight::Preflight) {
     let cards = &plan.cards;
     let rig = &plan.rig;
 
@@ -1744,14 +1739,6 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
         count(rig.tracks.len()),
         plan_gpx_dir(rig)
     );
-
-    // Deliberately outside the groups and back at the left: it is a warning about the machine
-    // rather than an item in any of them, and a warning that indents itself into a list is a
-    // warning that reads as a list item.
-    if !awake.engaged() {
-        println!();
-        println!("  !  the machine would not agree to stay awake for this run");
-    }
 }
 
 fn plan_gpx_dir(rig: &preflight::Rig) -> String {

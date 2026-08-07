@@ -411,6 +411,23 @@ the deal:
   exact. **Format only after the previous offload's SSDs have ejected**: the eject is
   the tool's claim that every file from both cards is accounted for, which is exactly
   what makes the format safe ([`DESIGN.md`](DESIGN.md) decision 22).
+- **The laptop runs an offload on wall power, and is configured never to sleep on wall
+  power.** Added 2026-08-07, and it **replaces code rather than supplementing it**: the tool
+  used to hold `SetThreadExecutionState` for the length of the run and warn when the request
+  was refused. Terry, on being shown that warning: *"I don't remember making any decisions
+  about laptops suspending"* — and he was right, nobody had. `power.rs` is deleted
+  ([`DESIGN.md`](DESIGN.md) decision 9).
+
+  **The contract is strictly stronger than the code was.** A sleep-inhibit request only asks
+  the OS not to *idle*-sleep. **It does not survive a closed lid, a flat battery, or a policy
+  that overrides it** — and a run that suspends at 80 % is the walk-away failure this whole
+  design exists to prevent. **A power-plan setting made once at home covers all three cases
+  the code covered none of.**
+
+  Set it once: *Settings → System → Power & battery → Screen and sleep* → **plugged in, never**.
+  It is a **trip-hygiene** item, not a nightly one — nothing checks it, deliberately, because a
+  check that fires when the laptop is on battery in a hotel would fire on a night the operator
+  cannot act.
 - **The camera writes every frame to both slots** (CFexpress + SDXC), uncompressed —
   and both cards come to the readers at every offload. Two authoritative sources is
   the standing assumption, and the camera has two slots for exactly this reason. A

@@ -876,8 +876,29 @@ size (decision 27).
 **Phase 2, the rig.** All four destinations present — `--without` is the declared
 exception (decision 25) — distinct physical devices, writable, and with capacity ≥ N
 plus margin, which is precisely why this cannot come first; orphaned temps swept
-(decision 13); sleep inhibited (`SetThreadExecutionState`); GPX tracks present and
-parsed — `--no-gpx` is the declared exception (decision 26).
+(decision 13); GPX tracks present and parsed — `--no-gpx` is the declared exception (decision 26).
+
+### ~~It inhibits sleep for the length of the run~~ — withdrawn 2026-08-07
+
+**Withdrawn on Terry's decision, and the reason is worth more than the feature was.** He read
+the `!  the machine would not agree to stay awake for this run` line and said: *"I don't
+remember making any decisions about laptops suspending."* **He was right — nobody had.** A
+`StayAwake` guard holding `ES_SYSTEM_REQUIRED` for the whole run had been built, documented as
+part of this decision, and never asked for.
+
+**It was also the one place the report's severity vocabulary was broken.** Decision 34 says a
+`!`-prefixed line is a WARNING and carries exit 2; this one printed `!` and left the exit code
+at 0, because `exit_code` never consulted it. **Found by the boomerang pass**, which is what
+surfaced the whole question.
+
+**The replacement is an operator contract, not code**: the laptop runs an offload **on wall
+power**, configured **never to sleep on wall power** — [`CONOPS.md`](CONOPS.md)'s shooting-day
+contract. **That is strictly better than the guard was.** `SetThreadExecutionState` only asks
+the OS not to idle-sleep; it does not survive a lid close, a battery running out, or a policy
+that overrides it. **A settings change the operator makes once covers all three, and this code
+covered none of them.**
+
+`power.rs` is deleted, `windows`'s `Win32_System_Power` feature with it.
 
 ### ~~It also checks Windows Defender exclusions~~ — withdrawn 2026-08-07
 
@@ -1907,7 +1928,7 @@ currently solve a hard problem correctly," and it does.
 
 Genuinely new: the ingest and verification pipeline, and a Windows storage-identity layer
 (volume GUID and disk serial enumeration, `FILE_FLAG_NO_BUFFERING` with its alignment
-requirements, `SetThreadExecutionState`). Neither exists in any language today.
+requirements). Neither exists in any language today.
 
 **The honest cost:** the phase 3 fan-out is the one part Go would make easier — a reader
 feeding a channel with one writer goroutine per destination is a page of obvious code,
@@ -2674,7 +2695,7 @@ rather than per module at the moment each phase is written.
 | `console` | 0.16 | verdict styling, and whether this is a terminal at all |
 | `thiserror` | 2.0 | the two error types a caller must branch on, below |
 | `anyhow` | 1.0 | every other error, which decision 18 makes fatal |
-| `windows` | 0.62 | volume and disk identity, unbuffered I/O, lock/dismount/eject, sleep inhibit |
+| `windows` | 0.62 | volume and disk identity, unbuffered I/O, lock/dismount/eject |
 | `nom-exif` | 3.6 | CR3 capture time — arrives with the engine (decision 17) |
 | `gpx` | 0.10 | tracks — arrives with the engine |
 | `chrono` | 0.4 | the program's instant and duration types — arrives with the engine |
@@ -3514,7 +3535,7 @@ covered by its own row.
 | | |
 |---|---|
 | `crates/geotag` | the lifted engine — CR3 capture time, GPX indexing, XMP (decision 17) |
-| `storage`, `power` | volume and device identity, sleep inhibit (decision 6) |
+| `storage` | volume and device identity (decision 6) |
 | `config`, `destinations`, `cards` | the rig, resolved by serial; cards found by `DCIM` and timed (decisions 6, 7, 8) |
 | `preflight` | phases 1 and 2, including decision 27's card-equivalency gate |
 | `pipeline` | phase 3 — read once, fan out, write through, verify unbuffered (decisions 2, 5, 10) |
