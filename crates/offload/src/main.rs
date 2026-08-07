@@ -1905,7 +1905,7 @@ fn geotag_tree(
     dry_run: bool,
 ) -> Result<ExitCode> {
     let tracks = expand_tracks(tracks)?;
-    let files = pipeline::cr3_files(root).with_context(|| format!("walking {}", root.display()))?;
+    let files = raw_files(root).with_context(|| format!("walking {}", root.display()))?;
 
     if files.is_empty() {
         // **Not silence, and not success.** An empty walk and a tagged run must not read the
@@ -1931,10 +1931,10 @@ fn geotag_tree(
     let mut no_capture_time = 0usize;
     let mut unreadable = 0usize;
 
-    for file in &files {
+    for (file, format) in &files {
         let relative = file.strip_prefix(root).unwrap_or(file).to_path_buf();
 
-        match capture_time(&mut parser, file, RawFormat::Cr3, None) {
+        match capture_time(&mut parser, file, *format, None) {
             Ok(Capture::Resolved { at, .. }) => landed.push(phase5::Landed {
                 relative,
                 captured: at,
@@ -2006,6 +2006,38 @@ fn geotag_tree(
 
     println!();
     Ok(ExitCode::SUCCESS)
+}
+
+/// Every raw the engine can read under `root`, paired with the format that reads it.
+///
+/// **Not `pipeline::cr3_files`, and that difference is the point.** Phase 3 is CR3-only by
+/// constraint (decision 24) because that is what the camera shoots; this subcommand replaces
+/// RawGeotag, which read **NEF** as well — and the two take different paths through `raw.rs`,
+/// since `read_strategy` sends CR3 streaming and NEF whole-file. Walking only CR3 here would
+/// have quietly dropped a format the engine already handles.
+///
+/// The extension table is `RawFormat`'s own, asked through `matches_extension`, so adding a
+/// format to the engine is enough — nothing here holds a second opinion about what a raw is.
+fn raw_files(root: &Path) -> Result<Vec<(PathBuf, RawFormat)>> {
+    let mut found: Vec<(PathBuf, RawFormat)> = walkdir::WalkDir::new(root)
+        .into_iter()
+        .filter_map(std::result::Result::ok)
+        .filter(|entry| entry.file_type().is_file())
+        .filter_map(|entry| {
+            let path = entry.into_path();
+            let extension = path.extension()?.to_str()?;
+            let format = RawFormat::ALL
+                .iter()
+                .find(|format| format.matches_extension(extension))?;
+            Some((path, *format))
+        })
+        .collect();
+
+    // Sorted **by path**, so a run is deterministic and two runs of the same tree report in the
+    // same order. Deliberately not by deriving `Ord` on `RawFormat`: the engine is validated
+    // code (decision 17) and does not need a trait added to it for a caller's convenience.
+    found.sort_by(|(left, _), (right, _)| left.cmp(right));
+    Ok(found)
 }
 
 /// Each argument is a `.gpx` file or a directory of them, flattened and sorted.

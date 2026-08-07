@@ -507,6 +507,16 @@ call because it is scope**, not because the engineering is unclear.
 > unchecked; NEF takes a different `read_strategy`; and the `+01:00` case cannot come from
 > Terry's archive at all, because his body runs on UTC.
 >
+> ### ⚠ A second thing Terry has to decide: NEF
+>
+> **The subcommand reads NEF but cannot tag D3300 NEFs.** Measured against 130 real frames from
+> `2018-10-20`: all found and read, **all 130 skipped — no timezone offset.** The D3300 writes
+> no `OffsetTimeOriginal`, and `--utc-offset` deliberately did not come across (decision 23).
+>
+> **RawGeotag can tag them; `offload geotag` cannot.** So archiving the repository costs the
+> pre-2019 NEF archive. Probably fine — those are seven years old and long imported — **but it
+> must be a decision, not a discovery after the repo is gone.**
+>
 > **What is left, and the first item is the one that matters:**
 >
 > | | |

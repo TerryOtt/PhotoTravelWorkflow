@@ -2797,10 +2797,27 @@ the worst moment, which is trip hygiene.
 > the in-memory one on a real day**, which is the coupling most likely to be quietly wrong.
 >
 > **What it does NOT check, and the fixture corpus is still the thing that would:** sidecar
-> *content* (nothing was written), **NEF** — a different `read_strategy` and different code in
-> `raw.rs` — and the **`+01:00`** case, which is the one where a dropped offset still tags,
-> 49.9 km away, silently. Terry's body runs on UTC, so his archive cannot supply that case at
-> all. **A day agreeing is worth a lot and is not worth what `cr3-offset-nonzero` is worth.**
+> *content* (nothing was written), and the **`+01:00`** case, which is the one where a dropped
+> offset still tags, 49.9 km away, silently. Terry's body runs on UTC, so his archive cannot
+> supply that case at all. **A day agreeing is worth a lot and is not worth what
+> `cr3-offset-nonzero` is worth.**
+>
+> ### ⚠ NEF is read but cannot be tagged, and that is a real gap against RawGeotag
+>
+> **The subcommand walks every format the engine declares, not just CR3.** It nearly shipped
+> CR3-only — `pipeline::cr3_files` is what phase 3 uses, because decision 24 makes the *nightly*
+> tool CR3-only by constraint — which would have silently dropped a format `raw.rs` already
+> handles through a different `read_strategy`. It now asks `RawFormat::ALL`.
+>
+> **But reading a NEF is not tagging it.** Measured 2026-08-07 against 130 real NEFs from
+> `2018-10-20`: all 130 found and read, **all 130 skipped — *no timezone offset***. The D3300
+> writes no `OffsetTimeOriginal` at all (`format.rs` says so), so every one reaches decision 23's
+> gate, and **`--utc-offset` deliberately did not come across.**
+>
+> **So archiving RawGeotag costs the ability to tag the pre-2019 NEF archive.** RawGeotag can do
+> it with `--utc-offset`; this cannot, by design. **That is a decision for Terry rather than a
+> defect** — those photographs are seven years old and already imported — but it MUST NOT be
+> discovered after the repository is gone.
 >
 > **What remains before RawGeotag can be archived** is everything under *what comes across*
 > below — the fixture harness especially, since that is what actually validates the engine —
