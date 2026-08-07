@@ -2040,31 +2040,15 @@ rather than waiting for a device to refuse: `report_ssd_release` and `report_car
 to an `impl Write`, so the stuck-SSD line and the 90-minute give-up are asserted directly. The
 clean path is the only one a real run has ever printed.
 
-**Cards take the same three steps as an archive SSD — lock, dismount, power down — and that
-is a correction made 2026-08-05.** The evidence for it is two subsections below; the rule it
-replaced is kept here because the reasoning was sound and the premise was not:
+**Cards take the same three steps as an archive SSD — lock, dismount, power down.** A correction
+made 2026-08-05, replacing a rule that gave them lock and dismount only on the reasoning that a
+card is pulled from a reader which stays put. **That rule's every clause turned out false or
+irrelevant, and a dismount releases nothing** — both cards sat in the tray after every run that
+claimed to have settled them.
 
-> ~~**Cards are dismounted, never powered down, and the difference is not cosmetic.** An
-> archive SSD is unplugged whole, so success means the enclosure powered down. A card is
-> pulled out of a reader that stays plugged in — powering the reader down would be the wrong
-> device, and it need not re-enumerate cleanly when the next card goes in. So a card gets lock
-> and dismount and nothing more, which is precisely what *safe to pull* means.
-> `eject::CardOutcome` is a separate type from `Outcome` for that reason: sharing one would
-> make `Dismounted` mean failure for a destination and success for a card.~~
-
-**Every clause of that is either false or irrelevant, which is worth seeing in full rather
-than quietly deleting.** *Lock and dismount is what safe-to-pull means* — it releases nothing
-and the card stays in the tray. *Powering the reader down would be the wrong device* — true of
-the USB reader, false of the Thunderbolt one, which is untouched. *It need not re-enumerate
-cleanly* — it does, on a replug, measured. And **`CardOutcome` has been deleted**: it existed
-solely because `Dismounted` was supposed to mean success for a card, and once that stopped
-being true both device kinds reached the same three states by the same three calls. What
-actually differs is the *instruction* to the operator, which belongs in the report.
-
-> **The evidence for that correction is in [`EJECT-SERIES.md`](EJECT-SERIES.md)** — the
-> reproduction, the trace, the enumeration output and why `IOCTL_STORAGE_EJECT_MEDIA` was
-> predicted to work and does not. Moved there 2026-08-06; **the decision stayed here, the working
-> out went there.**
+> **The refutation, the trace and why `IOCTL_STORAGE_EJECT_MEDIA` was predicted to work and does
+> not are in [`EJECT-SERIES.md`](EJECT-SERIES.md).** The decision is here; the working out is
+> there.
 
 **A card that will not dismount changes nothing**, and the report says so in those words
 rather than reporting a failure. It was safe to pull before the attempt and it is safe to
