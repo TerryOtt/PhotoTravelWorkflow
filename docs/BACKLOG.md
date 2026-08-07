@@ -303,10 +303,29 @@ the source found four defects in one file:
 | **`Still to build` was the only correction** | A reader arriving at decision 9, 33 or 34 directly had nothing telling them the behavior was absent. **A list of exceptions only works if the exceptions know they are on it** — all four now carry a marker at the decision |
 | **Where this stands** | Module inventory re-checked mechanically. **Clean** — every `offload` module named, geotag's four covered by its crate row |
 
-**Two sweeps came back clean, which is worth as much as the finds.** Every flag quoted in docs is
-legitimate — explicitly marked absent, explicitly RawGeotag's, or another tool's — and
-`config.json`'s sample matches `config.rs` exactly. **The defect class was output claims and JSON
-shapes, not the CLI surface.**
+**And one more, from sweeping every file path the docs cite:** four resolved nowhere, and the
+reason is that **RawGeotag is not cloned on this machine** — `CLAUDE.md` linked `..\RawGeotag`
+and told every session to read it. All four files exist at
+<https://github.com/TerryOtt/RawGeotag>, so decision 30's migration list was right and only the
+locality was wrong. Recorded with the instruction to read it via `gh` rather than clone, since a
+stale clone answers authoritatively from whatever state it was left in.
+
+### What was swept, 2026-08-07 — so it is not re-done blind
+
+| Category | Method | Result |
+|---|---|---|
+| Output strings | Every all-caps phrase in backticks vs `crates/` | **4 defects** (decision 14's red badge, the four verdict suffixes re-confirmed absent, decisions 33/34 unbuilt) |
+| JSON samples | Each `json` fence vs its struct and fixture | **1 defect** — the manifest was flat |
+| Present tense vs `Still to build` | Each listed item's own decision | **3 defects** — decisions 9, 33, 34 unmarked |
+| CLI flags | Every `--flag` in docs vs clap's derive | **clean** — all ten doc-only flags legitimate |
+| Config sample | `config.json` block vs `config.rs` | **clean** |
+| Module inventory | *Where this stands* vs `crates/*/src/*.rs` | **clean** |
+| Cited file paths | 29 distinct paths vs disk | **4 defects**, one root cause (RawGeotag) |
+| Relative markdown links | 131 links across 11 files | **clean** — after removing the `..\RawGeotag` one |
+
+**Two sweeps came back clean before anything was changed**, which is worth as much as the finds:
+the CLI surface and the module inventory were accurate. **The defect class is claims about output
+and data shapes, and claims about what exists — never the interface itself.**
 
 **The docs got BIGGER, and that is the honest result.** `DESIGN.md` 3,245 → 3,236 with decision 14
 down 41 and decision 22 down 30, because the corrections added more than the narrative cuts
