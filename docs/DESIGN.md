@@ -836,6 +836,12 @@ exactly this workload. The archive roots should be excluded; pre-flight checks, 
 **warns rather than fails**, since this is a throughput problem and not a correctness
 one.
 
+> **⚠ The Defender check is designed, not built — checked 2026-08-07 and listed in *Still to
+> build*.** `windows-registry` is declared in the workspace and imported by nothing, which is
+> the evidence; decision 29's table now records it in the same terms. **Read the three-outcome
+> design below as the design's present tense, not the tool's.** The rig measurement that
+> confirmed the unreadable outcome is real and was taken by hand.
+
 The check has three outcomes, not two, because Windows hides the exclusion list from
 unelevated processes — and this tool runs unelevated by design: nothing else in the run
 needs administrator rights, and demanding them for a throughput check would be
@@ -2804,6 +2810,11 @@ terrifying failure is not the one that announces itself.**
 
 ### 33. Throughput history covers destinations too, and lives beside the config
 
+> **⚠ Designed, not built — checked 2026-08-07 and already listed in *Still to build*.** No
+> `history.json` is written or read, and `uptime_min`, `read_mb_s`, `write_mb_s` and
+> `verify_mb_s` appear nowhere in `crates/`. **Read every present tense below as the design's,
+> not the tool's** — including the file's location and the sample's shape.
+
 Decision 32 catches a card going quietly slow. **Nothing catches a destination doing the
 same thing** — and the destinations are where the photographs actually live. An archive SSD
 degrading in the safe is the same silent failure as a degrading card, with more at stake.
@@ -3197,8 +3208,14 @@ unplugging drives.
 
 ## Still to build
 
-**Everything below is designed above and does not exist in the source.** Checked against the code
-on 2026-08-06 rather than remembered.
+**Everything below is designed above and does not exist in the source.** Re-checked against the
+code on 2026-08-07 rather than remembered.
+
+> **Every decision listed here now opens with a designed-not-built marker**, added 2026-08-07.
+> Before that, four of them read in the present tense at their own decision — a reader arriving
+> at decision 9, 33 or 34 directly had nothing telling them the behavior described was absent,
+> and this list was the only correction. **A list of exceptions only works if the exceptions
+> know they are on it.**
 
 | | State |
 |---|---|
