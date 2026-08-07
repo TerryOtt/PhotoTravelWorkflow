@@ -154,6 +154,11 @@ sections marked **COMPLETE** before any design.
    described modules that did not exist. **Prove the pattern can find something before
    believing it found nothing** — a grep that was pointed at the wrong thing and a grep that
    found nothing are the same empty result, and the first one reads as *clean*.
+   **And it fails the other way too: a phrase with a variable in it is never present
+   literally.** ` N UNVERIFIED ` reads as missing because the source spells it
+   `" {} UNVERIFIED "`. **Search the invariant half of the string**, not the rendered form —
+   otherwise the sweep manufactures a defect in code that is correct, which costs the same
+   trust as missing a real one.
 6. **Numbers ≥ 1,000 carry thousands separators**, in prose as well as in program output.
    Exceptions: Rust literals, text quoted verbatim from another tool so it stays
    greppable, and years, model numbers, offsets and coordinates.
