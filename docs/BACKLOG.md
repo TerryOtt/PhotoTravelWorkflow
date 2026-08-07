@@ -560,7 +560,7 @@ offload geotag "Q:\Lightroom\Images\2022\2022-09-27" "C:\Travel\GPX\not-tonight\
 > **The displacement scales with the offset**, so the `-06:00` days would be the worst if
 > confirmed. **Do not state them as wrong without their tracks.**
 
-## Retire RawGeotag into `offload geotag` (decision 30) — IN PROGRESS
+## Retire RawGeotag into `offload geotag` (decision 30) — OPEN, TERRY'S MOVE
 
 > ### ✔ The subcommand shipped 2026-08-07. **The retirement did not.**
 >
@@ -676,7 +676,7 @@ rules exist to prevent.
 > the source card sufficient, and `DESIGN.md`'s sample report, whose lines have not all been
 > matched to print sites. **Ask before acting on any of it.**
 
-## Build decision 34: the body check — CODE COMPLETE 2026-08-07, one check outstanding
+## Build decision 34: the body check — OPEN, TERRY'S MOVE (code complete)
 
 > **Built in 13 minutes of the two-hour window.** Optional `body` in the config,
 > `preflight::check_body` on the first frame, a `Body` row in pre-flight's card block, INFO in
