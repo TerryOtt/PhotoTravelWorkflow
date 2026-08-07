@@ -319,11 +319,11 @@ mod tests {
         );
     }
 
-    /// A logging gap scatters. Saying "check your clock" here is the false alarm that
-    /// teaches an operator to ignore the real one, so it must stay quiet.
+    /// **The three ways it MUST stay quiet, which matter as much as the one way it fires.** A
+    /// false "check your clock" is what teaches an operator to ignore the real one.
     #[test]
-    fn scattered_misses_are_a_logging_gap_and_stay_quiet() {
-        let report = Report {
+    fn a_clock_error_is_only_claimed_for_a_tight_cluster_of_many_misses() {
+        let scattered = Report {
             tagged: 0,
             outside_track: 12,
             misses: vec![
@@ -342,36 +342,29 @@ mod tests {
             ],
             ..Default::default()
         };
-
-        assert!(report.systematic_offset().is_none());
-    }
-
-    /// Too few misses to judge. Two frames shot before the logger started are not
-    /// evidence about the camera's clock.
-    #[test]
-    fn a_handful_of_misses_is_not_evidence() {
-        let report = Report {
+        let too_few = Report {
             tagged: 0,
             outside_track: 3,
             misses: vec![miss(7200), miss(7201), miss(7202)],
             ..Default::default()
         };
-
-        assert!(report.systematic_offset().is_none());
-    }
-
-    /// If anything tagged, the track plainly covers the day and the clock is fine —
-    /// whatever missed, missed for its own reasons.
-    #[test]
-    fn a_run_that_tagged_anything_never_blames_the_clock() {
-        let report = Report {
+        let anything_tagged = Report {
             tagged: 1,
             outside_track: 20,
             misses: (0..20).map(|n| miss(7200 + n)).collect(),
             ..Default::default()
         };
 
-        assert!(report.systematic_offset().is_none());
+        for (why, report) in [
+            ("a logging gap scatters rather than clustering", scattered),
+            ("three misses are not evidence about a clock", too_few),
+            (
+                "anything tagged means the track covers the day",
+                anything_tagged,
+            ),
+        ] {
+            assert!(report.systematic_offset().is_none(), "{why}");
+        }
     }
 
     /// The Moraine Lake case, and a named risk of this workflow: the logger stopped and
