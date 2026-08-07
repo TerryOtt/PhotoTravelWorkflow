@@ -1692,17 +1692,10 @@ touches. **Beware quoting the memory-bandwidth figures as though they were run t
 > Fixing it means pipelining *across* files rather than within one, which is a larger change
 > and is not attempted here.
 >
-> *The original note, kept because its reasoning is what produced this:*
->
-> **The measurement found a better lever than the hash, and it is in `winio.rs` rather
-> than here.** `unbuffered_sha256` reads a chunk, hashes it, then reads the next —
-> nothing is in flight during the hash — so a destination's verify rate is
-> `1/(1/read + 1/hash)` rather than `min(read, hash)`. That is why SHA-256 costs 27–54%
-> of each device's read ceiling. **Overlapping the read and the hash would recover more
-> than switching to BLAKE3 does, while keeping SHA-256 entirely**: on the WD, 490 MB/s
-> against a 747 ceiling, where BLAKE3 reaches only 582. Decision 15's claim that hashing
-> "disappears" across cores is true *between* destinations and false *within* one
-> destination's pass. Not yet built.
+> **The mechanism, which is what predicted all of the above.** Serialized, a destination's
+> verify rate is `1/(1/read + 1/hash)` rather than `min(read, hash)` — which is why decision
+> 15's claim that hashing "disappears" across cores is true *between* destinations and false
+> *within* one destination's pass.
 
 > **Re-measured 2026-08-03, when decision 29 pinned the crate versions.** The table
 > previously read 2,252 / 529 / 5,023 MB/s and recorded no versions, which is the gap
@@ -2931,6 +2924,12 @@ destination history needs.
 
 ### 34. The body is named in the config, and an unexpected one is reported
 
+> **⚠ Designed, not built — checked 2026-08-07 and listed in *Still to build*.** `config.rs` has
+> no `body` field and `main.rs` prints no `Body` line; the only thing that exists is
+> `crates/geotag/examples/body-identity.rs`, the probe that settled the EXIF question below.
+> **Read every present tense in this decision as the design's, not the tool's** — including the
+> `Body` row in decision 14's sample report, which has never printed.
+
 **`CONOPS.md`'s shooting-day contract opens with "the fleet is one body — a Canon EOS R5",
 and nothing observes it.** Every other clause of that contract has a check behind it: two
 cards present (decision 7), the pair holding one listing (decision 27), CR3 only (decision
@@ -3179,6 +3178,7 @@ on 2026-08-06 rather than remembered.
 | **Throughput history** (decision 33) | No history is written or read; `runlog` and `config` have no such field |
 | **`offload geotag`** (decision 30) | No subcommand. RawGeotag stays the tool Terry travels with until this lands |
 | **Four verdict suffixes** | `SAFE, NOT EJECTED`, `— BUT CHECK YOUR SDXC CARD`, `— SINGLE SOURCE, NEVER CORROBORATED`, `— SSD-C EXCLUDED` — see *Specified here and never built* under decision 14 |
+| **The body check** (decision 34) | Added 2026-08-07. `config.rs` has no `body` field and no `Body` line is printed. Only `geotag`'s `body-identity.rs` probe exists, which is why the decision reads as though it shipped — and why `CLAUDE.md` carried an instruction to act on a line that cannot appear |
 
 > **`sync` was the one that could mislead a person rather than a session**, and it was withdrawn
 > the day this list was written. The CLI offered it with a description that read like a working
