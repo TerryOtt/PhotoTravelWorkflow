@@ -784,6 +784,37 @@ safe or a directory that was never an `offload` destination.
 > behavior — but nothing routine passes it, and `examples/eject-one.rs` can do the same job.
 > **Left in place pending a decision rather than removed quietly.**
 
+### Every way a run can be refused before it starts
+
+**Added 2026-08-07 by the boomerang pass, which found four of these documented nowhere.** These
+are the messages the operator actually sees when nothing happens, so they belong with the CLI
+rather than scattered through the decisions that motivate them.
+
+| Refusal | Why | Where |
+|---|---|---|
+| `no camera card found` | No volume carries a `DCIM` that is not also a destination | decision 7 |
+| `ONLY ONE CARD FOUND` | One card, and `--allow-single-source` was not given | decision 7 |
+| `THE TWO CARDS DO NOT HOLD THE SAME FILES` | Decision 27's equivalency gate; names the counts on each side |decision 27 |
+| **`TWO DESTINATIONS ARE THE SAME PHYSICAL DISK`** | **Fewer distinct devices than copies — *"one failure away from being no backup at all"*.** This is what actually enforces N+1 | decision 6 |
+| `NOT ENOUGH ROOM ON <label>` | Free space below the payload plus 5 % | decision 9 |
+| `DESTINATION MISSING` | A configured destination is absent and `--without` did not declare it | decision 25 |
+| `NO GPX TRACKS in <dir>` | The GPX directory is empty and `--no-gpx` was not given | decision 26 |
+
+**Three more come from the config alone**, and they are separated deliberately — *the fix is an
+editor rather than a cable*, which is why `Config::validate` runs before anything touches
+hardware:
+
+- `the config lists no destinations`
+- `two destinations share a label; every label must be unique` — duplicates would make
+  `--without` ambiguous and the report unreadable
+- `destination <label> has both `path` and `disk_serial`` / `has neither` — **which one it is
+  decides whether it gets ejected**, so it cannot be guessed
+
+> **`TWO DESTINATIONS ARE THE SAME PHYSICAL DISK` is the one worth knowing by name.** Every other
+> refusal above protects tonight; this one protects the *premise* — four copies on three disks is
+> not N+1, and nothing downstream would ever notice. It resolves by hardware, so a config with two
+> correct-looking serials that happen to name one device is caught here and nowhere else.
+
 Config is JSON:
 
 ```json
