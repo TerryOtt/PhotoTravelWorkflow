@@ -63,6 +63,16 @@ fn main() {
 
     'outer: loop {
         for path in &files {
+            // The deadline is checked here as well as in the read loop below, because every
+            // other exit lives inside that loop and a device removed mid-run fails every
+            // `open` instead. Without this the `for` completes without reading a byte, the
+            // outer loop restarts, and the run never consults the clock again. This probe
+            // exists to be run across reader and card swaps, so that is the one thing it
+            // must not do -- found 2026-08-07 when a reader was unplugged mid-measurement.
+            if overall.elapsed().as_secs() >= seconds {
+                break 'outer;
+            }
+
             let Ok(mut file) = OpenOptions::new()
                 .read(true)
                 .custom_flags(FILE_FLAG_NO_BUFFERING)
