@@ -336,6 +336,28 @@ it negotiated USB 2.0. A number is only worth taking afterwards, for the record.
 > adapter. **Two candidate failures share this path**, and naming both before the run is what stops
 > the first plausible one from collecting the blame.
 
+#### Adapter 1 of 3 — FAILS, firmly seated: `Generic USB Hub`, Intel 3.10
+
+**USB 2.0 again**, with Terry reporting the adapter pushed hard into the hub and the cable hard
+into the adapter: *"if it doesn't do SuperSpeed now it never will."*
+
+**Conclusive because two variables moved and the answer did not** — a **different reader** (UGreen,
+not the SDDR-409) and **deliberate firm seating**. Same port, same companion hub, same controller.
+*When two runs agree, change the other variable*, and the only one left is the adapter itself.
+
+**No throughput run was taken and none was needed.** The chain is decisive, and a USB 2.0 link caps
+near 40 MB/s whatever else is true — which also **retires the trap row above**: USB 2.0 masks a
+UHS-I problem completely, so no reading on this path could have been misattributed to the card.
+
+> **↺ A prediction recorded and refuted, kept because the error is the interesting part.** ~275 was
+> pre-registered on a seating hypothesis. **The original read — "the adapter is bad" — was right,
+> and it was abandoned an hour later because the card-seating discovery was fresh and vivid.**
+>
+> **A new lesson gets over-applied to the next case that looks like it.** The card and the adapter
+> shared a *symptom shape* — flat at a lower spec's ceiling on a path proven good — and nothing
+> else. **Symptom shape is not a mechanism**, and a finding that explains one case is not evidence
+> about another that merely resembles it.
+
 ---
 
 ## Closed 2026-08-07
