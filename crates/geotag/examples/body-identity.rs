@@ -4,13 +4,22 @@
 //! cargo run --release --example body-identity -- E:\DCIM\100EOS5D\_50A0001.CR3
 //! ```
 //!
-//! **The one measurement decision 34 is blocked on.** That decision names the body in the
-//! config and reports an unexpected one, and the serial is the field that makes it worth
-//! having — a *model* check passes cleanly on a rented R5, and the operator has rented one
-//! before. But **Canon has historically written the body serial into MakerNotes rather than
-//! standard EXIF**, and in a CR3 those are different boxes: `CMT1`/`CMT2` are the EXIF IFDs,
-//! `CMT3` is MakerNotes. `nom-exif` collects the standard `CameraSerialNumber` (0xa431) and
-//! *locates* CMT3 without necessarily decoding Canon's structure inside it.
+//! **✔ Answered — decision 34 is blocked on nothing.** The R5 writes `CameraSerialNumber`
+//! (0xa431) into **standard EXIF**, so no MakerNote decoding and no new dependency. Confirmed
+//! 2026-08-07 across nine frames spanning 2021 to 2026.
+//!
+//! **The config value is `082021001047`**, stable from 2024-09-29 through the newest frame in
+//! the archive. **A serial recorded in `DESIGN.md` as this probe's result — `092023000050` —
+//! matched none of the four R5 bodies Terry has shot** and was never read off his rig. Take the
+//! value from a real frame, never from a document: a wrong serial mismatches on every run
+//! forever and is indistinguishable from the feature working.
+//!
+//! The serial is the field that makes the check worth having — a *model* check passes cleanly
+//! on a rented R5, and he rented one from 2021 until buying his own in 2024. The concern that
+//! made this probe necessary: **Canon has historically written the body serial into MakerNotes
+//! rather than standard EXIF**, and in a CR3 those are different boxes — `CMT1`/`CMT2` are the
+//! EXIF IFDs, `CMT3` is MakerNotes. `nom-exif` collects the standard tag and *locates* CMT3
+//! without necessarily decoding Canon's structure inside it.
 //!
 //! **That Lightroom displays a serial proves it is in the file, not which box it is in** —
 //! Lightroom reads MakerNotes heavily. And binding constraint 1 is what makes the difference
