@@ -860,6 +860,20 @@ a Defender tax shows as every destination running far below its known ability.
 > machine whose owner is a full administrator. Real-time protection was on and `WSearch`
 > was running. The three-outcome design is therefore load-bearing rather than defensive.
 
+> **✗ And the *registry* path is closed too — measured 2026-08-07, which is the mechanism this
+> decision actually specifies.** `windows-registry` was chosen so the read would not shell out
+> (constraint 1), but
+> `HKLM:\SOFTWARE\Microsoft\Windows Defender\Exclusions\{Paths,Extensions,Processes}` each throw
+> `SecurityException` unelevated, while a control key under `Windows NT\CurrentVersion` reads
+> fine — so the instrument works and the denial is real.
+>
+> **Both mechanisms are therefore closed, and constraint 4 forbids elevation.** The check can
+> only ever return *could not confirm*, on every run, forever — **a diagnostic that cannot
+> succeed**, which is the mirror of [`REVIEWING.md`](REVIEWING.md)'s objection to one that
+> cannot fail. **Whether to withdraw it is open in [`BACKLOG.md`](BACKLOG.md) and is Terry's
+> call**; the substitute this decision already names — the per-destination sustained rates —
+> ships today.
+
 **When the exclusions are set, they should be by extension and process — not by path.**
 Recorded 2026-08-04 as future work; the operator's decision on the trade is below.
 

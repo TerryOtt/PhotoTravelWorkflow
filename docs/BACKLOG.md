@@ -335,6 +335,42 @@ against the source; **the pattern MUST be proven able to find something before i
 believed**; and a phrase with a variable in it is never present literally, so search the invariant
 half.
 
+## Decide decision 9's Defender check — OPEN, TERRY'S MOVE
+
+**Opened 2026-08-07** when Terry asked whether this needed an item. **It needs a decision, not a
+build, and the recommendation is to withdraw it.**
+
+**Both mechanisms are closed on this rig, re-measured today, unelevated:**
+
+| Probe | Result |
+|---|---|
+| `Get-MpPreference` | `N/A: Must be an administrator to view exclusions`, all three lists |
+| `HKLM:\...\Windows Defender\Exclusions\{Paths,Extensions,Processes}` | `SecurityException` on every one |
+| **Control** — `HKLM:\...\Windows NT\CurrentVersion` | **readable**, so the instrument works and the denial is real |
+
+**Binding constraint 4 forbids elevation**, so the check could only ever return its *could not
+confirm* outcome — every run, forever. **That is a diagnostic that cannot succeed**, the mirror of
+[`REVIEWING.md`](REVIEWING.md)'s objection to one that cannot fail.
+
+**The substitute already ships, and decision 9 names it**: *"the real check is one the report
+already prints — the per-destination sustained rates, where a Defender tax shows as every
+destination running far below its known ability."*
+
+**Withdrawing also closes a real hole.** `windows-registry` is the **last** declared-but-unused
+workspace dependency, and [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) records that those never resolve,
+never reach `Cargo.lock`, and are **invisible to `cargo outdated`**. `indicatif` and `console`
+both left that list as their features got built; this one cannot.
+
+**Precedent:** `offload sync` was withdrawn rather than deferred on 2026-08-06 — a capability
+nobody can use is worse than one that is absent.
+
+> **The alternative, if kept, is to re-scope rather than build as designed:** report that
+> exclusions *could not be verified* and point at the sustained rates. That is what it would do
+> every night anyway, so the honest version is one line, not a registry read.
+
+**Why it is his call:** the engineering is not in doubt; withdrawing a designed feature is a scope
+decision.
+
 ## Build decision 34: the body check — OPEN
 
 **Opened 2026-08-07 at Terry's request**, off the diet pass's finding that decision 34 is fully
