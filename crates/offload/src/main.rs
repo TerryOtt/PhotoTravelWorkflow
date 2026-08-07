@@ -47,6 +47,32 @@ enum Command {
         /// The archive root — a path, never a config label (decision 20).
         dest: PathBuf,
     },
+
+    /// Tag an existing tree of raws against GPX tracks. Reads no config.
+    ///
+    /// **RawGeotag's whole job, as a subcommand** (decision 30). Phase 5 already correlates
+    /// capture times against a track and writes sidecars; this points that at a directory
+    /// instead of at what tonight landed, which is the only difference between the two.
+    Geotag {
+        /// The directory of raws, searched recursively.
+        root: PathBuf,
+
+        /// GPX track file, or a directory of them. Repeat as needed.
+        #[arg(required = true, num_args = 1.., value_name = "GPX")]
+        tracks: Vec<PathBuf>,
+
+        /// Refuse to interpolate across a hole longer than this many seconds.
+        #[arg(long, value_name = "SECONDS", default_value_t = GapLimits::DEFAULT_GAP_SECONDS)]
+        max_gap_seconds: i64,
+
+        /// Refuse to interpolate across a hole wider than this many meters.
+        #[arg(long, value_name = "METERS", default_value_t = GapLimits::DEFAULT.max_meters)]
+        max_gap_meters: f64,
+
+        /// Rewrite sidecars that already exist instead of leaving them alone.
+        #[arg(long)]
+        force_xmp: bool,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -134,6 +160,23 @@ fn main() -> ExitCode {
 fn dispatch(cli: &Cli) -> Result<ExitCode> {
     match &cli.command {
         Some(Command::Verify { dest }) => return verify_destination(dest),
+        Some(Command::Geotag {
+            root,
+            tracks,
+            max_gap_seconds,
+            max_gap_meters,
+            force_xmp,
+        }) => {
+            return geotag_tree(
+                root,
+                tracks,
+                GapLimits {
+                    max_gap: chrono::TimeDelta::seconds(*max_gap_seconds),
+                    max_meters: *max_gap_meters,
+                },
+                *force_xmp,
+            );
+        }
         None => {}
     }
 
@@ -1833,6 +1876,129 @@ fn span(fast: f64, slow: f64) -> String {
 /// Reads nothing but the disk itself, so it works on a machine that has never seen this
 /// tool's configuration. That is the promise, and it is why this takes a path rather
 /// than a config label.
+/// `offload geotag <ROOT> <GPX...>` — decision 30's subcommand, and RawGeotag's whole job.
+///
+/// **It re-reads the raws, and that is the one real difference from phase 5.** Decision 10 has
+/// phase 3 hand capture times forward because every file was already in RAM to be hashed;
+/// nothing has been read here, so this opens each frame to seek its EXIF. That is ~0.3 s for
+/// 3,883 files (decision 17), not a copy of the day.
+///
+/// **`--utc-offset` deliberately does not come across** (decision 23). RawGeotag needed it for a
+/// body that recorded no timezone; reintroducing it would reintroduce the gate it implies, and
+/// a frame with no offset is counted and reported here rather than guessed at. Guessing is the
+/// one thing the project mantra forbids — **a geotag off by more than 5 m is worse than none.**
+fn geotag_tree(
+    root: &Path,
+    tracks: &[PathBuf],
+    limits: GapLimits,
+    force: bool,
+) -> Result<ExitCode> {
+    let tracks = expand_tracks(tracks)?;
+    let files = pipeline::cr3_files(root).with_context(|| format!("walking {}", root.display()))?;
+
+    if files.is_empty() {
+        // **Not silence, and not success.** An empty walk and a tagged run must not read the
+        // same way — `verify`'s `NOTHING TO VERIFY` is the same rule (decision 20).
+        println!();
+        println!("  NOTHING TO TAG — no .CR3 files under {}", root.display());
+        println!("  Either this is not a directory of raws, or they are somewhere else.");
+        return Ok(ExitCode::from(2));
+    }
+
+    println!();
+    println!("Geotagging {}", root.display());
+    println!();
+    println!(
+        "    {} frames · {} track(s)",
+        count(files.len()),
+        count(tracks.len())
+    );
+
+    let mut parser = MediaParser::new();
+    let mut landed = Vec::with_capacity(files.len());
+    let mut no_offset = 0usize;
+    let mut no_capture_time = 0usize;
+    let mut unreadable = 0usize;
+
+    for file in &files {
+        let relative = file.strip_prefix(root).unwrap_or(file).to_path_buf();
+
+        match capture_time(&mut parser, file, RawFormat::Cr3, None) {
+            Ok(Capture::Resolved { at, .. }) => landed.push(phase5::Landed {
+                relative,
+                captured: at,
+            }),
+            Ok(Capture::NeedsOffset) => no_offset += 1,
+            Ok(Capture::NoCaptureTime) => no_capture_time += 1,
+            // Counted rather than fatal: one corrupt frame must not stop the other 7,000
+            // being tagged, and decision 18's fatal-out is about the *offload*, not this.
+            Err(_) => unreadable += 1,
+        }
+    }
+
+    // The destination is the tree itself — one root, tagged in place. Phase 5 writes a sidecar
+    // beside each raw, so `root` is both where the frames are and where the packets go.
+    let destination = [Destination {
+        label: root.display().to_string(),
+        root: root.to_path_buf(),
+    }];
+
+    let progress = offload::progress::Progress::detect();
+    let report = phase5::run(&landed, &destination, &tracks, limits, force, &progress)?;
+
+    report_geotag(Some(&report), false, destination.len());
+
+    for (count_of, what) in [
+        (
+            no_offset,
+            "no timezone offset — decision 23 does not guess one",
+        ),
+        (no_capture_time, "no capture time at all"),
+        (unreadable, "could not be read"),
+    ] {
+        if count_of > 0 {
+            println!("    {} skipped: {what}", count(count_of));
+        }
+    }
+
+    println!();
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Each argument is a `.gpx` file or a directory of them, flattened and sorted.
+///
+/// **Not recursive**, matching RawGeotag: a directory of tracks is a directory of tracks, and
+/// walking into subdirectories would quietly pull in a different day's logging.
+fn expand_tracks(given: &[PathBuf]) -> Result<Vec<PathBuf>> {
+    let mut tracks = Vec::new();
+
+    for path in given {
+        if path.is_dir() {
+            let entries =
+                std::fs::read_dir(path).with_context(|| format!("reading {}", path.display()))?;
+            tracks.extend(
+                entries
+                    .filter_map(Result::ok)
+                    .map(|entry| entry.path())
+                    .filter(|path| {
+                        path.extension()
+                            .and_then(|extension| extension.to_str())
+                            .is_some_and(|extension| extension.eq_ignore_ascii_case("gpx"))
+                    }),
+            );
+        } else {
+            tracks.push(path.clone());
+        }
+    }
+
+    if tracks.is_empty() {
+        anyhow::bail!("no .gpx tracks found in what you named");
+    }
+
+    tracks.sort();
+    Ok(tracks)
+}
+
 fn verify_destination(root: &Path) -> Result<ExitCode> {
     let report = verify::destination(root)?;
 
@@ -2296,6 +2462,43 @@ fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool, dest
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A track argument is a file **or** a directory of them, and a directory is **not** walked
+    /// recursively — descending would quietly pull in a different day's logging, which is the
+    /// one way this could tag a frame against the wrong track and still look like it worked.
+    #[test]
+    fn tracks_expand_from_files_and_flat_directories_only() {
+        let scratch = tempfile::tempdir().expect("a scratch directory");
+        let dir = scratch.path();
+
+        std::fs::write(dir.join("b.gpx"), "").expect("a track");
+        std::fs::write(dir.join("a.gpx"), "").expect("a track");
+        std::fs::write(dir.join("notes.txt"), "").expect("a non-track");
+        std::fs::create_dir(dir.join("deeper")).expect("a subdirectory");
+        std::fs::write(dir.join("deeper").join("other-day.gpx"), "").expect("a track below");
+
+        let found = expand_tracks(&[dir.to_path_buf()]).expect("tracks");
+
+        let names: Vec<String> = found
+            .iter()
+            .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            names,
+            ["a.gpx", "b.gpx"],
+            "sorted, .gpx only, not recursive"
+        );
+
+        // A named file is taken as given, whatever its extension — the operator pointed at it.
+        let named = expand_tracks(&[dir.join("notes.txt")]).expect("an explicitly named file");
+        assert_eq!(named.len(), 1);
+
+        // **Nothing found is an error, never an empty run.** Phase 5 against zero tracks would
+        // report every frame as outside the track, which reads as a dead logger rather than as
+        // a mistyped path.
+        let empty = tempfile::tempdir().expect("an empty directory");
+        assert!(expand_tracks(&[empty.path().to_path_buf()]).is_err());
+    }
 
     /// **A mismatch line MUST name both sides**, and that is what a tidy-up would drop.
     ///
