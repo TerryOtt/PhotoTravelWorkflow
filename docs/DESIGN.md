@@ -1969,6 +1969,12 @@ absolute: an archive pulled from the safe has to be checkable on a machine that 
 never seen this tool's configuration, and it is — `verify` reads nothing but the
 destination itself, its marker and its manifests.
 
+**And it writes nothing at all** — verified 2026-08-07 by the boomerang pass: every write in
+`verify.rs` is inside `#[cfg(test)]`. That is the question someone actually asks before pointing
+it at a disk from the safe, and *"reads only its marker and manifests"* answers a different one.
+**A read-only checker is what makes it safe to run on a suspect disk**, which is the moment it
+is most likely to be wanted.
+
 **`offload verify <DEST>`** reads the destination marker to name what it is checking —
 at whatever schema that disk was written with, which every later build still understands
 (decision 28) —
