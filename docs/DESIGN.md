@@ -757,10 +757,19 @@ offload                            the nightly command
   --force-xmp[=<DEST>]       overwrite existing XMP on every destination, or on
                              just the one named
   --no-eject                 leave the archive SSDs mounted when the run ends
+  --eject-gap-seconds <S>    ask this often during eject, instead of the
+                             2s-doubling-to-60s backoff — a diagnostic
 
 offload verify <DEST>       standalone re-verify; works years later, without config
-offload sync <DEST>         backfill a disk that missed an offload
+offload sync <DEST>         NOT BUILT — see Still to build
 ```
+
+> **`--eject-gap-seconds` is the last survivor of the eject investigation**, and it should be
+> looked at against `CLAUDE.md`'s *a config item that is never used MUST NOT exist*. Its sibling
+> `--eject-prepare` was deleted on 2026-08-06 once the comparison it existed for had settled.
+> This one is a cadence override rather than a mode selector, so it cannot select known-bad
+> behavior — but nothing routine passes it, and `examples/eject-one.rs` can do the same job.
+> **Left in place pending a decision rather than removed quietly.**
 
 Config is JSON:
 
@@ -3249,36 +3258,47 @@ new evidence rather than fresh taste.
 pick the work up from the repository alone, without needing to have been here. If it is
 stale, fix it before doing anything else.*
 
-**Built and exercised against the real rig** (3,883 frames, 201.3 GB, four destinations):
+**The nightly command works end to end and has been run at full scale.** Verified against the
+source on 2026-08-06.
 
 | | |
 |---|---|
 | `crates/geotag` | the lifted engine — CR3 capture time, GPX indexing, XMP (decision 17) |
-| `storage`, `power` | volume and device identity, sleep inhibit (decisions 6, 9) |
+| `storage`, `power` | volume and device identity, sleep inhibit (decision 6) |
 | `config`, `destinations`, `cards` | the rig, resolved by serial; cards found by `DCIM` and timed (decisions 6, 7, 8) |
 | `preflight` | phases 1 and 2, including decision 27's card-equivalency gate |
 | `pipeline` | phase 3 — read once, fan out, write through, verify unbuffered (decisions 2, 5, 10) |
 | `manifest`, `marker`, `verify` | the durable artifact and `offload verify <DEST>` (decisions 12, 20, 28) |
-| `phase4` | corroboration — **wired and proven on the rig**: 3,883 matched, 0 mismatched (decisions 3, 4) |
+| `phase4` | corroboration — proven on the rig, 3,883 matched, 0 mismatched (decisions 3, 4) |
 | `phase5` | geotag, wired and running (decisions 16, 23, 26) |
-| `eject` | lock, dismount, power down, **retried with backoff** — proven on both bus types, and the retry **observed recovering a vetoed drive** (decision 22) |
-| `eject` on the cards too | **fixed 2026-08-05** — cards take the same lock/dismount/power-down as a destination, because a dismount alone released nothing. `examples/release-cards.rs` is the harness that established it (decision 22) |
+| `eject` | all five devices, concurrently, retried with backoff (decision 22) |
+| `progress`, `human`, `runlog`, `naming`, `hash`, `winio` | the supporting layer — bars in three modes, formatting, the append-only log, filenames, SHA-256, unbuffered I/O |
 
-**Four full runs on 2026-08-04/05**, same 3,883 frames to the same four destinations, every
-`(file, destination)` pair verified on each: **LANDED 13 m 28 s, 16 m 34 s, 14 m 04 s,
-13 m 49 s**, whole runs 33–38 minutes. `verify` has been shown to catch a single flipped bit
-in 201 GB and name the file.
+**Largest run: 7,395 frames, 386.6 GiB, four destinations** — LANDED **35 m 29 s**, whole run
+**89 m 59 s**, exit 0. Four earlier runs at 3,883 frames landed in 13–17 minutes. `verify` has
+caught a single flipped bit in 201 GB and named the file. **Five run narratives in
+[`RUNS.md`](RUNS.md).**
 
-> ✔ **Closed 2026-08-05 by the run below.** The progress reporting (`e54623e`) and the
-> interleaved verify read (`693f321`) had never been through a full run when they were
-> written; both have now, and both did what the bench said they would.
+**Settled 2026-08-06:** the eject veto — cause found and `Prepare::FirstAttemptOnly` shipped as
+the only behavior — and the report's badge column, which the operator reads as a go/no-go on
+unplugging drives.
 
-### The run records live in [`RUNS.md`](RUNS.md)
+## Still to build
 
-**Moved there 2026-08-06.** Three full-run narratives — the 415 GB run, the interleaved verify
-run, and the first cold-cache run — were 834 lines of this file, and they answer a different
-question from the rest of it. **This document is for someone changing the design; a run record is
-for someone asking what happened last time.**
+**Everything below is designed above and does not exist in the source.** Checked against the code
+on 2026-08-06 rather than remembered.
 
-**Nothing was cut**, and the wall-clock figures those runs established are still cited in place
-throughout the decisions above.
+| | State |
+|---|---|
+| **`offload sync <DEST>`** (decision 20) | **A stub.** `--help` advertises it and `dispatch` prints *"sync is not implemented yet"* and exits FAILURE. `--without <LABEL>`'s help text points at it too |
+| **Stray reporting** (decision 24) | The walk does not carry non-CR3 files out of pre-flight, so `exit_code` has nothing to consult. Named in `main.rs`'s own comment |
+| **The Defender check** (decision 9) | `windows-registry` is declared in the workspace and imported by nothing |
+| **Throughput history** (decision 33) | No history is written or read; `runlog` and `config` have no such field |
+| **`offload geotag`** (decision 30) | No subcommand. RawGeotag stays the tool Terry travels with until this lands |
+| **Four verdict suffixes** | `SAFE, NOT EJECTED`, `— BUT CHECK YOUR SDXC CARD`, `— SINGLE SOURCE, NEVER CORROBORATED`, `— SSD-C EXCLUDED` — see *Specified here and never built* under decision 14 |
+
+> **`sync` is the one that can mislead a person rather than a session.** It is offered by the
+> CLI with a description that reads like a working feature, and the only way to discover
+> otherwise is to run it. **If it is not going to be built soon, the honest move is to stop
+> advertising it** — a subcommand that fails on use is worse than one that is absent, and
+> `CLAUDE.md`'s rule about configuration that is never used applies to subcommands too.

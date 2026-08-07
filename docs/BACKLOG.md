@@ -71,7 +71,24 @@ SDDR-409 has already produced a number worth beating: 281 MB/s** — which retir
 247 was that reader's ceiling, so the other two readers now have a real bar rather than an
 assumed one.
 
-## 2. Put the docs and tests on a diet — IN PROGRESS
+## 2. `offload sync` is advertised and not built — OPEN
+
+**Found 2026-08-06 by auditing the docs against the source.** `--help` offers *"Backfill a
+destination that missed an offload"*; `dispatch` prints *"sync is not implemented yet"* and exits
+FAILURE. `--without <LABEL>`'s help text points at it as well, and `DESIGN.md` decision 20
+describes it across ~150 lines as though it exists.
+
+**Two honest options, and this is Terry's call:**
+
+- **Build it.** Decision 20 has the whole design and it is the backfill path for `--without`.
+- **Stop advertising it** until then — a subcommand that fails on use is worse than an absent
+  one, and `CLAUDE.md`'s rule about configuration that is never used applies to subcommands.
+
+**`DESIGN.md` now has a `Still to build` section** naming this and four other designed-but-absent
+features — the stray check, the Defender check, throughput history, and `offload geotag`. Two
+documents already pointed at that section; it did not exist until now.
+
+## 3. Put the docs and tests on a diet — IN PROGRESS
 
 **Terry raised the priority on 2026-08-06** and set the framing: *"pretty aggressive... this is a
 hobby project, we aren't launching nuclear missiles, nobody's gonna die. Use a fresh pair of
