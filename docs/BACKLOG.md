@@ -226,7 +226,22 @@ normally, mounts, reads every file, errors at nothing, and runs at exactly UHS-I
 > negotiated down, and those two were collapsed while the note separating them was still on screen.
 > **A caveat only helps if it survives the next result.**
 
-## Put the docs and tests on a diet — IN PROGRESS
+## Put the docs and tests on a diet — CLOSED 2026-08-07
+
+> **Signed off by Terry**, who read all docs and code comments and accepted the changes.
+>
+> **Tests 114 → 106** in `offload`'s lib (182 across the workspace). **Comments 32 % → 29 %.**
+> `DESIGN.md` **3,245 → 3,218**. **`docs/` grew overall**, 7,670 → 7,881 — the corrections and
+> this record outweighed the cuts, and **the pass bought accuracy rather than size.**
+>
+> **Eight defects found, all one class: claims about output, data shapes, and what exists.**
+> Four sweeps came back clean, which is what located the class. `WRITING.md` rule 5 and
+> `scripts/doc-claims-check.py` are what carry it forward.
+>
+> **The stopping argument, since "aggressive" invites more:** the largest remaining blockquotes
+> are measurements plus a live trap (the 26 MB figure is per *file*, not per frame). **Cutting
+> those would be deleting evidence to hit a number**, which the standing order does not license.
+> Any remaining fat is structural, not lexical.
 
 **Terry raised the priority on 2026-08-06** and set the framing: *"pretty aggressive... this is a
 hobby project, we aren't launching nuclear missiles, nobody's gonna die. Use a fresh pair of
@@ -443,7 +458,10 @@ the repository.
 > **TERRY'S MOVE at the end:** archiving the repository is his call, since it is the tool he
 > currently travels with. Everything before that is buildable without him.
 
-## Build decision 34: the body check — OPEN
+## Build decision 34: the body check — IN PROGRESS
+
+> **Started 2026-08-07 21:37Z**, on a two-hour window from Terry. Done means code, code
+> comments, docs and unit tests — not just a passing build.
 
 **Opened 2026-08-07 at Terry's request**, off the diet pass's finding that decision 34 is fully
 designed and **entirely unbuilt**: `config.rs` has no `body` field and `main.rs` prints no `Body`
