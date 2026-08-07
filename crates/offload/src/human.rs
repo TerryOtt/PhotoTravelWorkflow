@@ -1,12 +1,8 @@
 //! Number formatting shared by the report and the progress bars.
 //!
-//! **This exists because the bars were not held to the rule the report follows.**
-//! [`docs/WRITING.md`](../../../docs/WRITING.md) rule 6 requires thousands separators in
-//! program output as well as prose, and `landed()` had obeyed it since it was written —
-//! while the progress line beside it rendered a bare `3883`, because `count` was a private
-//! helper in `main.rs` and `progress.rs` lives in the library. **The rule was fine; the
-//! function was in the wrong file.** Spotted by the operator on 2026-08-05, the first time
-//! he ran the tool himself.
+//! **Shared so the two cannot drift**, which they did: `count` was private to `main.rs`, so the
+//! report obeyed [`docs/WRITING.md`](../../../docs/WRITING.md) rule 6's thousands separators
+//! while the progress line beside it rendered a bare `3883`.
 
 /// Thousands separators, per `docs/WRITING.md` rule 6.
 ///
@@ -31,20 +27,17 @@ pub fn count(n: usize) -> String {
 /// below the resolution of any decision made from this figure.
 ///
 /// **Up rather than to-nearest, and the direction is load-bearing.** This renders payloads and
-/// requirements, where overstating is the safe error. Free space rounds the other way in
-/// [`gib_down`], so the two always move *apart* — which is what stops `NOT ENOUGH ROOM` printing
-/// two identical numbers while refusing the run, as one shared rounding would at 386.2 GiB free
-/// against 386.6 needed.
+/// requirements, where overstating is the safe error; free space rounds the other way in
+/// [`gib_down`], so the two always move *apart*. One shared rounding would let `NOT ENOUGH ROOM`
+/// print two identical numbers while refusing the run — 386.2 GiB free against 386.6 needed.
 ///
-/// **Integer arithmetic, not `f64::ceil`.** `div_ceil` is exact at every input; a float path has
-/// to be reasoned about at the boundary — the trap that once had a test here asserting `1,688.0`
-/// for a value stored as `1687.949999...`.
+/// **Integer arithmetic, not `f64::ceil`**: `div_ceil` is exact at every input, where a float path
+/// has to be reasoned about at the boundary.
 ///
-/// **Sizes are GiB, rates are decimal, and neither is negotiable.** Windows is what the operator
-/// checks a size against — Explorer and `/1GB` both divide by 2^30 — so a payload printed as
-/// decimal `202` sends him to a file manager saying `188`. Throughput stays decimal because a
-/// link's speed is decimal by definition, and GiB/s cannot be compared to the number on the
-/// cable. **Each is the unit its own question is asked in.**
+/// **Sizes are GiB, rates are decimal, and neither is negotiable.** Windows is what a size gets
+/// checked against — Explorer divides by 2^30 — so a payload printed as decimal `202` sends the
+/// operator to a file manager saying `188`. Throughput stays decimal because a link's speed is
+/// decimal by definition. **Each is the unit its own question is asked in.**
 pub fn gib_up(bytes: u64) -> String {
     if bytes < DECIMAL_BELOW {
         return tenths((bytes * 10).div_ceil(GIB));
@@ -57,17 +50,12 @@ const GIB: u64 = 1 << 30;
 
 /// Below this, sizes keep one decimal place.
 ///
-/// **Ten gibibytes is far below any real night, and that is the whole point.** Terry shoots
-/// roughly thirty frames of each scene across a spread of settings, so even messing about
-/// locally he comes home with 300–500 frames — `docs/CONOPS.md` has the shooting contract.
-/// **A sub-10 GiB payload is therefore never a shooting day; it is a staged test slice**, and
-/// that is exactly where the tenth earns its place: the 50-frame corpus is 2.6 GiB, renders as
-/// `3` under a plain ceiling, and a 15 % overstatement cannot be checked against the source by
-/// eye.
-///
-/// So the threshold is not a compromise between two preferences. **Whole GiB is what the
-/// operator sees on every real run**, and the decimal exists for the development case he asked
-/// it to keep working for.
+/// **Ten gibibytes is far below any real night, so this is not a compromise between two
+/// preferences.** The shooting contract in `docs/CONOPS.md` puts even a local afternoon at
+/// 300–500 frames, so **a sub-10 GiB payload is never a shooting day — it is a staged test
+/// slice**, and that is where the tenth earns its place: the 50-frame corpus is 2.6 GiB, renders
+/// as `3` under a plain ceiling, and a 15 % overstatement cannot be eyeballed against the source.
+/// Whole GiB remains what the operator sees on every real run.
 const DECIMAL_BELOW: u64 = 10 * GIB;
 
 /// Tenths of a GiB as `2.6`, with separators on the whole part.
@@ -95,15 +83,13 @@ pub fn gib_down(bytes: u64) -> String {
 /// destination 39 files is long enough to read as stuck, which is the exact impression the
 /// progress output exists to prevent (decision 22, on an unlabeled silence).
 ///
-/// **It does not step per file, and an earlier version of this comment claimed it did.** The
-/// test below asserted that adjacent files render differently and failed on the first run:
-/// 1,000 and 1,001 of 3,883 are 25.7533 % and 25.7790 %, both `25.8%`. Ten times more often
-/// is the real benefit and it is enough; a second decimal would buy per-file movement at the
-/// cost of a number nobody reads.
+/// **It does not step per file** — 1,000 and 1,001 of 3,883 are both `25.8%`. Ten times more
+/// movement is the real benefit and it is enough; a second decimal would buy per-file stepping at
+/// the cost of a number nobody reads.
 ///
-/// A zero total reports `0.0%` rather than dividing: an empty card is refused long before
-/// this by pre-flight, so the branch is unreachable in a real run and a panic here would be
-/// a rendering bug taking down a run with hundreds of gigabytes to move.
+/// A zero total reports `0.0%` rather than dividing: pre-flight refuses an empty card long before
+/// this, so the branch is unreachable in a real run and a panic here would be a rendering bug
+/// taking down a run mid-copy.
 pub fn percent(done: usize, total: usize) -> String {
     if total == 0 {
         return "0.0%".to_owned();
@@ -135,10 +121,7 @@ mod tests {
     }
 
     /// **The staged 50-frame slice, which is the case the threshold exists for.** 2,796,966,092
-    /// bytes is 2.605 GiB; a plain ceiling renders it `3` and overstates by 15 %, which cannot
-    /// be checked against the source by eye. Terry, 2026-08-06, on why no real night lands here:
-    /// *"at 30 shots per potential keeper and the very least I shoot ~300-500 shots even just
-    /// messing around locally."*
+    /// bytes is 2.605 GiB, which a plain ceiling would render `3` — a 15 % overstatement.
     #[test]
     fn a_small_payload_keeps_one_decimal() {
         assert_eq!(gib_up(2_796_966_092), "2.7");
@@ -212,12 +195,8 @@ mod tests {
         assert_eq!(percent(3_883, 3_883), "100.0%");
     }
 
-    /// The reason the decimal is there, asserted as the thing that is actually true.
-    ///
-    /// **This test failed the first time it ran, and it was the assertion that was wrong.**
-    /// It claimed adjacent files render differently; they do not — 1,000 and 1,001 of 3,883
-    /// are both `25.8%`. What one decimal buys is ten times more movement, not per-file
-    /// movement, and that is what is checked here.
+    /// The reason the decimal is there, asserted as the thing that is actually true: **ten times
+    /// more movement, not per-file movement.** Adjacent files often render identically.
     #[test]
     fn one_decimal_advances_about_ten_times_more_often_than_a_whole_number() {
         let total = 3_883;
