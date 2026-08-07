@@ -243,21 +243,12 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     // site says why.
     println!();
     println!();
-    // **`·` and not `...` before the estimate.** The ellipsis was doing a separator's job in the
-    // middle of a line, while the summary line above uses a middle dot for exactly that — two
-    // punctuation marks for one role. The trailing `...` on `Enumerating files on camera cards...`
-    // stays, because there it is not a separator: it marks work in progress with nothing after
-    // it, which is the only thing an ellipsis should mean here.
+    // `·` as the separator and `Offloading` as the verb are `WRITING.md` rules 6 and 8. *Ingest*
+    // remains the repository's word for phase 3; only the operator-facing string has to match
+    // the word he uses.
     //
-    // **`Offloading`, not `Ingesting`.** The binary is `offload`, `CONOPS.md` calls the act
-    // *the offload*, and the screen said a third word for the same thing — which is the exact
-    // drift `WRITING.md` rule 8 exists to stop. *Ingest* stays as the repository's name for
-    // phase 3 in `DESIGN.md` and `pipeline.rs`; it is the operator-facing string that has to
-    // match the word he uses, the same split as `primary` on disk and `Primary` on screen.
-    //
-    // **The estimate lives here rather than on the pre-flight summary**, because this is the
-    // line the eye goes to: the summary says what tonight *is*, and this says what is starting
-    // and how long it will take. Terry, 2026-08-05: *"That's where my eye looks for it."*
+    // **The estimate lives here rather than on the pre-flight summary**, because this is the line
+    // the eye goes to. Terry, 2026-08-05: *"That's where my eye looks for it."*
     println!(
         "Offloading {} files to {} destinations · est. {}",
         count(plan.cards.files.len()),
@@ -772,21 +763,10 @@ const PREPARE: eject::Prepare = eject::Prepare::FirstAttemptOnly;
 
 /// One timestamped line per eject attempt, printed as it happens.
 ///
-/// **Terry asked to watch the retry rather than only its result** (2026-08-06): *"ideally I'd
-/// like screen output with timestamp of every eject attempt. It's interesting and slightly
-/// amusing for me to see the code have a battle of patience with windows and win."* It also
-/// lands in the log — he runs the tool through Claude whenever he has internet — so the same
-/// lines are the evidence for whether a held device recovers predictably, which
-/// [`eject::Effort`] alone could never show.
-///
 /// **The reason prints only when it CHANGES**, which is the one judgment call here. Sixteen
-/// identical vetoes a minute apart is a wall of text that hides the interesting case; a veto
-/// that changes shape mid-fight is the open question about what actually holds a card. Same
-/// rule `scripts/watch-rig.ps1` follows — every line is a change — and it turns the transcript
-/// into evidence rather than a log to be skimmed.
-///
-/// UTC, per the operator's standing preference, and seconds resolution because the backoff
-/// flattens to one attempt a minute.
+/// identical vetoes a minute apart is a wall of text that hides the interesting case, and a veto
+/// that changes shape mid-fight is the whole open question about what holds a card. That is how
+/// `PNP_VETO_TYPE(5)` was ever seen at all.
 fn watch_attempt(label: &str) -> impl FnMut(eject::Attempt<'_>) + '_ {
     let mut said: Option<String> = None;
 
