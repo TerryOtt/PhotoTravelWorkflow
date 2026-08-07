@@ -7,11 +7,9 @@
 //!
 //! # Three modes, because a progress bar is useless in a log file
 //!
-//! **`indicatif` disables itself when its stream is not a terminal** — `draw_target.rs` returns a
-//! hidden target on `!term.is_term()`. That would have made this invisible in exactly the mode it
-//! is most needed: `CONOPS.md` has the operator running the offload through Claude whenever there
-//! is internet, which means captured to a file. **The bars would have looked right by hand and
-//! rendered nothing every time they ran for him.**
+//! **`indicatif` disables itself when its stream is not a terminal**, returning a hidden draw
+//! target on `!term.is_term()` — so bars alone would render nothing in the mode that matters
+//! most, since `CONOPS.md` has the operator running the offload captured to a file.
 //!
 //! | Mode | When | What it does |
 //! |---|---|---|
@@ -162,28 +160,15 @@ impl Progress {
 
     /// A pass heading, with the destination rows for that pass printed under it.
     ///
-    /// **Both sections exist from the start and a destination appears in both**, which is not
-    /// merely a rendering choice. Phase 3 has no barrier between the passes: each destination
-    /// begins verifying the moment *its own* writes finish, so the laptop's NVMe is reading
-    /// back while the slowest USB drive is still being written. Adding a barrier to make the
-    /// sections tidy would idle the fast drives and cost real wall clock.
-    ///
-    /// So `Writing` fills top-to-bottom and `Verifying` starts filling underneath it while
-    /// some rows above are still moving. **That overlap is the most useful thing on the
-    /// screen** — it is the same heterogeneity decision 14 calls the report's most useful
-    /// number, shown live.
-    ///
-    /// In `Bars` this is a message-only bar that is never advanced; in `Lines` it is one
-    /// heading printed once.
+    /// **Both sections exist from the start and a destination appears in both.** Phase 3 has no
+    /// barrier between the passes — each destination verifies the moment *its own* writes finish
+    /// — so `Verifying` fills underneath `Writing` while rows above are still moving. **That
+    /// overlap is the live form of the heterogeneity decision 14 calls the report's most useful
+    /// number**, and a barrier to tidy it would idle the fast drives for nothing.
     ///
     /// **The returned [`Section`] MUST be held for as long as the heading should stay on
-    /// screen.** Dropping it removes the line.
-    ///
-    /// That is the whole reason this returns anything, and it cost a run to learn: the first
-    /// version dropped the handle immediately, on the assumption that `MultiProgress` owns a
-    /// bar once added. It does not — `ProgressBar`'s `Drop` finishes an unfinished bar, which
-    /// takes its line away. **Both headings silently failed to appear**, which is the exact
-    /// failure shape this module was built to avoid, in the one mode it cannot test itself in.
+    /// screen.** `ProgressBar`'s `Drop` finishes an unfinished bar and takes its line with it, so
+    /// dropping the handle removes the heading — silently, and only in `Bars`.
     #[must_use = "dropping the Section removes the heading from the screen"]
     pub fn section(&self, title: &str, indent: usize) -> Section {
         match self {
@@ -264,19 +249,10 @@ impl Progress {
     /// On 2026-08-05 that put the LANDED banner in the middle of eight progress rows, with the
     /// rows drawn twice around it.
     ///
-    /// **Nothing is lost by clearing, because every erased row has a durable counterpart.**
-    /// The per-destination counts survive as decision 14's `3,883 written · 0 skipped ·
-    /// 3,883 verified   OK` lines, and since 2026-08-06 the `Writing` and `Verifying` headings
-    /// survive too, re-printed as static badged records above `LANDED`. **The bars exist to
-    /// answer *which drive am I waiting on right now*** — a question that stops being asked the
-    /// moment the phase ends.
-    ///
-    /// **This doc comment sat on [`Progress::heading_was_erased`] until 2026-08-06**, because
-    /// that function was inserted between the comment and the `fn` it described. Two unrelated
-    /// explanations then rendered as one, which read as the file contradicting itself — and
-    /// `clear`, the one carrying the warning above, was left with no documentation at all.
-    /// **A doc comment binds to whatever follows it, so inserting an item is enough to move
-    /// it**; nothing warns you, and `cargo doc` renders the result without complaint.
+    /// **Nothing is lost by clearing, because every erased row has a durable counterpart** in the
+    /// report — the per-destination counts and the badged `Writing` / `Verifying` records above
+    /// `LANDED`. **The bars answer *which drive am I waiting on right now***, which stops being a
+    /// question the moment the phase ends.
     pub fn clear(&self) {
         if let Self::Bars(multi, drawn) = self {
             // **Retire, then erase.** Removing each bar from the multi is what stops the next
@@ -311,13 +287,11 @@ impl Progress {
                                 let _ = write!(out, "{:.1}%", state.fraction() * 100.0);
                             },
                         )
-                        // **Blank at both ends, and each blank is a different kind of honesty.**
-                        // Below [`ETC_FROM_FRACTION`] the estimate is measuring a pipeline that
-                        // is still filling rather than the drive it claims to describe; at
-                        // 100 % the row is a record of what happened and a countdown to nothing
-                        // is noise. In between the estimate comes from this bar's own rate —
-                        // which is what makes it per-destination, and therefore what tells the
-                        // operator the WD has eleven minutes left while the laptop has one.
+                        // **Blank at both ends.** Below [`ETC_FROM_FRACTION`] the estimate
+                        // describes a pipeline still filling rather than the drive; at 100 % a
+                        // countdown to nothing is noise. In between it comes from this bar's own
+                        // rate, which is what tells the operator the WD has eleven minutes left
+                        // while the laptop has one.
                         .with_key(
                             "etc",
                             |state: &indicatif::ProgressState, out: &mut dyn std::fmt::Write| {
@@ -540,14 +514,10 @@ mod tests {
         assert!(!closing_line_would_repeat(0, 0));
     }
 
-    /// **The templates are parsed at runtime and a bad one fails silently.** `Progress::bar`
-    /// and `Progress::section` both do `if let Ok(style)`, deliberately — a rendering fault
-    /// must not abort a run with two hundred gigabytes to move. The cost of that choice is
-    /// that a typo degrades to an unstyled bar with no error anywhere, which on this project's
-    /// record is exactly the kind of failure nobody notices for hours.
-    ///
-    /// So the parse is asserted here. This is the only part of `Bars` mode that can be tested
-    /// without a terminal, and it is worth having for that reason alone.
+    /// **Templates are parsed at runtime and a bad one fails silently** — both call sites do
+    /// `if let Ok(style)` deliberately, so a rendering fault cannot abort a run mid-copy. The
+    /// cost is that a typo degrades to an unstyled bar with no error anywhere, so the parse is
+    /// asserted here instead. **The only part of `Bars` testable without a terminal.**
     #[test]
     fn every_template_parses_at_every_depth_it_is_used_at() {
         for indent in [PHASE, PASS] {
@@ -565,12 +535,8 @@ mod tests {
     /// The spacer is a template too, and an **empty** one renders no line at all — which is how
     /// the first attempt at blank lines produced none.
     ///
-    /// **This test was decorative until 2026-08-06**: it asserted that the literal `" "` parses,
-    /// re-typing the template rather than reading it, so setting the real one to `""` would not
-    /// have failed it. It now reads [`SPACER`] and asserts the non-emptiness its name always
-    /// claimed. **A test that duplicates the value under test can only agree with itself.**
-    ///
-    /// Mutation-checked: with `SPACER = ""` this fails on the second assertion.
+    /// **Reads [`SPACER`] rather than re-typing it: a test that duplicates the value under test
+    /// can only agree with itself.** Mutation-checked — `SPACER = ""` fails the second assertion.
     #[test]
     fn the_spacer_template_parses_and_is_not_empty() {
         assert!(ProgressStyle::with_template(SPACER).is_ok());
