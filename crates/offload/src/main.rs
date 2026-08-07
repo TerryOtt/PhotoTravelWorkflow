@@ -7,7 +7,6 @@
 
 use std::collections::BTreeMap;
 use std::io::{self, Write};
-use std::num::NonZero;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
@@ -55,10 +54,6 @@ struct Offload {
     /// Plan the entire run and write nothing.
     #[arg(long)]
     dry_run: bool,
-
-    /// CPU pool for hashing, EXIF and XMP — not the I/O fan-out, which is structural.
-    #[arg(long, value_name = "N", default_value_t = default_jobs())]
-    jobs: usize,
 
     /// Abort rather than warn when the two cards disagree.
     #[arg(long)]
@@ -120,12 +115,6 @@ struct Offload {
     // added it. A nightly run should never set it.
     #[arg(long, value_name = "SECONDS")]
     eject_gap_seconds: Option<u64>,
-}
-
-/// Logical CPUs, per decision 15. Falls back to 1 on the platforms that cannot answer;
-/// Windows always can, so the fallback is unreachable here rather than a real default.
-fn default_jobs() -> usize {
-    std::thread::available_parallelism().map_or(1, NonZero::get)
 }
 
 fn main() -> ExitCode {
@@ -1984,17 +1973,12 @@ fn geotag_phase(
         max_meters: args.max_gap_meters,
     };
 
-    // **`--jobs` is read here and nowhere else, which is the whole of decision 15 as built.**
-    // Phase 3 does not take a pool — `pipeline.rs` records why its five hash streams already
-    // spread across cores structurally — so phase 5, thousands of small sidecars into a few
-    // directories, is the one place the flag means anything.
     phase5::run(
         &outcome.landed,
         targets,
         &plan.rig.tracks,
         limits,
         args.force_xmp.is_some(),
-        args.jobs,
         progress,
     )
     .map(Some)

@@ -607,7 +607,6 @@ dependencies = [
  "console",
  "geotag",
  "indicatif",
- "rayon",
  "serde",
  "serde_json",
  "sha2",

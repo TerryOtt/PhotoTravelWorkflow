@@ -1,23 +1,32 @@
-//! What `--jobs` is worth in phase 5 (decision 15), measured rather than assumed.
+//! What phase 5 actually costs — the measurement that says **do not parallelize it**.
 //!
 //! ```text
 //! cargo run --release --example geotag-rate -- C:\Travel\GPX\2024-10-02.gpx
 //! ```
 //!
-//! **Why this exists.** `--jobs` was parsed and never read until 2026-08-07; phase 5 was a
-//! sequential loop. RawGeotag's own `-j` measured ~12x on SMB and 3,883 CR3s in 5.8 s at
-//! `-j 20` against 48 s at `-j 2`, which is the number that argued for building the pool —
-//! but that was *RawGeotag's* workload on *its* storage, and quoting it for this tool would
-//! be the borrowed-measurement failure `REVIEWING.md` refuses.
+//! **This exists to stop a good idea being re-proposed.** On 2026-08-07 `--jobs` was found to
+//! be parsed and never read, phase 5 was a sequential loop, and a `rayon` pool was built to fix
+//! it. It worked: **~1.5–1.8× on this workload, knee at four threads.** It was then **reverted**,
+//! and the numbers below are why.
 //!
-//! **What it measures, stated so the number is not over-read.** Correlating a frame against
-//! a real track and writing its sidecars, which is the whole of phase 5's per-frame work.
-//! Sidecars go to a temporary directory on the laptop's own disk, so this is the **local**
-//! case. A destination on the hub or the NAS will differ, and the NAS is where RawGeotag's
-//! 12x came from.
+//! **Phase 5 is ~20 s of an 89-minute run.** Terry, on seeing the speedup: *"if we are only
+//! seeing a ~1.8x improvement on a 400 GB day where geotagging is like 20 seconds, my feeling is
+//! to revert it. That's too much complexity for a tiny wall clock win."* He is applying this
+//! project's own rule — `CLAUDE.md`'s *both metrics are thresholds, not gradients*: **do not
+//! trade anything for wall clock**, not clarity, not a safety check, not an afternoon of
+//! engineering. Nine seconds on eighty-nine minutes is **0.17 %**.
+//!
+//! **The 12× that argued for building it was a different workload.** RawGeotag once tagged
+//! *years* of files across the NAS in one pass — many directories, SMB latency, threads hiding
+//! round trips. **That is not a use case this project has**, and once that was clear the
+//! justification was gone; the mistake was continuing to build after the premise fell.
+//!
+//! **What it costs to keep the sequential version**, measured here so the trade stays visible:
+//! run this, and if phase 5 ever grows past a minute or two, the pool is a known ~1.7× sitting
+//! in git history at `fd730da`.
 //!
 //! **It never opens a raw file**, matching phase 5 — decision 10 has capture times already.
-//! Nothing here touches a camera card.
+//! Nothing here touches a camera card, and nothing is written outside a temporary directory.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -29,15 +38,15 @@ use offload::phase5::{self, Landed};
 use offload::pipeline::Destination;
 use offload::progress::Progress;
 
-/// Enough frames to be a real day rather than a warm-up. The 415 GB run was 7,395.
+/// The largest day on record, so the number is the worst real case rather than a typical one.
 const FRAMES: usize = 7_395;
 
 /// Four copies, as the rig actually writes (decision 11).
 const DESTINATIONS: usize = 4;
 
-/// One day, one folder — decision 31's layout, and the case that matters: NTFS serializes
-/// *metadata* operations within a single directory, so all four thousand sidecars landing in
-/// one folder per destination is exactly where a pool is supposed to stop helping.
+/// One day, one folder — decision 31's layout. **The reason a pool stops helping at four
+/// threads:** NTFS serializes *metadata* operations within a single directory, and every
+/// sidecar of a day lands in one.
 const DATE_FOLDER: &str = r"2024\2024-10-02";
 
 fn main() -> ExitCode {
@@ -55,110 +64,81 @@ fn main() -> ExitCode {
         }
     };
     let (first, last) = track.span();
-
-    println!();
-    println!("  Track   {gpx}");
-    println!("  Span    {first} .. {last}");
-    println!("  Frames  {FRAMES} x {DESTINATIONS} destinations");
-    println!();
-    println!(
-        "  {:<8}{:>10}{:>12}{:>12}",
-        "jobs", "wall", "frames/s", "vs 1"
-    );
-    println!("  {}", "-".repeat(42));
-
     let landed = spread(first, last, FRAMES);
-    let mut baseline = None;
 
-    // Ascending, so the one-thread case runs first and pays whatever cold cost there is —
-    // charging it to the *parallel* rows would flatter them.
-    for jobs in [1usize, 2, 4, 8, 12, 20] {
-        // A fresh directory per run: an existing sidecar is skipped rather than written
-        // (decision 16), so reusing one would measure the skip path from the second row on
-        // and report a speedup that is really a no-op.
-        let scratch = match tempfile::tempdir() {
-            Ok(dir) => dir,
-            Err(error) => {
-                eprintln!("making a scratch directory: {error}");
-                return ExitCode::FAILURE;
-            }
-        };
-
-        let destinations: Vec<Destination> = (0..DESTINATIONS)
-            .map(|n| Destination {
-                label: format!("dest-{n}"),
-                root: scratch.path().join(format!("dest-{n}")),
-            })
-            .collect();
-
-        // Phase 3 creates the date folders before phase 5 ever runs, so the harness has to
-        // as well — and it is deliberately outside the timed section, since a real phase 5
-        // never pays for it.
-        for destination in &destinations {
-            if let Err(error) = std::fs::create_dir_all(destination.root.join(DATE_FOLDER)) {
-                eprintln!("making {}: {error}", destination.root.display());
-                return ExitCode::FAILURE;
-            }
+    let scratch = match tempfile::tempdir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("making a scratch directory: {error}");
+            return ExitCode::FAILURE;
         }
+    };
 
-        let started = Instant::now();
-        let report = phase5::run(
-            &landed,
-            &destinations,
-            &tracks,
-            GapLimits::DEFAULT,
-            false,
-            jobs,
-            &Progress::Silent,
-        );
-        let elapsed = started.elapsed();
+    let destinations: Vec<Destination> = (0..DESTINATIONS)
+        .map(|n| Destination {
+            label: format!("dest-{n}"),
+            root: scratch.path().join(format!("dest-{n}")),
+        })
+        .collect();
 
-        match report {
-            Ok(report) => {
-                let rate = FRAMES as f64 / elapsed.as_secs_f64();
-                let speedup = match baseline {
-                    None => {
-                        baseline = Some(elapsed.as_secs_f64());
-                        "—".to_owned()
-                    }
-                    Some(base) => format!("{:.2}x", base / elapsed.as_secs_f64()),
-                };
-                println!(
-                    "  {jobs:<8}{:>9.2}s{rate:>12.0}{speedup:>12}",
-                    elapsed.as_secs_f64()
-                );
-
-                // Printed once, and it is the control: a row that tagged nothing would be
-                // measuring the *miss* path, which writes no sidecars and is not the work.
-                if baseline.is_some() && jobs == 1 {
-                    println!(
-                        "  {:<8}{} tagged, {} written, {} outside the track",
-                        "", report.tagged, report.written, report.outside_track
-                    );
-                    if report.tagged == 0 {
-                        eprintln!(
-                            "\n  ! nothing tagged — this measured the miss path, not the work"
-                        );
-                        return ExitCode::FAILURE;
-                    }
-                }
-            }
-            Err(error) => {
-                eprintln!("phase 5 at -j {jobs}: {error:#}");
-                return ExitCode::FAILURE;
-            }
+    // Phase 3 creates the date folders before phase 5 ever runs, so the harness has to as well
+    // — deliberately outside the timed section, since a real phase 5 never pays for it.
+    for destination in &destinations {
+        if let Err(error) = std::fs::create_dir_all(destination.root.join(DATE_FOLDER)) {
+            eprintln!("making {}: {error}", destination.root.display());
+            return ExitCode::FAILURE;
         }
     }
 
+    let started = Instant::now();
+    let report = match phase5::run(
+        &landed,
+        &destinations,
+        &tracks,
+        GapLimits::DEFAULT,
+        false,
+        &Progress::Silent,
+    ) {
+        Ok(report) => report,
+        Err(error) => {
+            eprintln!("phase 5: {error:#}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let elapsed = started.elapsed();
+
+    // The control: a run that tagged nothing measured the *miss* path, which writes no sidecars
+    // and is not the work. A timing without this check could not fail.
+    if report.tagged == 0 {
+        eprintln!("\n  ! nothing tagged — this measured the miss path, not the work");
+        return ExitCode::FAILURE;
+    }
+
     println!();
-    println!("  Local disk only. The NAS and hub cases are not measured here.");
+    println!("  Track    {gpx}");
+    println!("  Span     {first} .. {last}");
+    println!();
+    println!("  Frames   {FRAMES} x {DESTINATIONS} destinations");
+    println!(
+        "  Result   {} tagged, {} sidecars written, {} outside the track",
+        report.tagged, report.written, report.outside_track
+    );
+    println!(
+        "  Wall     {:.2}s  ({:.0} frames/s)",
+        elapsed.as_secs_f64(),
+        FRAMES as f64 / elapsed.as_secs_f64()
+    );
+    println!();
+    println!("  Sequential, deliberately. A thread pool measured ~1.7x here and was reverted:");
+    println!("  phase 5 is ~20 s of an 89-minute run, so the win is under a fifth of a percent.");
+
     ExitCode::SUCCESS
 }
 
 /// Capture times spread evenly across the track, so every frame resolves.
 ///
-/// **Evenly rather than randomly**, so the two arms of `Track::lookup` are hit in the same
-/// proportion on every run and the rows compare to each other.
+/// **Evenly rather than randomly**, so the arms of `Track::lookup` are hit in the same
+/// proportion on every run and two timings compare to each other.
 fn spread(first: DateTime<Utc>, last: DateTime<Utc>, count: usize) -> Vec<Landed> {
     let span = (last - first).num_seconds().max(1);
 

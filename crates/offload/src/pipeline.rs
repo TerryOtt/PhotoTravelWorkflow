@@ -17,11 +17,13 @@
 //! and every SSD in the rig several times over, so a pool would add scheduling and take
 //! nothing off the critical path.
 //!
-//! **`--jobs` was documented here as governing phase 5. It does not — it is parsed and never
-//! read (found 2026-08-07).** `phase5::run` is a sequential loop; nothing in `offload` builds
-//! a pool. The sentence stood because it was plausible and nothing tests a comment. Phase 5 is
-//! where a pool *would* pay, since thousands of small sidecars are CPU- and metadata-bound —
-//! see decision 15 for the open choice between building it and deleting the flag.
+//! **There is no pool in phase 5 either, and `--jobs` no longer exists.** This paragraph used
+//! to say the flag governed phase 5; it never did — it was parsed and never read, found
+//! 2026-08-07. A pool was then built for phase 5, measured at **~1.7×**, and **reverted**:
+//! phase 5 is ~20 s of an 89-minute run, so the win is under a fifth of a percent against real
+//! added complexity. `examples/geotag-rate.rs` keeps the number so the idea is not re-proposed
+//! from scratch, and the flag went with the pool under the rule that a config item never used
+//! MUST NOT exist.
 //!
 //! # Why the channels are `std`
 //!

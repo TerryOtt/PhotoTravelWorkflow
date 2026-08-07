@@ -432,29 +432,32 @@ nobody can use is worse than one that is absent.
 **Why it is his call:** the engineering is not in doubt; withdrawing a designed feature is a scope
 decision.
 
-## Implement the phase 5 pool and wire `--jobs` — CLOSED 2026-08-07
+## The phase 5 pool — BUILT, MEASURED, REVERTED 2026-08-07. **DO NOT RE-LITIGATE**
 
-> **Terry chose to build it, and it is built and measured.** `phase5::run` takes `jobs`, builds
-> its own `rayon` pool, and correlates frames in parallel; `--jobs` is read at exactly one call
-> site. **188 tests still pass**, output is unchanged.
+> ### ⚠ Standing order, Terry: `--jobs` is closed
 >
-> **~1.5–1.8× on local NVMe, knee at four threads.** 7,395 frames × 4 destinations against a
-> real track: 10.45 s / 8.88 s single-threaded against 6.01 s / 5.40 s at `-j 4`.
-> **Quoted as a range because the single-thread baseline differs 18 % between two runs** — this
-> is 26,900 small writes, and writes on this rig have never reproduced like reads.
-> `cargo run --release --example geotag-rate` re-runs it.
+> *"Complexity to save 9 seconds on an hour run is not in line with project principles."*
 >
-> **It is not RawGeotag's 12×, and decision 15 predicted exactly that**: NTFS serializes
-> metadata within a directory and a day is one directory, so local work plateaus where SMB's
-> latency-bound case kept scaling.
+> **Phase 5 is ~20 s of an 89-minute run**, so the measured **1.7×** buys **9 seconds —
+> 0.17 %** of a window that already finishes an hour inside its bar. `DESIGN.md` decision 15
+> carries the full standing order and the numbers.
 >
-> **The NAS case is deliberately not measured.** RawGeotag's ~12× came from tagging years of
-> files across `Q:\` at once — many directories, high latency. **Terry: that is not a use case
-> this project will have.** `offload`'s phase 5 is one shooting day into one folder per
-> destination, so the local table *is* the representative measurement rather than a stand-in.
+> **Measured before reverting**, 7,395 frames × 4 destinations against a real track: 10.45 s /
+> 8.88 s single-threaded against 6.01 s / 5.40 s at four threads, **plateauing at four** —
+> which is decision 15's own NTFS single-directory argument arriving as a measurement. The
+> range is wide because the single-thread baseline moved **18 %** between two runs: 26,900
+> small writes, and writes on this rig have never reproduced like reads.
 >
-> **`Progress::Bar` had to become thread-safe** — `Cell`/`RefCell` became one `Mutex`, because
-> splitting the print decision across atomics would let two threads emit the same row.
+> **`--jobs` was deleted with the pool**, under the rule that a config item never used MUST NOT
+> exist — it had never been read in the first place.
+>
+> **The lesson is Claude's, not the code's.** The 12× that justified building it was RawGeotag
+> tagging years of files across the NAS at once, which **is not a use case this project has**.
+> Once that premise fell, the justification fell with it — and the mistake was **continuing to
+> build instead of re-deriving the decision.** A refuted premise is a reason to stop.
+>
+> The pool is in git at `fd730da`; `examples/geotag-rate.rs` keeps the number so the idea
+> stays *priced* rather than fresh.
 
 ## ~~Decide `--jobs`: implement the phase 5 pool, or delete the flag~~ — the finding
 

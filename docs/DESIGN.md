@@ -741,7 +741,6 @@ offload                            the nightly command
 
   --dry-run                  plan the entire run and write nothing — names every
                              output file exactly, in seconds
-  --jobs <N>                 CPU pool for hashing/EXIF/XMP [default: logical CPUs]
   --fail-on-source-mismatch  abort rather than warn when the two cards disagree
   --allow-single-source      proceed when only one card is present — it becomes
                              the sole source of truth; corroboration is waived
@@ -1529,22 +1528,43 @@ rather
 than a quorum to reconcile. The quarantine of decision 3 goes to the same root: one copy
 of the evidence, on the machine that will still be there when someone asks about it.
 
-### 15. `--jobs` sizes the CPU pool, not the I/O fan-out
+### 15. No thread pool, and no `--jobs` — the concurrency is structural
+
+> ## ⚠ STANDING ORDER, TERRY, 2026-08-07: `--jobs` MUST NOT BE RE-LITIGATED
+>
+> **This is closed. Not deferred, not open to a better implementation, not waiting on a faster
+> rig.** It was proposed, built, measured and reverted in one afternoon, and the measurement is
+> below so nobody has to take that on trust.
+>
+> **His reason, and it is the project's own principle rather than a preference:**
+> *"complexity to save 9 seconds on an hour run is not in line with project principles."*
+>
+> **The arithmetic that closes it: phase 5 is ~20 s of an 89-minute run.** A **1.7×** speedup
+> therefore buys **9 seconds — 0.17 %** — of a window that already finishes an hour inside its
+> bar. *Both metrics are thresholds, not gradients* is the rule, and it says outright: **do not
+> trade anything for wall clock** — not clarity, not a safety check, not an afternoon of
+> engineering.
+>
+> **A future session MUST NOT reopen this on any of the following**, all of which were already
+> true when it was reverted: that the speedup is real (it is — 1.5–1.8×), that the code was
+> straightforward (it was), that `rayon` is already in the workspace (it is, for
+> `crates/geotag`), or that a bigger day would widen the gap (it would, by seconds).
+>
+> **The only thing that reopens it is phase 5 becoming a material share of the run** — minutes,
+> not seconds. `examples/geotag-rate.rs` is how you check, and the pool is in git at `fd730da`
+> if that day ever comes.
 
 > **`--jobs` was parsed and never read until 2026-08-07.** `phase5::run` was a sequential loop,
 > nothing in `offload` built a pool, and `pipeline.rs` asserted that *"`--jobs` governs phase
 > 5"* — the sentence that made it look settled. Found while starting decision 30, because
 > retiring RawGeotag into a *sequential* tagger would have been a regression.
 >
-> ### ✔ Built and measured 2026-08-07 — and the gain is real, but it is not RawGeotag's
+> ### Built, measured, and reverted the same day — the gain was real and far too small
 >
-> `phase5::run` now takes `jobs`, builds its own `rayon` pool and correlates frames in
-> parallel. **`--jobs` is read at exactly one call site**, which is the whole of this decision
-> as built: phase 3 takes no pool, for the reason `pipeline.rs` gives.
->
+> A `rayon` pool was added to `phase5::run` and `--jobs` was wired to it for the first time.
 > **7,395 frames × 4 destinations against a real 4.9 MB track, clean build, sidecars to a
 > temp directory on the laptop's own NVMe.** `cargo run --release --example geotag-rate`
-> re-runs it. Two runs:
+> still measures the sequential version. Two runs of the pool:
 >
 > | `--jobs` | run 1 | run 2 | vs 1 thread |
 > |---|---|---|---|
@@ -1568,27 +1588,47 @@ of the evidence, on the machine that will still be there when someone asks about
 > trips. Local NVMe is metadata-bound. Same code, different storage, an order of magnitude
 > apart in what parallelism buys.
 >
-> **The default stays at `available_parallelism`** — 20 here, past the knee and costing nothing
-> measurable. Lowering it to 4 would trade a real NAS case, which is unmeasured, for noise.
+> ### ✗ Reverted the same day, and the numbers are why
 >
-> > **The NAS case is deliberately not measured, and does not need to be.** RawGeotag's ~12×
-> > came from geotagging *years* of files across `Q:\` in one pass — many directories, high
-> > latency, threads hiding round trips. **Terry, 2026-08-07: that is not a use case this
-> > project will have** — `offload` is the workflow going forward, and its phase 5 is one
-> > shooting day into one folder per destination. **So the local table above is the
-> > representative measurement**, not a stand-in for a better one, and decision 30 does not owe
-> > parity on a workload that has already happened once and will not recur.
+> **Terry, on seeing the speedup:** *"if we are only seeing a ~1.8x improvement on a 400 GB day
+> where geotagging is like 20 seconds, my feeling is to revert it. That's too much complexity
+> for a tiny wall clock win."*
+>
+> **Nine seconds on an eighty-nine minute run — 0.17 %.** Phase 5 measured **~20 s** on the
+> 415 GB day ([`RUNS.md`](RUNS.md)), so 1.7× of it is noise against the two thresholds this
+> project optimizes for, **both of which are already met by more than an hour.** *Both metrics
+> are thresholds* says it without qualification: **do not trade anything for wall clock** — not
+> clarity, not a safety check, not an afternoon of engineering.
+>
+> **What the pool actually cost, which is the part the speedup hid:** a new dependency in
+> `offload`, an `Outcome` enum and a `correlate` split, a `Mutex` inside `Progress::Bar` where
+> a `Cell` had been enough, and an ordering subtlety that had to be *reasoned about* — the
+> parallel map has to preserve input order or `systematic_offset`'s unsorted median drifts
+> between runs. **None of that is visible in a 1.7×.**
+>
+> **`--jobs` went with it**, under the standing order that a config item never used MUST NOT
+> exist. It had never been read in the first place.
+>
+> **The lesson is mine rather than the code's.** The 12× that argued for building this was
+> RawGeotag tagging *years* of files across the NAS at once — many directories, SMB latency.
+> **Terry: that is not a use case this project will have.** Once that premise fell, the
+> justification fell with it, and **the mistake was continuing to build instead of re-deriving
+> the decision.** A refuted premise is a reason to stop, not a detail to note and carry on past.
+>
+> **The measurement is kept deliberately**, in `examples/geotag-rate.rs` and in the table above,
+> so the next session finds a *priced* idea rather than a fresh one. The pool itself is in git
+> at `fd730da` if phase 5 ever grows past a minute or two.
 
-`--jobs N`, defaulting to logical CPU count, following RawGeotag's finding that this
-problem class parallelizes well into double-digit thread counts.
+`offload` has **no `--jobs` flag and no thread pool anywhere**, and the reasoning below is why
+that was right for phase 3 before it was confirmed for phase 5.
 
-**It governs the CPU-bound work**, where that finding applies directly. Phase 3 hashes 5N
-— one source read plus four verify reads, 280 GB on a 56 GB day. At the measured
-2,380 MB/s per core with SHA-NI (decision 17) that is ~118 s single-threaded against a
-252 s phase, close enough to bind the run on faster storage. Spread across cores it
-disappears. EXIF extraction and XMP generation ride the same pool.
+**Phase 3's CPU work spreads structurally, without a pool.** It hashes 5N — one source read
+plus four verify reads, 280 GB on a 56 GB day. At the measured 2,380 MB/s per core with SHA-NI
+(decision 17) that is ~118 s single-threaded against a 252 s phase, and it is already five
+concurrent hash streams: the reader hashes what it reads, and each of the four destination
+threads hashes its own verify stream.
 
-**It does not govern I/O concurrency**, which is structural:
+**I/O concurrency is structural too:**
 
 - one reader per card
 - **one writer and one verifier per destination**, so the four devices stream alongside
@@ -1610,13 +1650,13 @@ it bites in **phase 5**, not phase 3 — thousands of tiny sidecars into one dir
 destination is precisely the case that will not scale with threads. Same structural answer
 for both phases, for opposite reasons.
 
+> **✔ That prediction was tested and held.** The 2026-08-07 pool plateaued at **four** threads
+> and went no faster at 8, 12 or 20 — exactly the single-directory metadata ceiling this
+> paragraph describes, arriving as a measurement four days after it was argued.
+
 One buffer-fed blocking writer per device is therefore enough. The only idle gap is file
 open/close between 45 MB writes — roughly 1 ms against ~100 ms of transfer — so overlapped
 I/O stays unbuilt until measurement shows a device actually going idle.
-
-This is settled by measurement rather than argument: the run report prints per-destination
-sustained MB/s, so comparing `--jobs 4` against `--jobs 32` on the real hub is a two-run
-experiment with the answer at the bottom of the output.
 
 ### 16. Flags carried over from RawGeotag
 
