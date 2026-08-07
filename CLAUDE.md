@@ -130,80 +130,41 @@ end of session is exactly when a session does not get to finish.
 
 ### ⚠ THE CHECKLIST AND `BACKLOG.md` MUST NEVER DRIFT ⚠
 
-**Standing order, Terry, 2026-08-06, twice in one evening. The second time, after it had already
-drifted:** *"should we promote that standing order to CLAUDE? I am relying on those never ever
-ever drifting. Make that real loud."*
+> **Claude MUST NOT call `TaskCreate`/`TaskUpdate` without editing
+> [`docs/BACKLOG.md`](docs/BACKLOG.md) in the **same turn**, and MUST NOT edit `BACKLOG.md`'s
+> item list without a matching task call in the same turn.** If one is not worth updating,
+> neither was.
 
-> **THE RULE, AND IT IS MECHANICAL RATHER THAN ASPIRATIONAL:**
->
-> **Claude MUST NOT call `TaskCreate` or `TaskUpdate` without editing
-> [`docs/BACKLOG.md`](docs/BACKLOG.md) in the same turn. Claude MUST NOT edit `BACKLOG.md`'s item
-> list without a matching task call in the same turn.** Not the next turn, not before the commit,
-> not at the end of the session — **the same turn.** If one of them is not worth updating, then
-> neither was worth updating.
+**Mechanical on purpose.** The aspirational version — *"keep them in sync"* — was in this file
+and failed on its second day, because a rule that depends on remembering to look fails exactly
+when a session is moving fast, which is when the list changes most.
 
-**This is written as a coupling between two tool calls on purpose**, because the aspirational
-version — *"keep them in sync"* — was already in this file and **failed on its second day.** Three
-items changed state in the CLI and none of it reached the file. A rule that depends on remembering
-to look is a rule that fails exactly when a session is moving fast, which is when the list changes
-most.
+**"In sync" means the *working set* matches, not that the lists are identical:**
 
-**The two lists hold different things, and that is not a drift.** Standing order, 2026-08-06:
-*"BACKLOG is permanent memory, UI checklist is only stuff that's both a) eligible to be worked,
-and b) not complete."*
-
-| | In the CLI checklist | In `BACKLOG.md` |
+| | CLI checklist | `BACKLOG.md` |
 |---|---|---|
-| Eligible to be worked, not complete — **by either of them** | **yes** | yes |
-| **Waiting on Terry** — a format, a shoot, a cable swap | **yes**, and say so in the subject | yes, `TERRY'S MOVE` |
-| **BLOCKED** — outside both their control: hardware undelivered, a vendor, an unreleased fix | **no, remove it** | yes, marked `BLOCKED` with what unblocks it |
-| Complete | **no, remove it** | yes, in the closed list |
+| Workable by *either of them*, not complete | **yes** | yes |
+| **Waiting on Terry** — a format, a shoot, a cable swap | **yes**, and say so in the subject | `TERRY'S MOVE` |
+| **BLOCKED** — outside both their control: undelivered hardware, a vendor | **remove it** | `BLOCKED`, with what unblocks it |
+| Complete | **remove it** | the closed list |
 
-**`BLOCKED` is reserved and narrow, and Claude got this wrong once already.** Terry, 2026-08-06:
-*"blocked on Terry is not blocked. Blocked means blocked on some factor outside either of our
-control — e.g. hardware not arrived yet."* **A task neither of them can advance is blocked; a task
-one of them has simply not done yet is open.**
+**Three things this has already been got wrong on, all on 2026-08-06:**
 
-**The checklist is a working set for the pair, not a queue for Claude.** An item needing a card
-reformatted or a reader swapped is precisely what Terry opens the list to find — filing it as
-"blocked" takes the thing he most needs to see and hides it in a file he does not have open.
-**When an item's next step is his, say so in the subject** so it reads as a request rather than as
-something being worked on.
+- **`BLOCKED` is narrow.** *"Blocked on Terry is not blocked"* — a task neither can advance is
+  blocked; one he simply has not done yet is **open**, and belongs on the list, because it is
+  exactly what he opens the list to find.
+- **Status counts, not just wording.** Two items landed with their text updated in both places
+  and their **status** left alone, so the checklist read `pending` for shipped work. **Ask on
+  every landing: does this change state?**
+- **Anything leaving the checklist MUST be explained in `BACKLOG.md` the same turn** — never
+  simply gone from both. Each item carries `OPEN` / `IN PROGRESS` / `BLOCKED` in its heading so
+  what is *missing* from his view is accounted for.
 
-**So "in sync" means the *working set* matches, not that the lists are identical.** An item
-leaving the checklist MUST be explained in `BACKLOG.md` in the same turn — `BLOCKED`, or moved to
-the closed list — never simply deleted from both.
-
-**A short checklist is still the intended state**, and the reason stands: **a list padded with
-things *nobody* can act on is a list you stop reading**, which is the same argument decisions 9
-and 12 make about warnings that fire when you cannot act.
-
-**Each `BACKLOG.md` item carries its status in its own heading** — `OPEN`, `IN PROGRESS`,
-`BLOCKED`, or moved to the closed list — so drift is *visible* rather than inferred, and so what
-is *missing* from the checklist is explained rather than merely absent.
-
-**And "in sync" includes the STATUS, not just the words.** This failed within the hour: two items
-landed, both had their text rewritten in `BACKLOG.md` *and* their task descriptions updated in the
-same turn — and neither had its **status** moved, so the checklist still read `pending` for a fix
-that had already shipped. Terry, spotting it: *"what checklist/BACKLOG changes are needed if two
-tasks just landed?"*
-
-> **When work lands, the status field is the whole point.** He reads a one-line summary and a
-> state; a beautifully updated description under a stale `pending` tells him nothing has happened.
-> **Ask on every landing: does this item change state?** Completed, newly blocked, newly started —
-> and if it does, move it in *both* places before the commit.
-
-**Why he relies on this absolutely, and why the two failure directions are not symmetric:**
-
-| Drift | Consequence |
-|---|---|
-| In `BACKLOG.md`, not on his list | **He never sees it.** The CLI shows at most five items and is the only view he has |
-| On his list, not in `BACKLOG.md` | **It dies with the session.** A task list does not survive; the file does |
-
-His words when this first came up: *"by the way is our checklist persisted? That's my memory
-right now and that's dangerous."* **He is treating the checklist as his memory, and that is the
-arrangement — so a drift is not an untidiness, it is a fact quietly disappearing from the only
-place he looks.**
+**Why it is absolute: he treats the checklist as memory** — *"is our checklist persisted? That's
+my memory right now and that's dangerous."* The failure directions are not symmetric. In the file
+but not on his list, **he never sees it** (the CLI shows at most five). On his list but not in the
+file, **it dies with the session.** A short list is the intended state; one padded with things
+nobody can act on is one you stop reading.
 
 **The precedence is absolute and the order is not cosmetic:**
 
