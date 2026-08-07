@@ -1913,6 +1913,20 @@ Exit codes, kept deliberately coarse:
 | 1 | Fatal — the run did not complete; reason printed |
 | 2 | Completed, but something wants your attention; the report names it — a mismatch, a deletion, a stray or unfiled file, a refused eject, an eject held for unfinished corroboration (decision 22), a run missing a source (decision 7), a destination (decision 25), or its tracks (decision 26), or one that closed out a predecessor's corroboration as forfeited (decision 13) |
 
+**The subcommands use the same three codes with their own meanings**, added 2026-08-07 by the
+boomerang pass, which found the table above describing only the nightly command:
+
+| | 0 | 1 | 2 |
+|---|---|---|---|
+| `offload verify <DEST>` | `Clean` | fatal — the walk itself failed | `NOTHING TO VERIFY`, `CANNOT FULLY VERIFY`, `NOT CLEAN` (decision 20) |
+| `offload geotag <ROOT> <GPX...>` | ran, whatever the tag counts | fatal — no readable track, or the walk failed | `NOTHING TO TAG` — no raws under the root |
+
+**The shape is the same in all three: 2 never means failure.** It means *the command did exactly
+what it was asked and the answer is not a clean yes* — which is why an empty walk exits 2 rather
+than 0 in both subcommands, and why a geotag run with frames outside the track still exits 0.
+**Frames outside a track are an answer, not an incident** (decision 14 — only phase 3 may change
+the verdict, and this is the same principle one level down).
+
 **Testing is four things**, and stops there:
 
 1. **The phase 4 deletion path.** The only code path in the tool that destroys data, so a
