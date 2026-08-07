@@ -58,6 +58,13 @@ pub const PASS: usize = 4;
 /// One level of the hierarchy.
 const STEP: usize = 4;
 
+/// The template a blank spacer line is drawn with.
+///
+/// **A literal space, never an empty string.** An empty template renders no line at all, so the
+/// first attempt at blank lines produced no gap and looked exactly like the bug it was meant to
+/// fix. Named rather than inlined so the test can read the value the code actually uses.
+const SPACER: &str = " ";
+
 /// Blank lines above a heading: two for a phase, one for a pass.
 ///
 /// **A phase is a boundary in the run; a pass is a subdivision of one.** `Pre-Flight Checks`,
@@ -201,12 +208,9 @@ impl Progress {
                 // subdivision of one, and two blanks against one says that without a word. A
                 // rule each call site has to remember is a rule one call site will forget.
                 //
-                // A literal space, not an empty `{msg}`: an empty render is no line at all,
-                // so the first attempt at this produced no gap and looked exactly like the bug
-                // it was meant to fix.
                 let blank = || {
                     let spacer = multi.add(ProgressBar::new(0));
-                    if let Ok(style) = ProgressStyle::with_template(" ") {
+                    if let Ok(style) = ProgressStyle::with_template(SPACER) {
                         spacer.set_style(style);
                     }
                     spacer.tick();
@@ -573,11 +577,19 @@ mod tests {
         }
     }
 
-    /// The spacer is a template too, and an empty one renders no line at all — which is how
+    /// The spacer is a template too, and an **empty** one renders no line at all — which is how
     /// the first attempt at blank lines produced none.
+    ///
+    /// **This test was decorative until 2026-08-06**: it asserted that the literal `" "` parses,
+    /// re-typing the template rather than reading it, so setting the real one to `""` would not
+    /// have failed it. It now reads [`SPACER`] and asserts the non-emptiness its name always
+    /// claimed. **A test that duplicates the value under test can only agree with itself.**
+    ///
+    /// Mutation-checked: with `SPACER = ""` this fails on the second assertion.
     #[test]
     fn the_spacer_template_parses_and_is_not_empty() {
-        assert!(ProgressStyle::with_template(" ").is_ok());
+        assert!(ProgressStyle::with_template(SPACER).is_ok());
+        assert!(!SPACER.is_empty(), "an empty spacer renders no line at all");
     }
 
     /// Rows sit one step in from their heading. Asserted rather than trusted because the two

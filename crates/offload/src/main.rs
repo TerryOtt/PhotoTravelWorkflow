@@ -348,42 +348,16 @@ fn offload(args: &Offload) -> Result<ExitCode> {
     let ejecting = Instant::now();
     let deadline = started + RUN_BUDGET;
 
-    // **All five start together, and the SSDs report the moment they are down.** Terry,
-    // 2026-08-06: *"I am INTERESTED in total time to eject all five, but SSD are like two
-    // orders of magnitude more important. Let's start shutting them all down at the same time
-    // but print how long until SSD were fully put to bed as soon as all three are down."*
+    // **All five devices start together and the SSDs report the moment they are down**, rather
+    // than behind a card retry that cannot change their answer. The run that forced this had
+    // three SSDs down in 15 s and a CFexpress that then retried for 22 minutes and never
+    // released — and reported the pair as one line, `Released 5 devices in 22m 16s`. The answer
+    // that mattered existed at fifteen seconds.
     //
-    // **The run that produced that instruction is the argument for it.** The three SSDs were
-    // down in 15 s; a CFexpress then retried for 22 minutes and never released; and the one
-    // conflated closing line reported the pair as `Released 5 devices in 22m 16s`. The answer
-    // that actually mattered existed at fifteen seconds and was withheld for twenty-two
-    // minutes — and the count was wrong as well, since four devices had been released.
-    //
-    // This is decision 14's rule about LANDED applied to the stage Terry calls his number one
-    // risk: announce a milestone when it happens rather than only in the final summary.
-    //
-    // **They share the deadline and not the stakes.** An SSD that will not power down reaches
-    // the exit code (decision 18); a card can never touch it, and `exit_code` is not even
-    // given the card results so that it cannot start.
-    //
-    // **The headings are printed here rather than in the report** because `watch_attempt` starts
-    // writing the moment the first device is asked, and a header that arrived after its own
-    // section would read backwards.
-    //
-    // **`Eject` is a container, not a step, so it carries no badge** — the same as `Offloading`
-    // and `Pre-Flight Checks`. Terry settled the structure on 2026-08-06 after a version that
-    // hung the section's badge on a closing line and left him asking what it was for. **Badges
-    // belong to steps**, which under here are `Travel SSDs`, `Cards` and `Safe to unhook`.
-    //
-    // **And the live attempt lines get a step of their own.** They were printing straight under
-    // `Eject` at subsection depth, so they read as the section's content rather than as one
-    // thing among several — and once `Travel SSDs` and `Cards` appeared beneath them, as a
-    // preamble belonging to nothing. `Progress Log` names them, and the eight-space indent puts
-    // them where every other step's rows sit.
-    //
-    // **No blank between `Progress Log` and the first attempt line.** Terry, 2026-08-06: a
-    // sub-heading earns a blank line above it, a status line does not — and the attempt lines
-    // are status.
+    // **The headings print here rather than in the report** because `watch_attempt` starts
+    // writing the moment the first device is asked, so a header arriving after its own rows
+    // would read backwards. That constraint is also why `Eject` carries no badge — see
+    // `DESIGN.md`'s layout rules for the container-versus-step distinction.
     if !args.no_eject && outcome.landed() {
         println!();
         println!();
