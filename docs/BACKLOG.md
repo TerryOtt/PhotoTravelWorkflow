@@ -88,9 +88,13 @@ Two characters turn that into a scan — which is the same argument as the badge
 the backlog instead of the report.
 
 > **The ordering is by task ID, not by subject**, so the prefix alone does not guarantee the sort.
-> When a new `C:` item lands after a `T:` one, the grouping breaks and the fix is to recreate the
-> tasks in the intended order. **Check the grouping after adding an item** rather than assuming
-> the prefix did it.
+> When a new `C:` item lands after a `T:` one, the grouping breaks. **Check the grouping after
+> adding an item** rather than assuming the prefix did it.
+>
+> **Recreating the tasks to fix the sort has a cost worth naming**: it renumbers everything, so
+> any task description cross-referencing another by number goes stale silently. **Cross-reference
+> by title** — the same rule this file already applies to itself — and the sort becomes free to
+> fix. Left unsorted on 2026-08-07 with one `C:` among four `T:`, where the prefixes still scan.
 
 
 ## Characterize all three UHS-II USB SD readers — CLOSED 2026-08-07
