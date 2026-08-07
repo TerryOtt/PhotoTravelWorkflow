@@ -12,13 +12,12 @@
 //! 2. **Dismount** (`FSCTL_DISMOUNT_VOLUME`), which flushes and detaches the filesystem.
 //! 3. **Power down** (`CM_Request_Device_Eject`), which is what the tray icon does.
 //!
-//! **Steps 1 and 2 run on the FIRST attempt only** — see [`Prepare`]. This header claimed for
-//! three days that all three were mandatory every time, and that claim was the defect: repeating
-//! them meant never asking about a *settled* volume, which exFAT refuses forever.
+//! **Steps 1 and 2 run on the FIRST attempt only** — see [`Prepare`]. Repeating them means never
+//! asking about a *settled* volume, and exFAT refuses a freshly remounted one forever.
 //!
-//! **All three apply to camera cards too.** They once got steps 1 and 2 only, on the reasoning
-//! that a card is pulled from a reader that stays put — but a dismount releases nothing, so both
-//! cards sat in the tray after every run that claimed to have settled them.
+//! **All three apply to camera cards too**, which once got steps 1 and 2 only on the reasoning
+//! that a card is pulled from a reader that stays put. A dismount releases nothing, so both cards
+//! sat in the tray after every run that claimed to have settled them.
 //!
 //! # Why this is not simply `IOCTL_STORAGE_EJECT_MEDIA`
 //!
@@ -26,12 +25,10 @@
 //! enclosure, so it succeeds at nothing; powering the enclosure down is a *device* operation
 //! belonging to the configuration manager, which is why this walks to the device node.
 //!
-//! **That argument is right about SSDs and was wrong to stop there, which cost real time.** It
-//! names a card in a reader as the case where media eject *does* work, so the card path
-//! inherited an exclusion argued for a different device and nobody checked. Measured 2026-08-05:
-//! it reports success and releases neither card, and the handle that might have behaved
-//! differently needs administrator rights (binding constraint 4). [`eject_media`] is kept as a
-//! harness, not a code path.
+//! **A card in a reader looks like the exception and is not.** Measured 2026-08-05: media eject
+//! reports success and releases neither card, and the handle that might have behaved differently
+//! needs administrator rights (binding constraint 4). [`eject_media`] is a harness, not a code
+//! path.
 //!
 //! # A refused eject is a result, not a failure
 //!
@@ -186,20 +183,17 @@ pub fn dismount_only(volume: &Volume) -> Result<Outcome> {
 
 /// Ask the drive to eject its **media**. **Measured useless on this rig, and kept anyway.**
 ///
-/// > **Nothing in the run calls this.** It was written as the obvious fix for cards that a
-/// > dismount would not release, and on 2026-08-05 it **returned success on both cards and
-/// > released neither** — including the SD, which advertises `Supports Removable Media`. That
-/// > is the "succeeds at nothing" outcome this module's own doc predicted for SSDs, observed
-/// > on the device the same sentence held up as the case where it works.
+/// > **Nothing in the run calls this.** Written as the obvious fix for cards a dismount would not
+/// > release, it **returned success on both cards and released neither** (2026-08-05) — including
+/// > the SD, which advertises `Supports Removable Media`.
 /// >
-/// > The obvious objection — that a media operation belongs on the physical drive rather than
-/// > on a volume — is chased by [`eject_media_on_disk`], and closes the question from the
-/// > other side: that handle needs administrator rights, which binding constraint 4 forbids.
-/// > **So `CM_Request_Device_Eject` is the only mechanism an unelevated process has.**
+/// > The obvious objection — that a media operation belongs on the physical drive rather than on
+/// > a volume — is chased by [`eject_media_on_disk`] and closes the question from the other side:
+/// > that handle needs administrator rights, which binding constraint 4 forbids. **So
+/// > `CM_Request_Device_Eject` is the only mechanism an unelevated process has.**
 ///
-/// It stays in the tree, exercised by `examples/release-cards.rs`, for the same reason the
-/// hash experiments do: a future rig with a different reader can **re-measure** the claim
-/// rather than re-argue it. Delete it only alongside that harness.
+/// It stays, exercised by `examples/release-cards.rs`, so a future rig with a different reader
+/// can **re-measure** the claim rather than re-argue it. Delete it only alongside that harness.
 ///
 /// **The lock is released first, deliberately.** `IOCTL_STORAGE_MEDIA_REMOVAL` with
 /// `PreventMediaRemoval = FALSE` clears any software lock a previous holder set — a lock
@@ -551,9 +545,8 @@ pub fn attempt(volume: &Volume, device: &Device, prepare: bool) -> Result<Outcom
 /// this tool wrote — four verified copies on the SSDs. **Going fully bare would trade a
 /// data-safety property for speed this project does not need.**
 ///
-/// **The names say *when*, because when was the whole finding.** The original variant was
-/// `LockAndDismount`, which hid that it happened before *every* attempt — and that is exactly
-/// what went unnoticed for three days.
+/// **The variant names say *when*, because when was the whole finding.** The original
+/// `LockAndDismount` hid that it happened before *every* attempt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Prepare {
     /// Lock, dismount and close the handle before **every** attempt. What every run before

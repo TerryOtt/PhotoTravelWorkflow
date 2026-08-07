@@ -17,6 +17,29 @@ incident happened there.*
 a side effect of vibe coding... this is a hobby project, we aren't launching nuclear missiles,
 nobody's gonna die. Use a fresh pair of skeptical eyes on what REALLY is justified."*
 
+### ⚠ Sharpened 2026-08-07: past necessity is no justification at all
+
+**Terry, verbatim:** *"diet means shrink if necessary, remove if not — just because a comment was
+necessary in the past is zero justification to keep it."*
+
+**The test is not *was this worth writing*. It is: delete it, and what breaks?**
+
+| If deleting it would... | Then |
+|---|---|
+| let a reader make a mistake nothing else catches | **keep it** |
+| change nothing, because **a test asserts it** | **cut it** — the test is the documentation, and it cannot go stale |
+| change nothing, because **the code plainly says it** | **cut it** |
+| change nothing, because **the mistake is no longer reachable** | **cut it** |
+| lose an argument that `DESIGN.md` already owns | **cut to a one-line citation** |
+
+**The trap this closes is that every surviving comment has a good origin story.** Each was written
+because something went wrong, which makes every one of them feel load-bearing on inspection —
+and that feeling is what kept a 31 % comment share sitting still through two review passes.
+**A comment earns its place by what it prevents *now*, never by what it once explained.**
+
+**The rows below still apply — they say what "would let a reader make a mistake" means in
+practice.** They are the *shape* of a keeper, not a licence for one.
+
 **A comment or a paragraph MUST buy something a reader could not get from the code.** Four things
 qualify, and nothing else does:
 

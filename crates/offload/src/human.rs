@@ -23,18 +23,10 @@ pub fn count(n: usize) -> String {
 
 /// Bytes as **whole GiB, rounded up**, for anything answering *how much is there to move*.
 ///
-/// **Whole rather than fractional**, at the operator's request — a tenth of a GiB is 107 MB,
-/// below the resolution of any decision made from this figure.
+/// Up because overstating what you *need* is the safe error; [`gib_down`] rounds the other way.
+/// The pair's invariant is asserted by `up_and_down_straddle_the_true_value_and_never_cross`.
 ///
-/// **Up rather than to-nearest, and the direction is load-bearing.** This renders payloads and
-/// requirements, where overstating is the safe error; free space rounds the other way in
-/// [`gib_down`], so the two always move *apart*. One shared rounding would let `NOT ENOUGH ROOM`
-/// print two identical numbers while refusing the run — 386.2 GiB free against 386.6 needed.
-///
-/// **Integer arithmetic, not `f64::ceil`**: `div_ceil` is exact at every input, where a float path
-/// has to be reasoned about at the boundary.
-///
-/// **Sizes are GiB, rates are decimal, and neither is negotiable.** Windows is what a size gets
+/// **Sizes are GiB, rates are decimal, and nothing asserts that.** Windows is what a size gets
 /// checked against — Explorer divides by 2^30 — so a payload printed as decimal `202` sends the
 /// operator to a file manager saying `188`. Throughput stays decimal because a link's speed is
 /// decimal by definition. **Each is the unit its own question is asked in.**
@@ -65,9 +57,8 @@ fn tenths(n: u64) -> String {
 
 /// Bytes as **whole GiB, rounded down**, for anything answering *how much room is there*.
 ///
-/// **Down because understating what you have is the safe error**, mirroring [`gib_up`], which
-/// overstates what you need. Together they guarantee the pre-flight line can never read as
-/// though tonight fits when it does not.
+/// Down because understating what you *have* is the safe error, mirroring [`gib_up`]. Together
+/// they guarantee the pre-flight line can never read as though tonight fits when it does not.
 pub fn gib_down(bytes: u64) -> String {
     if bytes < DECIMAL_BELOW {
         return tenths(bytes * 10 / GIB);

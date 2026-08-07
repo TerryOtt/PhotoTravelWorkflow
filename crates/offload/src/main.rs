@@ -1411,24 +1411,18 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     // phase gets two and this outranks all of them; it had one until 2026-08-06.
     println!();
     println!();
-    // **No phase number.** "phase 3" is this repository's word, not the operator's, and the
-    // reader of this line is six months out of practice at 11pm in a hotel — CONOPS measures
-    // two trips a year. A label that needs `DESIGN.md` to decode is a label that says nothing
-    // at the moment it is read.
+    // **No phase number.** "Phase 3" is this repository's word, not the operator's, and the
+    // reader is six months out of practice at 11pm in a hotel. A label that needs `DESIGN.md`
+    // to decode says nothing at the moment it is read.
     //
-    // **The sentence is literally true, which is why it is safe to print.** LANDED is the
-    // point where every file exists on all four destinations and has been read back off the
-    // media and compared (decisions 2, 14) — so *the data is safe* is the guarantee, not
-    // encouragement. Everything after this line is corroboration, geotags and tidying, and
-    // decision 14 exists to keep those from ever being confused with this.
-    // **Kept, so the closing rule can be drawn to the same width.** A bar that does not line up
-    // with the banner it closes reads as a different element rather than as the other end of
-    // the same one — and the banner's width moves with the elapsed time, so it cannot be a
-    // literal.
-    // **Indented as a subsection of `Offloading`.** Terry, 2026-08-06: LANDED and
-    // `Corroborating` are what offloading *produced*, where geotagging is *"value add and not
-    // part of offloading"* and stays at column 0. The run then reads as one phase with its
-    // result nested under it, rather than four peers in a row.
+    // **The sentence is literally true, which is why it is safe to print.** LANDED is the point
+    // where every file exists on all four destinations and has been read back off the media and
+    // compared (decisions 2, 14) — so *the data is safe* is a guarantee, not encouragement.
+    //
+    // **Bound to a variable so the closing rule can match its width**, which moves with the
+    // elapsed time and so cannot be a literal. **Indented as a subsection of `Offloading`** —
+    // Terry, 2026-08-06: LANDED and `Corroborating` are what offloading *produced*, where
+    // geotagging is *"value add and not part of offloading"* and stays at column 0.
     let banner = format!(
         "    ═══ LANDED in {minutes}m {seconds:02}s · you can breathe, Terry, your data is safe ═══"
     );
@@ -1579,26 +1573,17 @@ fn report(plan: &preflight::Preflight, awake: &power::StayAwake) {
     );
 
     // **`primary`/`secondary`/`sole`, the same words the eject block and the manifest use.**
-    // These lines said `source` and `other` until 2026-08-05 — a second vocabulary for the
-    // same two cards, in the same screen of output, which `WRITING.md` rule 8 exists to stop.
-    // `sole` rather than `primary` when there is no second card is the informative case: it
-    // tells a tired operator that corroboration will be waived before the run starts, not
-    // after (decision 7).
+    // These said `source` and `other` until 2026-08-05 — a second vocabulary for the same two
+    // cards in one screen, which `WRITING.md` rule 8 exists to stop. `sole` rather than
+    // `primary` when there is no second card is the informative case: it tells a tired operator
+    // that corroboration will be waived *before* the run starts (decision 7).
     //
-    // Rates are right-aligned to a fixed width so the two stack into a column the eye can
-    // compare at a glance. These are the numbers that say "this card is dying" (decision 32),
-    // and a ragged left edge is part of why a faulty 73 MB/s card read as unremarkable beside
-    // a healthy 222. Separators per rule 6; the width holds a four-digit rate with its comma.
     // **Cards and destinations share one set of column widths**, measured across both blocks
-    // before either prints. They are two lists of the same shape — a name, where it is, and a
-    // number — so letting each size its own columns made `E:\` and `C:\Travel\Images` start in
-    // different places and the two numbers land in different places, which is exactly the
-    // ragged edge that made a faulty 73 MB/s card read as unremarkable beside a healthy 222
-    // (decision 32).
-    //
-    // Measured rather than constant: the destination subpath is configurable, so any hardcoded
-    // width is a bet on one config. Counted in `chars`, not bytes, so a non-ASCII path does not
-    // over-pad. Numbers carry separators per `WRITING.md` rule 6.
+    // before either prints, so the rates stack into a column the eye can compare. These are the
+    // numbers that say "this card is dying" (decision 32), and a ragged edge is part of why a
+    // faulty 73 MB/s card read as unremarkable beside a healthy 222. Measured rather than
+    // constant because the destination subpath is configurable, and counted in `chars` so a
+    // non-ASCII path does not over-pad. Separators per rule 6.
     let source_role = if cards.other.is_some() {
         PRIMARY_LABEL
     } else {
