@@ -474,10 +474,32 @@ rules exist to prevent.
 > the source card sufficient, and `DESIGN.md`'s sample report, whose lines have not all been
 > matched to print sites. **Ask before acting on any of it.**
 
-## Build decision 34: the body check — IN PROGRESS
+## Build decision 34: the body check — CODE COMPLETE 2026-08-07, one check outstanding
 
-> **Started 2026-08-07 21:37Z**, on a two-hour window from Terry. Done means code, code
-> comments, docs and unit tests — not just a passing build.
+> **Built in 13 minutes of the two-hour window.** Optional `body` in the config,
+> `preflight::check_body` on the first frame, a `Body` row in pre-flight's card block, INFO in
+> every arm. **182 → 188 tests**, clippy clean.
+>
+> **Two deliberate departures from the written decision**, both recorded at decision 34:
+> the **source card only** (decision 27's gate makes the second read redundant) and
+> **pre-flight's card block** rather than beside decision 23's timezone line, *which does not
+> exist and never did*.
+>
+> ### ⚠ TERRY'S MOVE — the row has not been seen on screen
+>
+> **The comparison and the rendering are unit-tested, and `raw::body_identity` is validated
+> against nine real frames**, but the wiring from `phase1` to the printed row has only been
+> **type-checked**. This project's own memory is that *a feature checked only in the convenient
+> mode is unchecked*.
+>
+> **Two things close it, and both need him:**
+>
+> 1. Add `"body": { "model": "Canon EOS R5", "serial": "082021001047" }` to `config.json` —
+>    Claude will make the edit on request; the value is confirmed from nine frames.
+> 2. Insert a card and run `offload --dry-run`. The row should read
+>    `Body    Canon EOS R5 · 082021001047 — as configured`, aligned with the card labels above it.
+>
+> **Until then the honest status is code complete, not done.**
 
 **Opened 2026-08-07 at Terry's request**, off the diet pass's finding that decision 34 is fully
 designed and **entirely unbuilt**: `config.rs` has no `body` field and `main.rs` prints no `Body`
