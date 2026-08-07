@@ -112,10 +112,14 @@ prose reduction rather than relocation.
 > which is which. The `RUNS.md` splits took **1,117 lines** out of `DESIGN.md` and **zero** out
 > of the repository — they buy navigability. The `CLAUDE.md` cuts are the first real deletions.
 >
-> **`DESIGN.md` decision 22 is 455 lines and is the obvious next candidate**, but it is one
-> continuous argument rather than a narrative that can be lifted, and splitting a decision from
-> its own evidence is how a refuted idea gets re-proposed. **Left deliberately; raise it before
-> touching it.**
+- **Decision 22 split, 455 → 256 lines**, on Terry's go-ahead: *"we have code that works, so
+  trimming docs is much less risky."* The **decision** stayed in `DESIGN.md`; the **working out**
+  — the card-release correction with its reproduction and trace, and the run that first proved
+  the retry — moved to [`EJECT-SERIES.md`](EJECT-SERIES.md), which is now the eject record rather
+  than only the tally. Both blocks moved **whole and unedited**, and `DESIGN.md` gained two
+  pointers so the evidence is one click away rather than gone.
+
+**`DESIGN.md` is now 3,284 lines, from 4,599 — down 29 %.**
 
 > **What is deliberately NOT being cut.** Tests that guard a defect which actually shipped, and
 > comments carrying a mechanism a reader would get wrong — `estimate()`'s warning that
