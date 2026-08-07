@@ -60,16 +60,75 @@ the closed list — so what is *missing* from the checklist is explained here ra
 absent.
 
 
-## 1. Characterize all three UHS-II USB SD readers — OPEN, TERRY'S MOVE
+## 1. Characterize all three UHS-II USB SD readers — IN PROGRESS
 
 One known-good card through all three, so Terry knows every reader in the bag is safe to travel
 with. A slow reader is silent in the field — the card mounts, every file reads, nothing errors,
-and you lose 5.8×. Combines with the acceptance test above into a 2 cards × 3 readers matrix.
+and you lose 5.8×.
 
-**Unblocks when** a card with frames on it is available and Terry can swap readers. **The
-SDDR-409 has already produced a number worth beating: 281 MB/s** — which retired the belief that
-247 was that reader's ceiling, so the other two readers now have a real bar rather than an
-assumed one.
+**Started 2026-08-07.** The three readers are the **SanDisk SDDR-409** (USB-C, the incumbent),
+a **UGreen** (USB-C) and a **Lexar** (USB-A). The card is the SanDisk 512 GB, which is the
+fleet's fastest at **279–281 MB/s** and therefore the one most likely to expose a reader that
+caps — a slow card would hide the difference under its own ceiling.
+
+**The baseline is re-taken rather than quoted.** The 281 was measured on 2026-08-06 during
+acceptance; re-running it now under the same conditions as the other two is what makes the
+three numbers comparable. A figure carried across from a different day is exactly the
+cross-variable comparison `REVIEWING.md` refuses.
+
+### The protocol, written down before the numbers
+
+**The port MUST be held constant across all three readers**, because reader and topology
+otherwise move together and neither can be blamed. The current chain, walked 2026-08-07:
+
+```
+SANDISK SDDR-409 USB Device
+  USB Mass Storage Device            Port_#0003.Hub_#0005
+    Generic SuperSpeed USB Hub       Port_#0004.Hub_#0003
+      Generic SuperSpeed USB Hub     Port_#0002.Hub_#0001
+        USB Root Hub (USB 3.0)
+          Intel(R) USB 3.20 eXtensible Host Controller
+```
+
+**Two chained SuperSpeed hubs, so the reader is not on the laptop directly** — and that is the
+*travel* configuration rather than a defect, since the hotel ritual is one connector to the
+Element 5. Measuring all three there measures the rig he actually carries.
+
+**The Lexar is USB-A and the XPS 15 9530 has no USB-A port**, so it can only be reached through
+the hub. That settles the design rather than constraining it: the hub is the one place all
+three readers can meet, so the hub is where the matrix runs.
+
+### Reader 1 of 3 — SanDisk SDDR-409, the baseline: 280 MB/s
+
+**Measured 2026-08-07**, clean build, quiet bus (nothing above 1 MB/s), 31 h 52 m uptime,
+`sustained.rs` over `E:\burnin\100CANON` — 798 CR3s, 42.6 GiB, a working set far too large to
+cache. Rig watcher armed throughout at its 2 s metadata poll, which is how the acceptance
+figure was also taken.
+
+```
+at      10s  20s  30s  40s  50s  60s  70s  80s  90s 100s 110s 120s 130s 140s
+MB/s    277  278  279  280  281  277  279  279  281  282  283  282  281  281
+```
+
+**Mean 280 MB/s, range 277–283, spread 2.1 %, no decay.** The *first* window is the slowest and
+the curve drifts mildly upward, which is the opposite signature to thermal throttling.
+
+**It reproduces the acceptance number within 0.4 %** — 279 → 277 cold on 2026-08-06 against
+280 mean today — comfortably inside this project's ±2 % band for reads. **So the baseline is
+a re-measurement rather than a citation**, and the other two readers can be compared against it
+directly.
+
+| Reader | Link | Sustained read | State |
+|---|---|---|---|
+| **SanDisk SDDR-409** (USB-C) | SuperSpeed, 2 hubs deep | **280 MB/s** | **done** |
+| **UGreen** (USB-C) | same port, so directly comparable | — | next |
+| **Lexar** (USB-A) | necessarily a different physical port | — | after |
+
+> **The Lexar's number will carry one caveat the other two do not.** USB-A forces a different
+> physical port, so reader and port move together for that row alone. If it comes in low, the
+> port MUST be eliminated before the reader is blamed — the cheap way being to put the SDDR-409
+> on a USB-A port via its own adapter, if one exists, or to accept the row as *reader + port*
+> and say so.
 
 ## 2. Put the docs and tests on a diet — IN PROGRESS
 
