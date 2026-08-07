@@ -760,7 +760,16 @@ offload                            the nightly command
                              2s-doubling-to-60s backoff — a diagnostic
 
 offload verify <DEST>       standalone re-verify; works years later, without config
+
+offload geotag <ROOT> <GPX...>      tag a tree of raws in place (decision 30)
+
+  --max-gap-seconds <S>      refuse to interpolate across a longer hole [default: 60]
+  --max-gap-meters <M>       refuse to interpolate across a wider hole [default: 100]
+  --force-xmp                rewrite sidecars that already exist
 ```
+
+**Both subcommands read no config**, which is what makes them usable on a disk pulled from a
+safe or a directory that was never an `offload` destination.
 
 > **`--eject-gap-seconds` is the last survivor of the eject investigation**, and it should be
 > looked at against `CLAUDE.md`'s *a config item that is never used MUST NOT exist*. Its sibling
@@ -2670,7 +2679,7 @@ available crate is either a dependency for a dozen unit-tested lines or a format
 report would have to fight; the entries in *Considered and rejected* name them
 individually. Two more need no crate because the standard library already answers them:
 `OpenOptionsExt::custom_flags` sets both the write-through and unbuffered flags, and
-`available_parallelism` supplies `--jobs`'s default.
+`std::sync::mpsc` supplies the bounded channels phase 3 fans out through.
 
 **The workspace is two members.**
 
@@ -2719,6 +2728,31 @@ the worst moment, which is trip hygiene.
 
 ### 30. RawGeotag retires into `offload`
 
+> ### ✔ `offload geotag` shipped 2026-08-07 — the subcommand exists and tags real frames
+>
+> ```text
+> offload geotag <ROOT> <GPX...> [--max-gap-seconds S] [--max-gap-meters M] [--force-xmp]
+> ```
+>
+> **Verified against six frames from 2024-10-02 with that day's own track**: 6 tagged, 6
+> sidecars written, 0 outside the track; a re-run wrote 0 and left 6 alone (decision 16's
+> convergence); `--force-xmp` rewrote all 6. An empty tree prints `NOTHING TO TAG` and **exits
+> 2** — decision 20's rule that an empty result must never be spelled like a clean one. A
+> sidecar was read back and carries `x:xmptk="offload 0.1.0"`, real coordinates and a
+> `GPSTimeStamp` matching the track.
+>
+> **It re-reads the raws, which phase 5 never does.** Decision 10 hands capture times forward
+> because phase 3 already held every file in RAM; nothing has been read when this subcommand
+> starts, so it opens each frame to seek its EXIF — ~0.3 s for 3,883 files (decision 17).
+>
+> **`--utc-offset` did not come across, as specified below.** A frame with no timezone is
+> counted and reported rather than guessed at.
+>
+> **What remains before RawGeotag can be archived** is everything under *what comes across*
+> below — the fixture harness especially, since that is what actually validates the engine —
+> and Terry's call on archiving a repository he still travels with. **The subcommand existing
+> is not the same as the retirement being done.**
+
 The lift of decision 29 left the engine in two repositories: `crates/geotag` here, and
 the original four modules in RawGeotag, which was deliberately not modified and still
 builds and runs. A fix applied to one does not reach the other, and that window stays
@@ -2735,6 +2769,11 @@ capability the primary tool will have anyway.
 **Nothing happens until phase 5 exists.** RawGeotag works today and geotags real trips;
 it keeps working until its replacement is real and has been run against the fixture
 corpus. Retiring it before then would trade a working tool for a promise.
+
+> **That bar is half met, and the half that is left is the important one.** The subcommand is
+> real and tags real frames — but *"run against the fixture corpus"* has **not** happened,
+> because the harness that does it is still in RawGeotag. **Six frames agreeing is not the
+> same as the corpus agreeing**, and this sentence is the reason the repository stays.
 
 What comes across at that point, beyond the CLI surface itself — **all paths below are
 RawGeotag's, at <https://github.com/TerryOtt/RawGeotag>, which is not cloned on this machine
@@ -3335,7 +3374,7 @@ code on 2026-08-07 rather than remembered.
 | **Stray reporting** (decision 24) | The walk does not carry non-CR3 files out of pre-flight, so `exit_code` has nothing to consult. Named in `main.rs`'s own comment |
 | ~~**The Defender check**~~ (decision 9) | **Withdrawn 2026-08-07, not deferred.** Both read paths are closed to an unelevated process and constraint 4 forbids elevation, so it could only ever report *could not confirm*. `windows-registry` was removed with it |
 | **Throughput history** (decision 33) | No history is written or read; `runlog` and `config` have no such field |
-| **`offload geotag`** (decision 30) | No subcommand. RawGeotag stays the tool Terry travels with until this lands |
+| ~~**`offload geotag`**~~ (decision 30) | **Shipped 2026-08-07** and verified against real frames. **The retirement is not finished**: RawGeotag's fixture harness has not moved, and archiving the repository is Terry's call |
 | **Four verdict suffixes** | `SAFE, NOT EJECTED`, `— BUT CHECK YOUR SDXC CARD`, `— SINGLE SOURCE, NEVER CORROBORATED`, `— SSD-C EXCLUDED` — see *Specified here and never built* under decision 14 |
 | ~~**The body check**~~ (decision 34) | **Built 2026-08-07**, the same day it was found missing. Optional `body` in the config, `preflight::check_body` on the first frame, a `Body` row in the card block |
 
