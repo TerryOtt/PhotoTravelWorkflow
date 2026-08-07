@@ -963,26 +963,45 @@ has to rewrite a manifest spanning years.
 ```json
 {
   "schema": 1,
-  "date_utc": "2026-08-03",
-  "destination": "SSD-A",
-  "runs": [
-    { "run_id": "2026-08-03T18:22:04Z", "files_added": 1247, "bytes_added": 60236492800 }
-  ],
-  "files": [
-    {
-      "name": "1422Z_0001.CR3",
-      "status": "present",
-      "sha256": "9f2b...",
-      "bytes": 47185920,
-      "captured_utc": "2026-08-03T14:22:37Z",
-      "source_card": "cfexpress",
-      "run_id": "2026-08-03T18:22:04Z",
-      "verified_utc": "2026-08-03T18:23:31Z",
-      "corroborated": "matched"
-    }
-  ]
+  "checksum": "e1a3425ae18f5964d313894d47829cea...",
+  "body": {
+    "date_utc": "2026-08-03",
+    "destination": "SSD-A",
+    "runs": [
+      { "run_id": "2026-08-03T18:22:04Z", "files_added": 1247, "bytes_added": 60236492800 }
+    ],
+    "files": [
+      {
+        "name": "1422Z_0001.CR3",
+        "status": "present",
+        "sha256": "9f2b...",
+        "bytes": 47185920,
+        "captured_utc": "2026-08-03T14:22:37Z",
+        "source_card": "cfexpress",
+        "source_volume_serial": "A1B2-C3D4",
+        "run_id": "2026-08-03T18:22:04Z",
+        "verified_utc": "2026-08-03T18:23:31Z",
+        "corroborated": "matched"
+      }
+    ]
+  }
 }
 ```
+
+> **Corrected 2026-08-07 against `manifest.rs` and the committed schema-1 fixture.** This sample
+> had been **flat** — no `body` wrapper, no `checksum`, no `source_volume_serial` — while the
+> paragraph directly below it explained the self-checksum the sample did not show. **`checksum`
+> covers `body` and nothing else**, which is exactly why the nesting exists, so a flat rendering
+> did not merely omit a field: it contradicted the mechanism.
+>
+> **This is the highest-stakes sample in the repository.** Decision 28 promises a stranger can
+> read one of these disks in 2031 with no copy of this tool, and this block is what they would
+> read it with. `crates/offload/tests/fixtures/manifest-schema-1.json` is the authority — it is
+> a real file the test suite parses, where this is prose that nothing executes.
+>
+> `source_volume_serial` is absent from that schema-1 fixture on purpose: it was added later, and
+> `skip_serializing_if` keeps it out of re-read schema-1 manifests so their checksums keep
+> validating.
 
 **The manifest carries its own checksum** — the same SHA-256 as everything else
 (decision 17). It holds every hash in the archive, so if those
