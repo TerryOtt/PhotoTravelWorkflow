@@ -2638,7 +2638,9 @@ capability the primary tool will have anyway.
 it keeps working until its replacement is real and has been run against the fixture
 corpus. Retiring it before then would trade a working tool for a promise.
 
-What comes across at that point, beyond the CLI surface itself:
+What comes across at that point, beyond the CLI surface itself — **all paths below are
+RawGeotag's, at <https://github.com/TerryOtt/RawGeotag>, which is not cloned on this machine
+(2026-08-07). They resolve nowhere locally, and that is correct rather than a broken link:**
 
 - `docs/LIGHTROOM-XMP.md`, which decision 29 could not move because its procedure drives
   `rawgeotag.exe` — once `offload geotag` is that binary, the procedure moves with it
