@@ -3150,7 +3150,9 @@ pick the work up from the repository alone, without needing to have been here. I
 stale, fix it before doing anything else.*
 
 **The nightly command works end to end and has been run at full scale.** Verified against the
-source on 2026-08-06.
+source on 2026-08-06; **the module inventory below re-checked mechanically 2026-08-07** — every
+`offload` module is named, and `crates/geotag`'s four (`format`, `raw`, `track`, `xmp`) are
+covered by its own row.
 
 | | |
 |---|---|
