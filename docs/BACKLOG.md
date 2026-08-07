@@ -335,10 +335,18 @@ against the source; **the pattern MUST be proven able to find something before i
 believed**; and a phrase with a variable in it is never present literally, so search the invariant
 half.
 
-## Decide decision 9's Defender check — OPEN, TERRY'S MOVE
+## Decision 9's Defender check — CLOSED 2026-08-07, WITHDRAWN
 
-**Opened 2026-08-07** when Terry asked whether this needed an item. **It needs a decision, not a
-build, and the recommendation is to withdraw it.**
+> **Terry accepted the recommendation the same hour it was raised: withdrawn, not deferred.**
+> `windows-registry` removed from the workspace, decision 9's section struck, *Still to build*
+> updated, `TRIP-HYGIENE.md`'s invisible-dependency list now **empty for the first time**.
+> Workspace builds clean, **182 tests passing**.
+>
+> **The exclusions were already set on 2026-08-05**, so what was withdrawn is the *reporting*,
+> never the protection — which is what made it cheap rather than a trade.
+
+**Opened 2026-08-07** when Terry asked whether this needed an item. **It needed a decision, not a
+build, and the recommendation was to withdraw it.**
 
 **Both mechanisms are closed on this rig, re-measured today, unelevated:**
 

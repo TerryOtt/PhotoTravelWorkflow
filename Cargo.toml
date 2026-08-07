@@ -93,11 +93,11 @@ windows = { version = "0.62", features = [
   "Win32_System_Power",                        # SetThreadExecutionState
   "Win32_Devices_DeviceAndDriverInstallation", # CM_Request_Device_Eject
 ] }
-# The Defender exclusion check (decision 9) reads HKLM by hand, including its third
-# outcome — unreadable, because the tool runs unelevated. Microsoft's own ergonomic
-# wrapper, rather than the RegOpenKeyExW/RegEnumValueW wide-string dance, which is
-# small enough to hand-roll and exactly the size that gets hand-rolled wrong.
-windows-registry = "0.6"
+# `windows-registry` was declared here for decision 9's Defender exclusion check and was
+# removed 2026-08-07 when that decision was withdrawn. Measured unelevated: the exclusion
+# keys under HKLM\SOFTWARE\Microsoft\Windows Defender\Exclusions each throw
+# SecurityException, so the check could never have succeeded under binding constraint 4.
+# It was also the last declared-but-unused dependency, which `cargo outdated` cannot see.
 
 # --- Reproducing the rejections (dev only) -------------------------------------------
 

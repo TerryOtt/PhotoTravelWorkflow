@@ -295,7 +295,7 @@ forever. The exposure concentrates in the pre-1.0 crates, which as of decision 2
 | `time` | 0.3 | `gpx`'s public type at one boundary; moves when `gpx` does |
 | `sha2` | 0.11 | the hash in every manifest. A backend change is a throughput question, not a correctness one — `cargo run --release --example hash-rate` answers it |
 | `windows` | 0.62 | the storage-identity layer, eject and unbuffered I/O — all of it |
-| `windows-registry` | 0.6 | decision 9's Defender check — **which is unbuilt**, so this crate is imported by nothing. See below |
+| ~~`windows-registry`~~ | — | **Removed 2026-08-07** when decision 9's Defender check was withdrawn |
 | `indicatif` | 0.18 | the progress bars. Cosmetic, and the one that actually went stale in RawGeotag |
 | `console` | 0.16 | **the badge column and the verdict's headline — a safety signal, not cosmetic.** See below |
 
@@ -324,14 +324,14 @@ member. Nothing references them, so they never enter the dependency graph, **the
 `Cargo.lock` at all, and `cargo outdated` does not check them** — it reports on what resolved,
 and these never did.
 
-> **Currently affected: `windows-registry` alone.** It was three when this was found, and both
-> the others left the same day — `indicatif` when `progress.rs` was written, `console` when the
-> pre-flight capacity tick became a white-on-green badge. **The gap closes itself exactly as
-> predicted below**, one crate at a time, as the features they were declared for get built.
+> **✔ The list is empty as of 2026-08-07, and nothing here needs hand-checking today.** It was
+> three when this was found. `indicatif` left when `progress.rs` was written and `console` when
+> the pre-flight capacity tick became a badge — **both by being built.** `windows-registry` left
+> the other way: decision 9's Defender check was **withdrawn**, and the crate went with it.
 >
-> **And `console`'s job has since grown well past that capacity tick** — it now carries the whole
-> badge column and the verdict headline. A crate can leave this list and still become *more*
-> important; the two facts are unrelated.
+> **Both exits are the mechanism working**, and it is worth knowing there are two. A declared
+> dependency stops being invisible when its feature ships *or* when its feature is abandoned —
+> and the second is the one that needs a human, because nothing prompts it.
 
 That is a direct consequence of a rule this workspace keeps on purpose: *a member's own
 manifest lists only what its code imports today, so a manifest never claims a dependency
@@ -339,19 +339,16 @@ nothing uses.* Worth keeping — but its cost is this hole, and the hole lands o
 crates the table above calls most at risk. All of them are pre-1.0, and the one that has since
 left the list — `indicatif` — is the crate that actually went stale in RawGeotag.
 
-The reason one is still unused is that its feature is unbuilt: `windows-registry` belongs to
-decision 9's Defender check. **It becomes visible the day that code is written**, which is the
-good news — this is a gap that closes itself, and until then it has to be checked by hand.
+**Re-check this the moment a crate is added to `[workspace.dependencies]` for a feature that
+does not exist yet**, since that is the only way back onto the list:
 
 ```
-cargo search windows-registry --limit 1
+python -c "import json,subprocess,re; d=json.loads(subprocess.run(['cargo','metadata','--format-version','1'],capture_output=True,text=True).stdout); resolved={p['name'] for p in d['packages']}; t=open('Cargo.toml').read().split('[workspace.dependencies]')[1].split('\n[')[0]; declared={m.group(1) for m in re.finditer(r'^([A-Za-z0-9_-]+)\s*=',t,re.M)}; print('invisible:', sorted(declared-resolved) or 'none')"
 ```
 
-**`indicatif` and `console` are the worked examples of that closing.** Both were declared for
-decision 14 and imported by nothing until 2026-08-05 — `indicatif` when `progress.rs` was
-written, `console` a few hours later for the capacity badge. From those commits they are in
-`Cargo.lock`, `cargo outdated` sees them, and they drop out of this hand-checked list. When
-decision 9's Defender check lands, the list empties.
+**That command is the check, not a description of one** — it compares what the workspace
+*declares* against what actually resolved, which is precisely the gap `cargo outdated` cannot
+see. It printed `none` on 2026-08-07.
 
 **Compare the minor, not the whole version** — that is the same `0.x` rule one section up,
 and it is easy to get backwards when reading this output. `"0.18"` against a current 0.18.6
@@ -361,7 +358,8 @@ to do, which is how a real one later gets ignored.
 
 *Checked 2026-08-05: `indicatif` 0.18 vs 0.18.6, `console` 0.16 vs 0.16.4,
 `windows-registry` 0.6 vs 0.6.1 — every declared minor is the current minor, so all three
-are current and nothing needed doing. The blind spot was real; the alarm was not.*
+are current and nothing needed doing. The blind spot was real; the alarm was not. All three
+have since left the list, the last on 2026-08-07.*
 
 ### The workflow pins dependencies too, and `cargo outdated` cannot see them
 

@@ -830,49 +830,35 @@ plus margin, which is precisely why this cannot come first; orphaned temps swept
 (decision 13); sleep inhibited (`SetThreadExecutionState`); GPX tracks present and
 parsed — `--no-gpx` is the declared exception (decision 26).
 
-**It also checks Windows Defender exclusions.** Real-time scanning of several hundred
-gigabytes of freshly written files across four volumes is a large and invisible tax on
-exactly this workload. The archive roots should be excluded; pre-flight checks, and
-**warns rather than fails**, since this is a throughput problem and not a correctness
-one.
+### ~~It also checks Windows Defender exclusions~~ — withdrawn 2026-08-07
 
-> **⚠ The Defender check is designed, not built — checked 2026-08-07 and listed in *Still to
-> build*.** `windows-registry` is declared in the workspace and imported by nothing, which is
-> the evidence; decision 29's table now records it in the same terms. **Read the three-outcome
-> design below as the design's present tense, not the tool's.** The rig measurement that
-> confirmed the unreadable outcome is real and was taken by hand.
+**Withdrawn, not deferred**, on Terry's decision the day it was measured. Real-time scanning of
+several hundred gigabytes across four volumes is a real and invisible tax — but **this tool can
+never read the exclusion list to check for it.**
 
-The check has three outcomes, not two, because Windows hides the exclusion list from
-unelevated processes — and this tool runs unelevated by design: nothing else in the run
-needs administrator rights, and demanding them for a throughput check would be
-backwards. Readable with the roots excluded is silent; readable without them is the
-warning, naming the roots; unreadable says exactly that — the list could not be read,
-check Windows Security by hand — and never masquerades as the not-excluded warning.
-Conflating the two would fire a false warning on every run on precisely the machines
-that hide the list, and a warning that fires regardless of the truth is the warning you
-learn to read past (decision 12). Where the list stays unreadable, the real check is
-one the report already prints: the per-destination sustained rates (decision 14), where
-a Defender tax shows as every destination running far below its known ability.
+| Probe, unelevated | Result |
+|---|---|
+| `Get-MpPreference` | `N/A: Must be an administrator to view exclusions`, all three lists (2026-08-04) |
+| `HKLM:\...\Windows Defender\Exclusions\{Paths,Extensions,Processes}` | `SecurityException` on each — **the mechanism this decision actually specified**, via `windows-registry` (2026-08-07) |
+| **Control** — `HKLM:\...\Windows NT\CurrentVersion` | **readable**, so the instrument works and the denial is real |
 
-> **Confirmed on the rig, 2026-08-04: the unreadable outcome is not hypothetical.**
-> `Get-MpPreference` from an unelevated session returns
-> *"N/A: Must be an administrator to view exclusions"* for all three exclusion lists, on a
-> machine whose owner is a full administrator. Real-time protection was on and `WSearch`
-> was running. The three-outcome design is therefore load-bearing rather than defensive.
+**Binding constraint 4 forbids elevation**, so the check could only ever return *could not
+confirm* — every run, forever. **A diagnostic that cannot succeed** is the mirror of
+[`REVIEWING.md`](REVIEWING.md)'s objection to one that cannot fail, and shipping it would have
+spent a warning slot on a line that never varies.
 
-> **✗ And the *registry* path is closed too — measured 2026-08-07, which is the mechanism this
-> decision actually specifies.** `windows-registry` was chosen so the read would not shell out
-> (constraint 1), but
-> `HKLM:\SOFTWARE\Microsoft\Windows Defender\Exclusions\{Paths,Extensions,Processes}` each throw
-> `SecurityException` unelevated, while a control key under `Windows NT\CurrentVersion` reads
-> fine — so the instrument works and the denial is real.
->
-> **Both mechanisms are therefore closed, and constraint 4 forbids elevation.** The check can
-> only ever return *could not confirm*, on every run, forever — **a diagnostic that cannot
-> succeed**, which is the mirror of [`REVIEWING.md`](REVIEWING.md)'s objection to one that
-> cannot fail. **Whether to withdraw it is open in [`BACKLOG.md`](BACKLOG.md) and is Terry's
-> call**; the substitute this decision already names — the per-destination sustained rates —
-> ships today.
+**And the exclusions themselves were set on 2026-08-05** — by extension and process, per the
+table below — so what was withdrawn is only the *reporting*, never the protection. That is what
+makes this cheap rather than a trade.
+
+**The substitute already ships**: the per-destination sustained rates (decision 14), where a
+Defender tax shows as every destination running far below its known ability. That is a
+*measurement* of the thing the exclusion list only predicts, which makes it the better check
+regardless of permissions.
+
+**`windows-registry` left the workspace with it** — the last declared-but-unused dependency, a
+class [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) records as invisible to `cargo outdated`. Same
+disposition as `offload sync`: a capability nobody can use is worse than one that is absent.
 
 **When the exclusions are set, they should be by extension and process — not by path.**
 Recorded 2026-08-04 as future work; the operator's decision on the trade is below.
@@ -2540,7 +2526,7 @@ missing from this table until 2026-08-07, which made it a set that omitted a qua
 | `blake3` | 1.8 | optional, behind the `hash-experiments` feature; also a dev-dependency for `examples/hash-rate.rs` |
 | `xxhash-rust` | 0.8 | as above — `OFFLOAD_HASH` selects it, and the default build has neither the branch nor the crate |
 | `sha3` | 0.12 | **dev-dependency only.** `hash-rate` measures it; nothing ships it |
-| `windows-registry` | 0.6 | workspace-declared and **imported by nothing** — decision 9's Defender read is in *Still to build*, and this row is the evidence |
+| ~~`windows-registry`~~ | — | **Removed 2026-08-07** with decision 9's Defender check. It was workspace-declared and imported by nothing, which is exactly the invisible-dependency class `TRIP-HYGIENE.md` warns about |
 
 Versions re-verified against `Cargo.lock` on 2026-08-07 rather than recalled;
 [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) has the standing order and names the pre-1.0 entries that go
@@ -3235,7 +3221,7 @@ code on 2026-08-07 rather than remembered.
 |---|---|
 | ~~`offload sync <DEST>`~~ | **Withdrawn 2026-08-06, not deferred.** The rig is specified at N+1 so a dead drive is a config edit, which leaves nothing to backfill — decision 20 and [`CONOPS.md`](CONOPS.md) carry the reasoning |
 | **Stray reporting** (decision 24) | The walk does not carry non-CR3 files out of pre-flight, so `exit_code` has nothing to consult. Named in `main.rs`'s own comment |
-| **The Defender check** (decision 9) | `windows-registry` is declared in the workspace and imported by nothing |
+| ~~**The Defender check**~~ (decision 9) | **Withdrawn 2026-08-07, not deferred.** Both read paths are closed to an unelevated process and constraint 4 forbids elevation, so it could only ever report *could not confirm*. `windows-registry` was removed with it |
 | **Throughput history** (decision 33) | No history is written or read; `runlog` and `config` have no such field |
 | **`offload geotag`** (decision 30) | No subcommand. RawGeotag stays the tool Terry travels with until this lands |
 | **Four verdict suffixes** | `SAFE, NOT EJECTED`, `— BUT CHECK YOUR SDXC CARD`, `— SINGLE SOURCE, NEVER CORROBORATED`, `— SSD-C EXCLUDED` — see *Specified here and never built* under decision 14 |

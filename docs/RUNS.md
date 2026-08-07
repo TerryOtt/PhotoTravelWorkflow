@@ -582,6 +582,11 @@ at least one recorded run was convergence, so the comparison above is anchored t
   are in place, including the unreadable-registry outcome. That is still the only consumer
   `windows-registry` has, which is why it stays a declared-but-unimported workspace dependency
   ([`TRIP-HYGIENE.md`](TRIP-HYGIENE.md))
+  — **✗ withdrawn 2026-08-07, and this line records why it looked reasonable at the time.** The
+  registry keys throw `SecurityException` unelevated, so the read this item describes could never
+  have worked under constraint 4. **The exclusions being already set is what makes withdrawal
+  cheap**: what was missing was only the *reporting*, and decision 14's sustained rates measure
+  the tax directly. `windows-registry` was removed with it
 - **naming whoever actually holds a vetoed volume.** Every claim that Defender or the
   indexer is responsible is inference: the veto names the *volume device object*, never a
   process, and the suspect has never been identified. `handle.exe -a -v <volume>` and
