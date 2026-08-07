@@ -136,9 +136,21 @@ or goes*.
   structural win with zero findings lost**, which is the shape the rest of this item should take
   wherever possible.
 
-**Remaining:** `main.rs` (~980 comment lines), `eject.rs` (429), `progress.rs` (270). These are
-prose reduction rather than relocation, so they need the `WRITING.md` bar applied paragraph by
-paragraph.
+- **Code comments, in progress.** `main.rs` 997 → **862**, `eject.rs` 429 → **404**. Seven doc
+  blocks cut, each one restating a `DESIGN.md` decision in full rather than citing it, or quoting
+  Terry at paragraph length where a clause carried it.
+- **A decorative test found and repaired rather than deleted.** `the_spacer_template_...`
+  asserted that a *literal* parses, re-typing the value instead of reading it — so mutating the
+  real one would not have failed it. Now reads a named `SPACER` const, and is mutation-checked.
+
+**Remaining:** `progress.rs` (279 of 610 lines, **46 %** — the densest left), `human.rs`,
+`winio.rs`, and the smaller blocks throughout `main.rs`.
+
+> **What is deliberately NOT being cut.** Tests that guard a defect which actually shipped, and
+> comments carrying a mechanism a reader would get wrong — `estimate()`'s warning that
+> corroboration is *added* rather than overlapped is the type case, since decision 2 describes an
+> overlap that is not built and estimating as though it were would understate every run by a
+> quarter of an hour. **The target is duplication, not volume.**
 
 **The count is not the metric.** Most tests are regressions for defects that actually shipped, and
 the "considered and rejected" material exists to stop re-proposals. **The real fat is the same

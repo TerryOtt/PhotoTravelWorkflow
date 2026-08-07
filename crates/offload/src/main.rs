@@ -516,23 +516,19 @@ const SOLE_LABEL: &str = "Sole";
 
 /// How long after launch eject stops trying (decision 22).
 ///
-/// **Ninety minutes, which is the top of the dinner window rather than the bottom.** It was
-/// sixty until 2026-08-06, chosen as the conservative end of `CONOPS.md`'s 60–90 — on the
-/// reasoning that the program must exit before the operator returns.
+/// **Ninety minutes, the top of the dinner window.** It was sixty until 2026-08-06, on the
+/// reasoning that the program must exit before the operator returns — which he retired himself,
+/// being the only possible source for it: *"if I do get back before it's done ejecting, I will
+/// happily wait."* **The failure to protect against is a drive left in the tray**, not a run
+/// still working when he walks in.
 ///
-/// **The operator retired that reasoning himself**, and he is the only possible source for
-/// it: *"this app is run when I'm away for dinner. Let's push the eject timeframe to 90 mins.
-/// If I do get back before it's done ejecting, I will happily wait."* So returning to a run
-/// still arguing with Windows is not the failure the sixty was protecting against — **the
-/// failure is a drive left in the tray**, and waiting a few minutes is cheaper than a chore.
+/// **What it buys lands where the risk is.** The retry window is whatever remains after phases
+/// 3–5, so it is *smallest on the biggest days* — the nights with the most freshly written data
+/// and the most likely veto. On the 415 GB record day sixty left roughly eight minutes; ninety
+/// leaves nearly forty.
 ///
-/// **What it buys lands exactly where the risk is.** The retry window is what is left after
-/// phases 3–5, so it is *smallest on the biggest days* — the nights with the most freshly
-/// written data, the most scanner activity and the most likely veto. On the 415 GB record day
-/// sixty minutes left roughly eight; ninety leaves nearly forty. Decision 22 has the table.
-///
-/// **Nothing waits on this.** A run that ejects cleanly on the first ask still exits in
-/// seconds; the budget is a ceiling on patience, never a delay.
+/// **Nothing waits on this**: a clean first-ask eject still exits in seconds. It is a ceiling on
+/// patience, never a delay.
 const RUN_BUDGET: Duration = Duration::from_secs(90 * 60);
 
 /// Decision 22: eject when nothing remains for the current cards.
@@ -1486,27 +1482,17 @@ fn landed(outcome: &pipeline::Outcome, elapsed: Duration) {
     }
     println!();
 
-    // **These four lines are the emotional payload of the whole run**, and the operator said
-    // so plainly on 2026-08-05: *"That's the biggest warm fuzzy of the whole run. Genuine
-    // blood pressure drop at those four lines."* Decision 14 makes the verdict the last line
-    // and the answer; this is where the answer is *earned*, one destination at a time, and it
-    // is worth being legible at a glance rather than merely present.
+    // **These four lines are where the verdict is earned**, one destination at a time — Terry
+    // calls them the biggest warm fuzzy of the run — so they are worth being legible at a glance
+    // rather than merely present.
     //
-    // **This badge is real** — it reports a comparison made moments ago against every file on
-    // the destination, and a failure here is the difference between LANDED and NOT SAFE. So the
-    // colour carries meaning rather than reassurance, which is what `REVIEWING.md` asks of
-    // anything that looks like a verdict.
+    // **The badge is real**: it reports a comparison made moments ago against every file on the
+    // destination, and a failure here is the difference between LANDED and NOT SAFE.
     //
-    // **And it is yellow, not red, which was the last exception standing.** Terry, 2026-08-06:
-    // *"red is hard banned, downgrade failed to verify as yellow."* This one was argued to be
-    // the case that earned red, on the grounds that it is genuinely serious — and that argument
-    // is exactly the one the standing order refuses. **Severity is not what the colour encodes;
-    // the action is.** Red says *something is broken*, which sends a tired operator hunting for
-    // damage. Yellow says *come and look*, which is the true instruction: the frames are on the
-    // cards, which were never written to, and the run's own retry is what did not converge.
-    //
-    // See `DESIGN.md` — *the opposite of green is never red*, and *the badge column is a go/no-go
-    // on unplugging things*, which this now joins rather than sitting outside as a third state.
+    // **Yellow, not red — this was the last exception standing**, and it was argued to be the
+    // case that earned red *because* it is serious. That argument is the one the standing order
+    // refuses: severity is not what the colour encodes, the action is. See `DESIGN.md`, *the
+    // opposite of green is never red*.
     for destination in &outcome.destinations {
         let verdict = if destination.failed.is_empty() {
             style(" OK ".to_string()).white().bold().on_green()
@@ -2048,14 +2034,9 @@ fn geotag_phase(
 /// that drew the LANDED banner inside eight progress rows, twice. So `progress.clear()` hands
 /// the terminal back first, and what the operator watched fill up disappears with it.
 ///
-/// **Terry asked for it back** (2026-08-06): *"I'd love to keep writing/verifying on there,
-/// above LANDED."* A finished pass vanishing reads as though something happened to it — the
-/// same argument `progress.rs` makes for leaving a bar full rather than clearing it.
-///
 /// **Two lines rather than eight.** A row per destination per pass would be four identical
-/// `50/50`s twice over, and the LANDED table three lines below already says more about each
-/// destination than that would. What this adds is the *shape* of the work — two passes
-/// happened, both completed — without restating the detail.
+/// `50/50`s twice over, and the LANDED table three lines below already says more. What this adds
+/// is the *shape* of the work — two passes happened, both completed — not the detail.
 ///
 /// **The write pass counts written plus skipped**, because a convergence run writes nothing and
 /// still has to hash every target to prove the skip (see [`pipeline::DestinationOutcome`]).
