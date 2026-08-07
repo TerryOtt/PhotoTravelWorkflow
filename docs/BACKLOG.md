@@ -277,6 +277,29 @@ prose reduction rather than relocation.
 the "considered and rejected" material exists to stop re-proposals. **The real fat is the same
 argument restated in three places**, so the likely answer is structure rather than deletion.
 
+### The fresh pass, 2026-08-07 — tests, then comments, then docs
+
+Ordered by Terry, no preconceptions carried in. **Tests 114 → 106**, merging only where several
+tests exercised one function over different inputs; `main.rs`'s were already deduplicated by the
+earlier pass. **Comments 32 % → 29 %** of `crates/offload/src`. **`winio.rs` deliberately
+untouched** — flag semantics, measurement tables and SAFETY blocks.
+
+**The docs half stopped being a diet and became an audit**, because grepping quoted output against
+the source found four defects in one file:
+
+| Found in `DESIGN.md` | |
+|---|---|
+| Decision 14 contradicted its own standing order | The opening blockquote described a badge as *"white on red"*; the red ban landed a day later and was never carried back. `.red()` appears nowhere in `crates/` |
+| Decision 29's dependency table omitted three of nineteen crates | `blake3`, `xxhash-rust` (optional, `hash-experiments`) and `sha3` (dev-only). `windows-registry` was listed with an active role while imported by nothing, and `rayon`'s role read as the binary's when it is `geotag`'s |
+| **Decision 34 is designed and unbuilt** | No `body` field in `config.rs`, no `Body` line printed — **and `CLAUDE.md` instructed Claude to act on that line "every time it appears."** Now marked in three places, with a MUST NOT against reading a missing line as agreement |
+| A verbatim duplicate | *"Both badges are five cells wide"* stated twice, 90 lines apart, inside one section |
+
+**Net lines moved barely at all — and that is the honest result.** Decision 14 lost 41, decisions
+17 and 29 lost narrative, but the corrections added tables back. **The pass bought accuracy rather
+than size**, and `WRITING.md` rule 5 gained the rule that would have caught all four: a document
+stating what a program prints MUST have those strings grepped against the source, and **the
+pattern MUST be proven able to find something before its silence is believed.**
+
 ## Test all three USB-C→USB-A adapters — CLOSED 2026-08-07
 
 > **2 good, 1 dud. C→A costs nothing measurable — 275 MB/s through an adapter against 275 native.**
