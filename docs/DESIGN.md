@@ -2074,42 +2074,18 @@ spent, since refusing to try at all would turn a slow night into a manual one fo
 > constraint; **if this ever bites, the lever is starting eject earlier for destinations
 > nothing is waiting on, not waiting longer.**
 >
-> **Re-derived 2026-08-06 against the current baseline, because that table predates the
-> interleaved verify and the conclusion moved.** Scaled from the 2026-08-05 run — LANDED
-> 10 m 55 s, whole run 27 m 06 s, so ~15.5 min of corroboration — by the real ratio
-> 415.1 / 201.3 = 2.06×:
+> **The budget moved to ninety on 2026-08-06** because at sixty the worst night of the year
+> gave eject a fifth of what an ordinary night gives it. **The fastest fix for a squeezed retry
+> window was never to squeeze the run.**
 >
-> | 415 GB day | corroborating on the **222 MB/s** card | on the **246 MB/s** card |
-> |---|---|---|
-> | LANDED | ~22 m 30 s | ~22 m 30 s |
-> | Corroboration | ~32 min | **~29 min** |
-> | Total before eject | ~55 min | **~52 min** |
-> | Retry window left, **60 min budget** | ~5 min | ~8 min |
-> | **Retry window left, 90 min budget** | **~35 min** | **~38 min** |
+> ### ✗ Measured 2026-08-06, and every prediction was optimistic
 >
-> **The last row is why the budget moved to ninety the same day this table was written.** At
-> sixty, the worst night of the year gave eject a fifth of what an ordinary night gives it —
-> and the card-choice lever above, worth 3 minutes, was the largest one available. Ninety
-> makes that lever irrelevant, which is the right outcome: **the fastest fix for a squeezed
-> retry window was never to squeeze the run.**
+> **A second prediction table stood here and was deleted 2026-08-07**, having been refuted the
+> same day it was written; it also weighed a card-choice lever using a **222 MB/s** card since
+> discarded as faulty. The mechanism it rested on — scale the last run by the ratio of the data
+> — is what failed:
 >
-> **Two things this changes.** The interleave bought LANDED back — 22 m rather than 30 — but
-> it bought eject *nothing*, because corroboration grew to fill it: the SD read is now most of
-> the run. And **which SD card corroborates is a lever on the eject budget**, worth 3 minutes
-> of retry at the 415 GB extreme. That is not a reason to choose a card, but it is a reason to
-> know the fastest one is doing that job on the biggest nights.
->
-> **All six numbers here are arithmetic, not measurement.** No run at this size has happened.
-> They are recorded so the prediction is on the record *before* the run rather than fitted to
-> it afterwards — this project has a standing problem with plausible stories arriving after
-> the fact.
->
-> ### ✗ Measured 2026-08-06, and the table above was wrong in the direction that matters
->
-> **The run happened. Every row predicting the clock was optimistic**, and the mechanism this
-> table rests on — scale the last run by the ratio of the data — does not hold at this size:
->
-> | 415 GB day | Predicted (246 MB/s card) | **Measured** |
+> | 415 GB day | Predicted by scaling | **Measured** |
 > |---|---|---|
 > | LANDED | ~22 m 30 s | **35 m 29 s** |
 > | Corroboration | ~29 min | ~31.5 min ✔ |
