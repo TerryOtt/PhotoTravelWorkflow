@@ -1531,6 +1531,26 @@ of the evidence, on the machine that will still be there when someone asks about
 
 ### 15. `--jobs` sizes the CPU pool, not the I/O fan-out
 
+> **⚠ `--jobs` is parsed and never read — found 2026-08-07, and it has never done anything.**
+> `main.rs` declares it with an `available_parallelism` default; **no other line in `crates/`
+> mentions it.** `phase5::run` is a plain sequential `for photo in landed` loop with no pool,
+> no threads and no `rayon` — `offload` does not even depend on `rayon`, which is
+> `crates/geotag`'s.
+>
+> **So every present tense below describes a design, not the tool**, including *"EXIF
+> extraction and XMP generation ride the same pool"* and `pipeline.rs`'s claim that
+> *"`--jobs` governs phase 5"*, which is the specific sentence that made this look settled.
+>
+> **It is on the critical path for decision 30**, which is why it surfaced. RawGeotag's `-j`
+> is *load-bearing* — 3,883 CR3s in 5.8 s at `-j 20` against 48 s at `-j 2`, and ~12× over
+> SMB — so retiring it into a sequential `offload geotag` would make the workflow Terry
+> actually runs **slower**, on exactly the storage the measurement was taken against.
+>
+> **Two honest options, and choosing is a scope call:** implement the pool for phase 5, which
+> makes this decision true and decision 30 viable; or delete the flag under the standing order
+> that *a config item that is never used MUST NOT exist*, and accept that `offload geotag`
+> inherits a sequential tagger. **Tracked in [`BACKLOG.md`](BACKLOG.md).**
+
 `--jobs N`, defaulting to logical CPU count, following RawGeotag's finding that this
 problem class parallelizes well into double-digit thread counts.
 

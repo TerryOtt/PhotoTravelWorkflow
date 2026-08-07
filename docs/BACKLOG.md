@@ -432,7 +432,31 @@ nobody can use is worse than one that is absent.
 **Why it is his call:** the engineering is not in doubt; withdrawing a designed feature is a scope
 decision.
 
-## Retire RawGeotag into `offload geotag` (decision 30) — OPEN
+## Decide `--jobs`: implement the phase 5 pool, or delete the flag — OPEN, TERRY'S MOVE
+
+**Found 2026-08-07 in the first ten minutes of decision 30, which is what makes it urgent
+rather than tidy.** `--jobs` is **parsed and never read**: `main.rs` declares it with an
+`available_parallelism` default, and **no other line in `crates/` mentions it.** `phase5::run`
+is a sequential `for photo in landed` loop — no pool, no threads, no `rayon` (`offload` does
+not depend on `rayon`; that is `crates/geotag`'s).
+
+**`pipeline.rs` claimed *"`--jobs` governs phase 5"***, which is the sentence that made it look
+settled. Now corrected, along with decision 15.
+
+**It blocks decision 30 from being a clean win.** RawGeotag's `-j` is *load-bearing* —
+**3,883 CR3s in 5.8 s at `-j 20` against 48 s at `-j 2`**, and ~12× over SMB. Retiring it into
+a **sequential** `offload geotag` would make the workflow Terry actually runs *slower*, on
+exactly the storage that measurement was taken against.
+
+| | |
+|---|---|
+| **A — implement the pool** | Makes decision 15 true and decision 30 a straight win. Phase 5 is where a pool pays: thousands of 3 KB sidecars into one directory, CPU- and metadata-bound. **Must be measured on the rig afterwards**, not merely built |
+| **B — delete the flag** | The standing order that *a config item never used MUST NOT exist* — *"a dangerously unused code path waiting to bite us."* Accepts a sequential tagger, so decision 30 either regresses the NAS case or stays open |
+
+**Recommendation: A**, because decision 30 is already authorized and B makes it worse. **His
+call because it is scope**, not because the engineering is unclear.
+
+## Retire RawGeotag into `offload geotag` (decision 30) — IN PROGRESS
 
 **Opened 2026-08-07: the precondition is met and nobody had noticed.** `CLAUDE.md` said
 retirement *"cannot happen until phase 5 works."* **Phase 5 works** — `main.rs:316` calls

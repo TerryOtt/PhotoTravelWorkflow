@@ -15,8 +15,13 @@
 //! concurrent hash streams on a machine with twenty threads. At the measured
 //! 2,380 MB/s per core (decision 17) a single stream already outruns the CFexpress card
 //! and every SSD in the rig several times over, so a pool would add scheduling and take
-//! nothing off the critical path. `--jobs` governs phase 5, where thousands of small
-//! sidecars actually are CPU- and metadata-bound.
+//! nothing off the critical path.
+//!
+//! **`--jobs` was documented here as governing phase 5. It does not — it is parsed and never
+//! read (found 2026-08-07).** `phase5::run` is a sequential loop; nothing in `offload` builds
+//! a pool. The sentence stood because it was plausible and nothing tests a comment. Phase 5 is
+//! where a pool *would* pay, since thousands of small sidecars are CPU- and metadata-bound —
+//! see decision 15 for the open choice between building it and deleting the flag.
 //!
 //! # Why the channels are `std`
 //!
