@@ -1677,6 +1677,24 @@ I/O stays unbuilt until measurement shows a device actually going idle.
 
 Four earned their keep there and come across, two of them changed by the new context.
 
+> **All four now appear twice — on the nightly command and on `offload geotag`** (decision 30,
+> shipped 2026-08-07) — because the subcommand *is* RawGeotag's job and needs the same knobs.
+> **One differs in shape, deliberately:**
+>
+> | | Nightly | `offload geotag` |
+> |---|---|---|
+> | `--max-gap-seconds`, `--max-gap-meters` | same | same |
+> | `--dry-run` | a separate planning path | the same pass with **no destinations** |
+> | **`--force-xmp`** | `--force-xmp[=<DEST>]` — optionally **one destination** | a plain flag |
+>
+> **`geotag` has exactly one destination — the tree it was pointed at — so a per-destination
+> selector would be a value with one legal setting.** That is the shape `CLAUDE.md` calls a
+> constant with extra steps. The name stays identical because the *semantics* are: an existing
+> sidecar is never rewritten without it, by any code path.
+>
+> **`--utc-offset` still does not come across**, and now cannot: decision 23 removed the need,
+> and the subcommand counts a frame with no offset rather than guessing one.
+
 **`--max-gap-seconds` (default 60) and `--max-gap-meters` (default 100).** A photo is
 tagged only if the two track points bracketing its capture time are within *both* limits
 and come from the same `<trkseg>`. Both are needed: endpoint separation does not bound
