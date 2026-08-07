@@ -59,6 +59,30 @@ about warnings that fire when you cannot act.
 the closed list — so what is *missing* from the checklist is explained here rather than simply
 absent.
 
+### Every checklist item MUST be prefixed `C: ` or `T: `
+
+**Standing order, Terry, 2026-08-07.** The prefix names **who can advance the item right now**,
+and the list sorts with all `C:` items before all `T:` ones.
+
+| Prefix | Means |
+|---|---|
+| **`C: `** | Claude can move it without him. He can skip the line |
+| **`T: `** | It needs Terry — a cable, a card, a decision, a signoff |
+
+**It marks the *current* blocker, not ownership, so it flips as work moves.** The reader matrix is
+`T:` while a reader needs swapping and becomes `C:` the moment the hardware is in and only the
+measuring is left. **An item whose prefix never changes across a long task is probably mislabeled.**
+
+**Why it earns its place on a list that is deliberately short:** the checklist is the first thing
+he reads, and until now every line had to be *parsed* to find out whether it was waiting on him.
+Two characters turn that into a scan — which is the same argument as the badge column, applied to
+the backlog instead of the report.
+
+> **The ordering is by task ID, not by subject**, so the prefix alone does not guarantee the sort.
+> When a new `C:` item lands after a `T:` one, the grouping breaks and the fix is to recreate the
+> tasks in the intended order. **Check the grouping after adding an item** rather than assuming
+> the prefix did it.
+
 
 ## 1. Characterize all three UHS-II USB SD readers — IN PROGRESS
 
@@ -120,15 +144,29 @@ directly.
 
 | Reader | Link | Sustained read | State |
 |---|---|---|---|
-| **SanDisk SDDR-409** (USB-C) | SuperSpeed, 2 hubs deep | **280 MB/s** | **done** |
-| **UGreen** (USB-C) | same port, so directly comparable | — | next |
-| **Lexar** (USB-A) | necessarily a different physical port | — | after |
+| **SanDisk SDDR-409** (USB-C) | SuperSpeed, `Hub_#0005` port 3 | **280 MB/s** (277–283) | **done** |
+| **Lexar** (USB-A) | SuperSpeed, **same hub**, port 5 | **276 MB/s** (273–278) | **done** |
+| **UGreen** (USB-C) | — | — | next |
 
-> **The Lexar's number will carry one caveat the other two do not.** USB-A forces a different
-> physical port, so reader and port move together for that row alone. If it comes in low, the
-> port MUST be eliminated before the reader is blamed — the cheap way being to put the SDDR-409
-> on a USB-A port via its own adapter, if one exists, or to accept the row as *reader + port*
-> and say so.
+### Readers 1 and 2 are indistinguishable — 2026-08-07
+
+**280 against 276 is a 1.4 % gap inside a ±2 % band, so neither reader is faster than the
+other.** Both flat over 150 s, neither throttling, neither capping the card.
+
+**The like-for-like turned out better than the protocol demanded.** The two readers landed on the
+**same hub** — identical chain from `Hub_#0005` up through both SuperSpeed hubs to the same Intel
+3.20 controller, differing only in which downstream port of that hub they occupied. Same upstream
+bandwidth, same controller. **The port-constancy rule was satisfied more tightly than by holding
+one socket**, because holding one socket across a USB-C and a USB-A reader was never possible.
+
+> **The Lexar's caveat is retired rather than carried.** It was written expecting USB-A to force
+> a foreign port; it forced a *sibling* port on the same hub instead. Nothing needs subtracting.
+
+> **The 222 MB/s recorded for the Lexar reader was the CARD's limit, not the reader's** — it just
+> read 276 with a faster card. **That is the second instance of this exact misattribution**, after
+> the SDDR-409's "247 ceiling" turned out to belong to the Lexar Silver Pro card. One card through
+> one reader yields one number, and this project has now filed it under the reader twice.
+> **A reader's ceiling is only established by the fastest card that has ever been through it.**
 
 ## 2. Put the docs and tests on a diet — IN PROGRESS
 
