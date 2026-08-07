@@ -225,7 +225,14 @@ pub fn run(
     // heading says the phase, so the row says what is being counted.
     let _section = progress.section("Geotagging", crate::progress::PHASE);
     let bar = progress.bar("Frames", landed.len(), crate::progress::PHASE);
-    bar.set_message("correlating and writing sidecars");
+    // **The verb follows the work.** With no destinations — `offload geotag --dry-run` — nothing
+    // is written, and a bar saying otherwise would be the only line on screen claiming a write
+    // that did not happen.
+    bar.set_message(if destinations.is_empty() {
+        "correlating"
+    } else {
+        "correlating and writing sidecars"
+    });
 
     for photo in landed {
         bar.inc();

@@ -766,7 +766,13 @@ offload geotag <ROOT> <GPX...>      tag a tree of raws in place (decision 30)
   --max-gap-seconds <S>      refuse to interpolate across a longer hole [default: 60]
   --max-gap-meters <M>       refuse to interpolate across a wider hole [default: 100]
   --force-xmp                rewrite sidecars that already exist
+  --dry-run                  correlate everything and write nothing
 ```
+
+> **`geotag` keeps `--dry-run` where the nightly command's is a separate code path, and that
+> asymmetry is deliberate.** This subcommand writes into a directory of somebody's existing
+> photographs; the nightly run writes into destinations it created. **A preview is worth more
+> pointed at an archive than at an empty disk.**
 
 **Both subcommands read no config**, which is what makes them usable on a disk pulled from a
 safe or a directory that was never an `offload` destination.
@@ -2732,7 +2738,15 @@ the worst moment, which is trip hygiene.
 >
 > ```text
 > offload geotag <ROOT> <GPX...> [--max-gap-seconds S] [--max-gap-meters M] [--force-xmp]
+>                                [--dry-run]
 > ```
+>
+> **`--dry-run` came across because losing it would have been a regression.** RawGeotag had one,
+> and this subcommand writes into a directory of existing photographs rather than into
+> destinations the tool created. It is **the same pass with no destinations** — every count is
+> real except `written`, which is zero because the write loop has nothing to iterate — so the
+> preview cannot drift from the run it previews. Verified: six frames, `6 tagged`, and **zero
+> `.xmp` on disk afterwards**.
 >
 > **Verified against six frames from 2024-10-02 with that day's own track**: 6 tagged, 6
 > sidecars written, 0 outside the track; a re-run wrote 0 and left 6 alone (decision 16's

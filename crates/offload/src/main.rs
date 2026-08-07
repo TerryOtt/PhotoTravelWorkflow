@@ -72,6 +72,14 @@ enum Command {
         /// Rewrite sidecars that already exist instead of leaving them alone.
         #[arg(long)]
         force_xmp: bool,
+
+        /// Correlate everything and write nothing — what *would* be tagged.
+        ///
+        /// **Carried over from RawGeotag deliberately.** This subcommand writes into a
+        /// directory of somebody's photographs, which the nightly command never does — it
+        /// writes into destinations it created. A preview is worth more here than there.
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 
@@ -166,6 +174,7 @@ fn dispatch(cli: &Cli) -> Result<ExitCode> {
             max_gap_seconds,
             max_gap_meters,
             force_xmp,
+            dry_run,
         }) => {
             return geotag_tree(
                 root,
@@ -175,6 +184,7 @@ fn dispatch(cli: &Cli) -> Result<ExitCode> {
                     max_meters: *max_gap_meters,
                 },
                 *force_xmp,
+                *dry_run,
             );
         }
         None => {}
@@ -1892,6 +1902,7 @@ fn geotag_tree(
     tracks: &[PathBuf],
     limits: GapLimits,
     force: bool,
+    dry_run: bool,
 ) -> Result<ExitCode> {
     let tracks = expand_tracks(tracks)?;
     let files = pipeline::cr3_files(root).with_context(|| format!("walking {}", root.display()))?;
@@ -1938,15 +1949,47 @@ fn geotag_tree(
 
     // The destination is the tree itself — one root, tagged in place. Phase 5 writes a sidecar
     // beside each raw, so `root` is both where the frames are and where the packets go.
-    let destination = [Destination {
-        label: root.display().to_string(),
-        root: root.to_path_buf(),
-    }];
+    //
+    // **A dry run is the same pass with no destinations**, which is the honest reading of the
+    // slice rather than a trick: phase 5 correlates every frame and counts every outcome, and
+    // the write loop it feeds simply has nothing to iterate. Every number below is real except
+    // `written`, which is zero because nothing was written.
+    let destinations: &[Destination] = if dry_run {
+        &[]
+    } else {
+        &[Destination {
+            label: root.display().to_string(),
+            root: root.to_path_buf(),
+        }]
+    };
 
     let progress = offload::progress::Progress::detect();
-    let report = phase5::run(&landed, &destination, &tracks, limits, force, &progress)?;
+    let report = phase5::run(&landed, destinations, &tracks, limits, force, &progress)?;
 
-    report_geotag(Some(&report), false, destination.len());
+    if dry_run {
+        // **`report_geotag` is deliberately not called here.** Its closing line multiplies
+        // frames by destinations into a sidecar count, and on a dry run that reads as work
+        // done — the DRY RUN line above it would be arguing with the line below it.
+        println!();
+        println!(
+            "    {} tagged · {} outside track · {} in a gap",
+            count(report.tagged),
+            count(report.outside_track),
+            count(report.in_gap)
+        );
+        println!();
+        println!(
+            "    DRY RUN — nothing written. {} of {} frames would be tagged.",
+            count(report.tagged),
+            count(files.len())
+        );
+        // **Not "would write N sidecars".** Whether each one is written depends on
+        // `--force-xmp` *and* on what is already on disk, and a preview that guessed at that
+        // would be the confident-and-wrong answer this project keeps refusing.
+        println!("    Re-run without --dry-run to write them.");
+    } else {
+        report_geotag(Some(&report), false, destinations.len());
+    }
 
     for (count_of, what) in [
         (
