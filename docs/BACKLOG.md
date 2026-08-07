@@ -348,6 +348,14 @@ and it is the counter-example to the three decisions that read as built.
 called itself *"the one measurement decision 34 is blocked on"* after answering that question
 twice.
 
+**`scripts/doc-claims-check.py` makes the mechanical corner repeatable** — links, cited paths,
+invisible dependencies, the red-badge ban. **It is explicitly not the rule**: it cannot read an
+output string out of a format argument or tell a built decision from a designed one, which is
+where every real defect today actually lived. **Its first version reported eight defects that
+were its own**, resolving paths only from the repo root so `../CLAUDE.md` looked broken — so it
+was given a negative control before being trusted, per rule 5's own instruction. Not in the
+pre-commit hook, deliberately.
+
 **The docs got BIGGER, and that is the honest result.** `DESIGN.md` **3,245 → 3,218** despite
 decision 14 losing 41, decision 22 losing 38 and decision 20 losing 19 — the corrections added
 back most of what the narrative cuts removed. Across `docs/` the total went **7,670 → 7,791**,
