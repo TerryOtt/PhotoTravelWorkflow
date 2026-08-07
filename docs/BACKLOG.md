@@ -458,6 +458,22 @@ the repository.
 > **TERRY'S MOVE at the end:** archiving the repository is his call, since it is the tool he
 > currently travels with. Everything before that is buildable without him.
 
+## Boomerang pass: code → docs → code — OPEN, TERRY'S MOVE
+
+**Requested 2026-08-07, mid-build.** He will explain the intent when he authorizes work on it.
+
+**Claude MUST NOT start this without his brief.** The name suggests a round trip — read the code
+to correct the docs, then let the corrected docs drive changes back into the code — **but that is
+inference rather than instruction**, and guessing the scope is exactly what this project's writing
+rules exist to prevent.
+
+> **Context that may or may not be what he means.** The 2026-08-07 audit ran in **one direction
+> only**: docs checked against code, eight defects found. **The return leg was never run** — docs
+> revealing something the *code* should change — and two candidates surfaced incidentally:
+> decision 34 specifying a body read from *"each card"* where decision 27's gate arguably makes
+> the source card sufficient, and `DESIGN.md`'s sample report, whose lines have not all been
+> matched to print sites. **Ask before acting on any of it.**
+
 ## Build decision 34: the body check — IN PROGRESS
 
 > **Started 2026-08-07 21:37Z**, on a two-hour window from Terry. Done means code, code
