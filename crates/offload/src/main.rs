@@ -2538,6 +2538,58 @@ fn report_geotag(report: Option<&phase5::Report>, heading_was_erased: bool, dest
 mod tests {
     use super::*;
 
+    /// **Every format the engine declares, and each paired with the one that reads it.**
+    ///
+    /// This nearly shipped CR3-only, which would have silently dropped NEF — a format `raw.rs`
+    /// already handles, through a *different* `read_strategy`. The pairing is what the test is
+    /// really pinning: handing a NEF to `RawFormat::Cr3` sends it down the streaming path it
+    /// does not survive, and the failure would look like a corrupt file rather than a bug.
+    #[test]
+    fn every_declared_raw_format_is_found_and_paired_with_its_reader() {
+        let scratch = tempfile::tempdir().expect("a scratch directory");
+        let root = scratch.path();
+        std::fs::create_dir(root.join("2018-10-20")).expect("a date folder");
+
+        std::fs::write(root.join("b.CR3"), "").expect("a raw");
+        std::fs::write(root.join("a.cr3"), "").expect("a raw, lowercase");
+        std::fs::write(root.join("2018-10-20").join("d.NEF"), "").expect("a raw, nested");
+        std::fs::write(root.join("notes.txt"), "").expect("not a raw");
+        std::fs::write(root.join("c.xmp"), "").expect("a sidecar, not a raw");
+
+        let found = raw_files(root).expect("a walk");
+
+        let pairs: Vec<(String, RawFormat)> = found
+            .iter()
+            .map(|(path, format)| {
+                (
+                    path.file_name().unwrap().to_string_lossy().into_owned(),
+                    *format,
+                )
+            })
+            .collect();
+
+        // **Path order, not filename order** — `2018-10-20\d.NEF` sorts before `a.cr3` because
+        // digits precede letters. That is what keeps a tree walk grouped by directory, and
+        // asserting filenames here is what made this test fail the first time it ran.
+        assert_eq!(
+            pairs,
+            [
+                ("d.NEF".to_owned(), RawFormat::Nef),
+                ("a.cr3".to_owned(), RawFormat::Cr3),
+                ("b.CR3".to_owned(), RawFormat::Cr3),
+            ],
+            "sorted by path, case-insensitive extensions, recursive, sidecars ignored"
+        );
+
+        // **The engine's table is the only authority.** If a format is added there and this
+        // count does not move, this walk has grown its own idea of what a raw is.
+        assert_eq!(
+            RawFormat::ALL.len(),
+            2,
+            "a format was added to the engine — check that raw_files still finds it"
+        );
+    }
+
     /// A track argument is a file **or** a directory of them, and a directory is **not** walked
     /// recursively — descending would quietly pull in a different day's logging, which is the
     /// one way this could tag a frame against the wrong track and still look like it worked.
