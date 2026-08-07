@@ -71,52 +71,7 @@ SDDR-409 has already produced a number worth beating: 281 MB/s** — which retir
 247 was that reader's ceiling, so the other two readers now have a real bar rather than an
 assumed one.
 
-## 2. Zoom out over the badge and verdict work — IN PROGRESS, roughly half done
-
-**Started 2026-08-06. What has actually been swept, so nobody assumes the rest was:**
-
-**Every document is now swept.** What remains is code comments.
-
-| Swept | Not yet swept |
-|---|---|
-| `CONOPS.md` verdict table — was naming phrases the tool no longer prints | the rest of `main.rs`'s ~980 comment lines |
-| `DESIGN.md` decision 14 — verdict table, layout rules, badge section | `eject.rs` (429 comment lines) |
-| `DESIGN.md` run records → [`RUNS.md`](RUNS.md), −18 % | `progress.rs` (270), `human.rs`, `winio.rs` |
-| `progress.rs` — orphaned `clear()` doc | |
-| `main.rs` — `step_badge`, `phase_heading`, `verdict()` | |
-| `WRITING.md` — gained the prose bar; `RUNS.md` registered | |
-| `FULL-RUN.md` — **clean**, no verdict or badge claims | |
-| `TRIP-HYGIENE.md` — **`console` was still filed as "cosmetic"** | |
-| `REVIEWING.md` — **still described a four-test project**; there are 122 | |
-| `--eject-prepare` references repo-wide — **all five describe the removal**, none instruct | |
-
-**Four defects found so far, none of them cosmetic:** `CONOPS.md` citing dead verdict phrases;
-four rows of `DESIGN.md`'s verdict table describing output that never existed; two orphaned doc
-comments; and a false mechanism written into `verdict()`'s own doc the same evening it was
-corrected elsewhere.
-
-**Opened 2026-08-06, deliberately deferred by Terry while the CLI work is still moving:** *"we're
-gonna have some GOOD doc comments and doc changes flowing out of this. We've made a LOT of
-substantive changes that need a zoom out, but not yet."*
-
-**What accumulated in one evening**, all of it committed and none of it yet reviewed as a whole:
-
-- The badge column as a single go/no-go on unplugging, and yellow as a stop signal rather than a
-  severity
-- Red banned outright, including the `LANDED` block's last carve-out
-- `#FFFF00` true colour, never bold, and *why* — two causes were dulling the same badge
-- `Eject` reclassified as a container rather than a step, with `Progress Log`, `Travel SSDs`,
-  `Cards` and `Safe to Unhook` as its steps
-- **`SAFE TO STORE` reserved for when nothing is mounted**, which was a real defect
-
-**The risk this item exists to catch:** each change was argued in its own commit and its own doc
-comment, and several of them *supersede* text elsewhere rather than adding to it. **Nobody has
-read the result end to end.**
-
-**Do this after the CLI signoff closes**, and treat it as a documentation review rather than a
-code one — the code is tested; the prose is not.
-
-## 3. Put the docs and tests on a diet — IN PROGRESS
+## 2. Put the docs and tests on a diet — IN PROGRESS
 
 **Terry raised the priority on 2026-08-06** and set the framing: *"pretty aggressive... this is a
 hobby project, we aren't launching nuclear missiles, nobody's gonna die. Use a fresh pair of
@@ -280,3 +235,49 @@ Hub". Seeing SuperSpeed hubs the whole way up means the reader came up at SuperS
 > whether it changes the figure before running the 2 × 3 matrix** — otherwise three readers get
 > characterized through an untested variable, which is the mistake `REVIEWING.md`'s
 > *when two runs agree, change the other variable* records.
+
+### Zoom out over the badge and verdict work — CLOSED 2026-08-06, every document swept
+
+**Started 2026-08-06. What has actually been swept, so nobody assumes the rest was:**
+
+**Every document is now swept.** What remains is code comments.
+
+| Swept | Not yet swept |
+|---|---|
+| `CONOPS.md` verdict table — was naming phrases the tool no longer prints | the rest of `main.rs`'s ~980 comment lines |
+| `DESIGN.md` decision 14 — verdict table, layout rules, badge section | `eject.rs` (429 comment lines) |
+| `DESIGN.md` run records → [`RUNS.md`](RUNS.md), −18 % | `progress.rs` (270), `human.rs`, `winio.rs` |
+| `progress.rs` — orphaned `clear()` doc | |
+| `main.rs` — `step_badge`, `phase_heading`, `verdict()` | |
+| `WRITING.md` — gained the prose bar; `RUNS.md` registered | |
+| `FULL-RUN.md` — **clean**, no verdict or badge claims | |
+| `TRIP-HYGIENE.md` — **`console` was still filed as "cosmetic"** | |
+| `REVIEWING.md` — **still described a four-test project**; there are 122 | |
+| `--eject-prepare` references repo-wide — **all five describe the removal**, none instruct | |
+
+**Four defects found so far, none of them cosmetic:** `CONOPS.md` citing dead verdict phrases;
+four rows of `DESIGN.md`'s verdict table describing output that never existed; two orphaned doc
+comments; and a false mechanism written into `verdict()`'s own doc the same evening it was
+corrected elsewhere.
+
+**Opened 2026-08-06, deliberately deferred by Terry while the CLI work is still moving:** *"we're
+gonna have some GOOD doc comments and doc changes flowing out of this. We've made a LOT of
+substantive changes that need a zoom out, but not yet."*
+
+**What accumulated in one evening**, all of it committed and none of it yet reviewed as a whole:
+
+- The badge column as a single go/no-go on unplugging, and yellow as a stop signal rather than a
+  severity
+- Red banned outright, including the `LANDED` block's last carve-out
+- `#FFFF00` true colour, never bold, and *why* — two causes were dulling the same badge
+- `Eject` reclassified as a container rather than a step, with `Progress Log`, `Travel SSDs`,
+  `Cards` and `Safe to Unhook` as its steps
+- **`SAFE TO STORE` reserved for when nothing is mounted**, which was a real defect
+
+**The risk this item exists to catch:** each change was argued in its own commit and its own doc
+comment, and several of them *supersede* text elsewhere rather than adding to it. **Nobody has
+read the result end to end.**
+
+**Do this after the CLI signoff closes**, and treat it as a documentation review rather than a
+code one — the code is tested; the prose is not.
+
