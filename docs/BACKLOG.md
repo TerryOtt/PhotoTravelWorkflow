@@ -739,6 +739,38 @@ the repository.
 > **TERRY'S MOVE at the end:** archiving the repository is his call, since it is the tool he
 > currently travels with. Everything before that is buildable without him.
 
+## Does a re-run erase corroboration from the manifest? — IN PROGRESS, started 2026-08-08 00:42Z
+
+**Found while walking Terry's *purely additive* principle**, and it is the third thing that
+principle turned up.
+
+**The mechanism, established by reading:** `pipeline.rs` emits a manifest `Entry` for **every
+verified file**, including one that converged — already present, hash matched, re-verified but
+not rewritten. That entry always carries `corroborated: None`, because *"phase 4 has not run, so
+corroboration is pending"* (decision 12). And `manifest::update` merges by name with
+`*held = entry` — **wholesale replacement**.
+
+**So a re-run resets every entry from `Matched` back to pending.** Harmless when phase 4 then
+runs and restores it. The case that may not be:
+
+1. Night 1, both cards → every entry `Matched`
+2. Cards not yet formatted; re-run with only the CFexpress, `--allow-single-source`
+3. Phase 3 re-verifies and resets every entry to pending
+4. **Phase 4 never runs, so nothing restores it**
+
+**The proof would be erased rather than wrong** — and the manifest is what `verify` trusts years
+later. Same shape for a tombstone: a resume re-ingests a deleted frame from the card and
+overwrites `status: deleted` with `status: present` before re-detecting and re-deleting it.
+
+**Not yet established: whether it is reachable.** Decision 13's resume is for *interrupted* runs,
+and there is little reason to re-run a completed night. **It may be purely theoretical**, which is
+the first thing to settle.
+
+> **The likely fix if it is real:** `update` should preserve an existing entry's `corroborated`
+> and `deletion` fields rather than overwriting them with `None`. **Phase 3 has no knowledge of
+> corroboration and should not be able to unsay it** — which is the additive principle again, one
+> level down.
+
 ## Boomerang pass: code → docs → code — IN PROGRESS, started 2026-08-07 23:10Z
 
 **Terry's brief, verbatim:** *"code -> docs is pass one. Make sure everything the code does that
