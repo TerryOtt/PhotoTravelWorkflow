@@ -559,11 +559,28 @@ when only two tracks were on the laptop; with the real tracks, the picture chang
 | **2023-09-14** | `+01:00` | **Correct** — 0 naive, on a Forks → Victoria driving day |
 | 2022-09-28 | `+01:00` | **Indeterminate** — classified naive, but **worst displacement 0.2 km**: he was stationary, so the two readings are indistinguishable |
 
-> **2022-09-27 is anomalous inside its own trip**, which is the tell. The day before is
-> indeterminate and the day after is clean, on the same camera, the same offset and the same
-> logger. **The likely story: it is the day the bug was found on.** `FIXTURES.md` cut
-> `cr3-offset-nonzero` from `_50A0001.CR3` — a 2022-09-27 frame — so that day was the test case,
-> tagged with the buggy build, and never re-tagged once the rest of the trip was done correctly.
+> ### ✔ Terry explained the anomaly, 2026-08-07: **the camera was on BST that day**
+>
+> *"That day was shot on BST instead of UTC. London with daylight savings on."*
+>
+> **BST is UTC+01:00, so the offset in that day's EXIF is genuine rather than stale.** The clock
+> showed London local time and declared `+01:00` correctly, which makes the file self-consistent
+> and the true instant recoverable: `15:02:05 +01:00` **is** `14:02:05Z`.
+>
+> **So honoring the offset is right, and the archive — which sits at the 15:02:05Z position — is
+> an hour late.** On a driving day that is the ~50 km. `offload geotag` lands on the correct
+> instant; nothing is wrong with the raws.
+>
+> **And it explains why one day and not its neighbours.** Discarding an offset is invisible when
+> the offset is `+00:00`, which is every UTC day — exactly what `cr3-offset-utc` exists to
+> demonstrate. **2022-09-27 is the only day in the archive where the camera carried a non-zero
+> offset *and* moved fast enough for an hour to matter.** The earlier guess — that it was the day
+> the bug was found on — was wrong; the camera's clock is the whole explanation.
+>
+> **Still unconfirmed by eye.** Open `_50A0001.CR3` in Lightroom and compare the pin to the
+> subject: the archive says 51°43.05′N 116°30.45′W (09:02 MDT), the corrected reading says
+> 51°21.14′N 116°5.29′W (08:02 MDT). Supporting detail: the logger started 13:47:45Z, **15
+> minutes** before the first frame under the corrected reading and **75** under the archive's.
 >
 > **Two driving days were chosen deliberately for the last checks.** A day of movement is the
 > only kind that can discriminate; on a stationary day both readings land in the same place and
