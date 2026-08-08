@@ -287,6 +287,30 @@ pub fn update(
 
     for entry in entries {
         match body.files.iter_mut().find(|held| held.name == entry.name) {
+            // **Phase 3 MUST NOT be able to unsay phase 4.** Phase 3 writes every entry with
+            // `corroborated: None` because it has no knowledge of a second card — that is
+            // *pending*, not *no*. Replacing the held entry wholesale let a re-run overwrite an
+            // answer phase 4 had already given, and there is a path with no second chance:
+            // under `--allow-single-source` phase 4 never runs, so nothing restores it.
+            //
+            // **The tombstone is the worse half.** A frame phase 4 deleted carries `deleted`
+            // plus both competing hashes — the only record of *why* a photograph is gone. A
+            // re-run re-ingests it from the card and offered a fresh `present`, resurrecting
+            // the frame in the record and discarding the evidence.
+            //
+            // **Gated on the hash, because that is what makes carrying the verdict honest.**
+            // Same bytes means phase 4's answer is still about these bytes. Different bytes
+            // mean it is genuinely a different file, and *pending* is then the truth.
+            Some(held) if held.sha256 == entry.sha256 => {
+                let status = held.status;
+                let corroborated = held.corroborated;
+                let deletion = held.deletion.clone();
+
+                *held = entry;
+                held.status = status;
+                held.corroborated = corroborated;
+                held.deletion = deletion;
+            }
             Some(held) => *held = entry,
             None => body.files.push(entry),
         }
@@ -400,6 +424,201 @@ mod tests {
                 deletion: None,
             }],
         }
+    }
+
+    /// One frame as **phase 3** writes it: verified, and corroboration genuinely pending.
+    fn landed(name: &str, run_id: &str) -> Entry {
+        Entry {
+            name: name.into(),
+            status: Status::Present,
+            sha256: "9f2b".into(),
+            bytes: 47_185_920,
+            captured_utc: Some("2026-08-03T14:22:37Z".into()),
+            source_card: "primary".into(),
+            source_volume_serial: "A4E2-91CC".into(),
+            run_id: run_id.into(),
+            verified_utc: "2026-08-03T18:23:31Z".into(),
+            corroborated: None,
+            deletion: None,
+        }
+    }
+
+    fn a_run(run_id: &str) -> Run {
+        Run {
+            run_id: run_id.into(),
+            files_added: 1,
+            bytes_added: 47_185_920,
+        }
+    }
+
+    fn corroboration_in(folder: &Path) -> Option<Corroborated> {
+        Manifest::read(&path_in(folder))
+            .expect("readable")
+            .body
+            .files[0]
+            .corroborated
+    }
+
+    /// **Phase 3 MUST NOT be able to unsay phase 4.**
+    ///
+    /// Phase 3 writes every entry with `corroborated: None` — genuinely *pending*, because it
+    /// has no knowledge of a second card. Phase 4 later answers that question. A re-run sends
+    /// phase 3 over the same files again, and if its pending marker replaced the answer, the
+    /// manifest would forget a corroboration that really happened.
+    ///
+    /// **The case with no second chance is `--allow-single-source`**: phase 4 does not run at
+    /// all, so nothing would restore what phase 3 erased, and `verify` reads that manifest
+    /// years later.
+    #[test]
+    fn a_rerun_does_not_erase_a_recorded_corroboration() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+        let folder = scratch.path();
+
+        // Night one: phase 3 lands the frame, phase 4 confirms it against the second card.
+        update(
+            folder,
+            "2026-08-03",
+            "OWC",
+            a_run("run-1"),
+            vec![landed("1422Z_0001.CR3", "run-1")],
+        )
+        .expect("the first run's manifest");
+
+        corroborate(
+            folder,
+            &[Outcome {
+                name: "1422Z_0001.CR3".into(),
+                corroborated: Corroborated::Matched,
+                deletion: None,
+            }],
+        )
+        .expect("phase 4");
+
+        assert_eq!(
+            corroboration_in(folder),
+            Some(Corroborated::Matched),
+            "phase 4 should have recorded the match"
+        );
+
+        // A re-run: phase 3 re-verifies the same frame and offers a fresh pending entry.
+        update(
+            folder,
+            "2026-08-03",
+            "OWC",
+            a_run("run-2"),
+            vec![landed("1422Z_0001.CR3", "run-2")],
+        )
+        .expect("the second run's manifest");
+
+        assert_eq!(
+            corroboration_in(folder),
+            Some(Corroborated::Matched),
+            "a re-run erased a corroboration that phase 4 had established"
+        );
+    }
+
+    /// **A tombstone is evidence, and a re-run MUST NOT quietly overwrite it.**
+    ///
+    /// Phase 4 deletes a frame the two cards disagree about and records `status: deleted` with
+    /// both competing hashes — the only record of *why* a photograph is gone. A re-run finds it
+    /// missing from the destination and re-ingests it from the card, offering a fresh
+    /// `status: present`. If that replaced the tombstone, the deletion's evidence would be lost
+    /// and the disputed frame would read as an ordinary landed file.
+    #[test]
+    fn a_rerun_does_not_overwrite_a_tombstone() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+        let folder = scratch.path();
+
+        update(
+            folder,
+            "2026-08-03",
+            "OWC",
+            a_run("run-1"),
+            vec![landed("1611Z_2087.CR3", "run-1")],
+        )
+        .expect("the first run's manifest");
+
+        corroborate(
+            folder,
+            &[Outcome {
+                name: "1611Z_2087.CR3".into(),
+                corroborated: Corroborated::Mismatched,
+                deletion: Some(Deletion {
+                    source_sha256: "aaaa".into(),
+                    other_sha256: "bbbb".into(),
+                    reason: "the two cards disagreed".into(),
+                    deleted_utc: "2026-08-03T18:44:02Z".into(),
+                }),
+            }],
+        )
+        .expect("phase 4");
+
+        // The re-run re-ingests it, because phase 4 removed it from every destination.
+        update(
+            folder,
+            "2026-08-03",
+            "OWC",
+            a_run("run-2"),
+            vec![landed("1611Z_2087.CR3", "run-2")],
+        )
+        .expect("the second run's manifest");
+
+        let held = &Manifest::read(&path_in(folder))
+            .expect("readable")
+            .body
+            .files[0];
+        assert_eq!(
+            held.status,
+            Status::Deleted,
+            "a re-run resurrected a frame phase 4 had deleted"
+        );
+        assert!(
+            held.deletion.is_some(),
+            "a re-run erased the tombstone's evidence — the two competing hashes"
+        );
+    }
+
+    /// **The other half of the gate, and the one that keeps carrying a verdict honest.**
+    ///
+    /// A verdict is preserved only while the bytes are the same, because that is what it was
+    /// about. Different bytes under the same name mean a genuinely different file — decision 5
+    /// gives that a `_001` suffix, so reaching here at all means the content was replaced in
+    /// place — and *pending* is then the truth. Without this the fix above would carry a stale
+    /// `matched` onto content nothing has corroborated, which is worse than what it replaced.
+    #[test]
+    fn a_verdict_does_not_carry_onto_different_bytes() {
+        let scratch = tempfile::TempDir::new().expect("a scratch directory");
+        let folder = scratch.path();
+
+        update(
+            folder,
+            "2026-08-03",
+            "OWC",
+            a_run("run-1"),
+            vec![landed("1422Z_0001.CR3", "run-1")],
+        )
+        .expect("the first run");
+
+        corroborate(
+            folder,
+            &[Outcome {
+                name: "1422Z_0001.CR3".into(),
+                corroborated: Corroborated::Matched,
+                deletion: None,
+            }],
+        )
+        .expect("phase 4");
+
+        let mut replaced = landed("1422Z_0001.CR3", "run-2");
+        replaced.sha256 = "0000different".into();
+        update(folder, "2026-08-03", "OWC", a_run("run-2"), vec![replaced])
+            .expect("the second run");
+
+        assert_eq!(
+            corroboration_in(folder),
+            None,
+            "a corroboration was carried onto bytes nothing had corroborated"
+        );
     }
 
     #[test]

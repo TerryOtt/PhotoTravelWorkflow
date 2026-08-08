@@ -739,37 +739,34 @@ the repository.
 > **TERRY'S MOVE at the end:** archiving the repository is his call, since it is the tool he
 > currently travels with. Everything before that is buildable without him.
 
-## Does a re-run erase corroboration from the manifest? — IN PROGRESS, started 2026-08-08 00:42Z
+## Does a re-run erase corroboration from the manifest? — **YES. CLOSED 2026-08-08**
 
-**Found while walking Terry's *purely additive* principle**, and it is the third thing that
-principle turned up.
-
-**The mechanism, established by reading:** `pipeline.rs` emits a manifest `Entry` for **every
-verified file**, including one that converged — already present, hash matched, re-verified but
-not rewritten. That entry always carries `corroborated: None`, because *"phase 4 has not run, so
-corroboration is pending"* (decision 12). And `manifest::update` merges by name with
-`*held = entry` — **wholesale replacement**.
-
-**So a re-run resets every entry from `Matched` back to pending.** Harmless when phase 4 then
-runs and restores it. The case that may not be:
-
-1. Night 1, both cards → every entry `Matched`
-2. Cards not yet formatted; re-run with only the CFexpress, `--allow-single-source`
-3. Phase 3 re-verifies and resets every entry to pending
-4. **Phase 4 never runs, so nothing restores it**
-
-**The proof would be erased rather than wrong** — and the manifest is what `verify` trusts years
-later. Same shape for a tombstone: a resume re-ingests a deleted frame from the card and
-overwrites `status: deleted` with `status: present` before re-detecting and re-deleting it.
-
-**Not yet established: whether it is reachable.** Decision 13's resume is for *interrupted* runs,
-and there is little reason to re-run a completed night. **It may be purely theoretical**, which is
-the first thing to settle.
-
-> **The likely fix if it is real:** `update` should preserve an existing entry's `corroborated`
-> and `deletion` fields rather than overwriting them with `None`. **Phase 3 has no knowledge of
-> corroboration and should not be able to unsay it** — which is the additive principle again, one
-> level down.
+> **Real, reproduced, fixed, mutation-checked.** Found by walking Terry's *purely additive*
+> principle rather than by a failing run — which is the point: the erasure left no error, no
+> warning, and a manifest that still passed its own checksum.
+>
+> **Two defects, one cause.** `manifest::update` merged by name with `*held = entry`, replacing
+> the held entry whole — so phase 3, which writes `corroborated: None` because it has no
+> knowledge of a second card, could overwrite an answer phase 4 had already given.
+>
+> | | Before |
+> |---|---|
+> | A re-run over a corroborated folder | every `matched` reset to **pending** |
+> | A re-run over a **tombstone** | `deleted` → `present`, and **both competing hashes discarded** |
+>
+> **Usually self-healing, which is what hid it** — phase 4 runs next and answers again. **The
+> path with no second chance is `--allow-single-source`**, where phase 4 never runs, leaving a
+> genuinely corroborated night reading *pending* permanently in the artifact `verify` trusts
+> years later.
+>
+> **The fix preserves `status`, `corroborated` and `deletion` from the held entry, gated on the
+> hash matching.** Different bytes mean a genuinely different file and *pending* is then the
+> truth — carrying a stale `matched` onto unexamined content would have been worse than the
+> defect. **192 tests**; removing the gate fails the third test by name.
+>
+> > **Left open and larger:** phase 3 re-copies a tombstoned frame from the card at all, because
+> > nothing consults the manifest before placing a file. The *record* is correct now either way,
+> > but a deliberately deleted frame reappearing on disk is a separate question.
 
 ## Boomerang pass: code → docs → code — IN PROGRESS, started 2026-08-07 23:10Z
 

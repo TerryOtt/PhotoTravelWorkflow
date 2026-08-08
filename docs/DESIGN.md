@@ -1076,6 +1076,37 @@ has to rewrite a manifest spanning years.
 > `skip_serializing_if` keeps it out of re-read schema-1 manifests so their checksums keep
 > validating.
 
+> ### ⚠ DEFECT, found and fixed 2026-08-08: a re-run erased phase 4's verdicts
+>
+> **Phase 3 could unsay phase 4.** It writes every entry with `corroborated: None` — genuinely
+> *pending*, because it has no knowledge of a second card — and `manifest::update` merged by name
+> with `*held = entry`, **replacing the held entry whole**. So a second pass over a folder reset
+> every `matched` back to pending.
+>
+> **Usually self-healing, and that is what hid it**: phase 4 runs next and answers again.
+> **The path with no second chance is `--allow-single-source`**, where phase 4 never runs at all —
+> so a night genuinely corroborated against two cards would be left reading *pending*, permanently,
+> in the artifact `verify` trusts years later. **The proof erased rather than wrong.**
+>
+> **The tombstone was the worse half.** A frame phase 4 deleted carries `deleted` plus both
+> competing hashes — the only record of *why* a photograph is gone. A re-run finds it missing from
+> the destination, re-ingests it from the card, and offered a fresh `present`: **the frame
+> resurrected in the record and the evidence discarded.**
+>
+> **The fix: `update` preserves `status`, `corroborated` and `deletion` from the held entry —
+> gated on the hash matching.** Same bytes means phase 4's answer is still about these bytes.
+> Different bytes mean a genuinely different file, and *pending* is then the truth; carrying a
+> stale `matched` onto unexamined content would be worse than the defect. **Three tests, and the
+> gate is mutation-checked** — removing it fails the third by name.
+>
+> **Found by walking Terry's *"purely additive"* principle** rather than by a failing run, which
+> is the useful part: the erasure leaves no error, no warning, and a manifest that still passes
+> its own checksum.
+>
+> > **Left open, and larger:** phase 3 re-copies a tombstoned frame from the card in the first
+> > place, because nothing consults the manifest before placing a file. The record is now correct
+> > either way, but a deliberately deleted frame reappearing on disk is a separate question.
+
 **The manifest carries its own checksum** — the same SHA-256 as everything else
 (decision 17). It holds every hash in the archive, so if those
 few hundred kilobytes rot in the safe over five years, `verify` would otherwise report
