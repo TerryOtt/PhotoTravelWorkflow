@@ -2027,6 +2027,32 @@ it at a disk from the safe, and *"reads only its marker and manifests"* answers 
 **A read-only checker is what makes it safe to run on a suspect disk**, which is the moment it
 is most likely to be wanted.
 
+### More files than the manifest is fine. Fewer is not.
+
+**Standing order, Terry, 2026-08-07, verbatim: *"I'm fine with MORE files being there than the
+manifest. Just not less."*** That is the whole asymmetry, and it decides three outputs at once:
+
+| On disk | Verdict | How it prints |
+|---|---|---|
+| Recorded and matching | clean | counted, nothing per-file |
+| **Recorded and missing** | **`NOT CLEAN`**, exit 2 | `!  MISSING <name>` |
+| **Recorded and changed** | **`NOT CLEAN`**, exit 2 | `!  DAMAGED <name>` |
+| **Present but unrecorded** | **does not affect the verdict** | a plain INFO line, **no marker** |
+
+**An extra file is not evidence of anything wrong with the archive.** A stray note, a JPEG
+dropped in a folder, a sidecar from another tool — none of it says a photograph is at risk, and
+`verify` exists to answer exactly one question: *are the frames I recorded still here and still
+right?*
+
+> **It printed `?` until 2026-08-07 — a fourth severity marker decision 34's vocabulary never
+> defined.** Terry's ruling and the reason to keep in mind for anything similar: **_"I need this
+> app to be my oracle. If it's not sure what that means, neither do I. Just note it info and
+> move on."_**
+>
+> **A marker the reader has to interpret is the tool hedging**, and a hedge in a verification
+> report is worse than silence — it invites the operator to supply a meaning the tool declined
+> to commit to, at 11pm, about a disk from a safe.
+
 **`offload verify <DEST>`** reads the destination marker to name what it is checking —
 at whatever schema that disk was written with, which every later build still understands
 (decision 28) —
@@ -3321,6 +3347,20 @@ fires regardless of the truth.
 > | **INFO** | a plain line in the report body | **never** — timezone, geotag counts, per-destination rates, and now the body |
 > | **WARNING** | a `!`-prefixed block | exit 2, and the verdict may carry a scar — unfiled frames, a deleted mismatch, a refused eject |
 > | **VERDICT** | the last line, phrases appearing nowhere else | it *is* the answer (decision 14) |
+>
+> **These three are the whole vocabulary, and a fourth MUST NOT be invented.** Standing order,
+> Terry, 2026-08-07, after `verify` was found printing a `?` this table never defined:
+> **_"I need this app to be my oracle. If it's not sure what that means, neither do I. Just note
+> it info and move on."_**
+>
+> **A new marker is the tool hedging**, and the reader has nowhere to look it up. If a finding
+> does not earn `!` — meaning the program itself changes the exit code over it — **it is INFO
+> and it is unmarked.** There is no level for *probably nothing, but have a look.*
+>
+> **`!` and exit 2 are one thing, not two.** A `!` that leaves the exit code at 0 is the same
+> broken promise from the other direction, and there was one of those too: a sleep-inhibit
+> warning that never reached `exit_code`. **Decision 9 records how that was resolved — the
+> feature was deleted, not the marker.**
 >
 > The test for which one a new finding takes: **would it still be true tomorrow night, and
 > the night after?** A repeating fact is INFO however much it matters, because a warning that

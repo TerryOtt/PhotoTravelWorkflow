@@ -2124,8 +2124,17 @@ fn verify_destination(root: &Path) -> Result<ExitCode> {
         for name in &folder.missing {
             println!("  !  MISSING   {name}");
         }
+        // **INFO, and unmarked on purpose — `DAMAGED` and `MISSING` above wear `!` and this
+        // does not.** Terry's rule, 2026-08-07: *"I'm fine with MORE files being there than
+        // the manifest. Just not less."* An extra file is not evidence of anything wrong with
+        // the archive; a missing one is.
+        //
+        // It used to print a `?`, a fourth severity marker that decision 34's vocabulary never
+        // defined. **A marker the reader has to interpret is the tool hedging**, and his
+        // standing requirement is the opposite: *"I need this app to be my oracle. If it's not
+        // sure what that means, neither do I."*
         for name in &folder.unrecorded {
-            println!("  ?  not in the manifest: {name}");
+            println!("     not in the manifest: {name}");
         }
     }
 
