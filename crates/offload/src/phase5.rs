@@ -205,14 +205,11 @@ fn format_utc(at: DateTime<Utc>) -> String {
 
 /// Write sidecars for everything the track genuinely supports.
 ///
-/// `force` overwrites existing sidecars, and is decision 16's single door through the
-/// never-rewrite-a-sidecar invariant.
 pub fn run(
     landed: &[Landed],
     destinations: &[Destination],
     tracks: &[PathBuf],
     limits: GapLimits,
-    force: bool,
     progress: &Progress,
 ) -> Result<Report> {
     let track = Track::load(tracks).context("loading the GPX tracks")?;
@@ -247,10 +244,13 @@ pub fn run(
                 for destination in destinations {
                     let sidecar = xmp::sidecar_path(&destination.root.join(&photo.relative));
 
-                    // The invariant: an existing sidecar is never rewritten without
-                    // being asked (decision 16). Phase 5 tags what is untagged and
-                    // skips the rest, which is also what makes a re-run converge.
-                    if sidecar.exists() && !force {
+                    // **The invariant, and there is now no door through it: this tool
+                    // never overwrites a sidecar.** `--force-xmp` was deleted 2026-08-07 —
+                    // Terry: *"better to make me the footgun than the tool."* An existing
+                    // sidecar is reported and skipped, and deciding what to do about it is a
+                    // deliberate human act rather than a flag. It is also what makes a re-run
+                    // converge (decision 16).
+                    if sidecar.exists() {
                         report.skipped += 1;
                         continue;
                     }

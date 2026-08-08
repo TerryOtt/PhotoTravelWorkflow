@@ -487,32 +487,23 @@ exactly the storage that measurement was taken against.
 **Recommendation: A**, because decision 30 is already authorized and B makes it worse. **His
 call because it is scope**, not because the engineering is unclear.
 
-## ⚠ Guard `--force-xmp` against foreign sidecars — OPEN
+## ~~Guard `--force-xmp` against foreign sidecars~~ — CLOSED 2026-08-07, **the flag was deleted**
 
-> **Re-justified 2026-08-07 after the 2022-09-27 re-tag was withdrawn.** This item was filed as
-> *"it blocks the re-tag below"*, and that reason is gone. **It stands on its own and is now the
-> stronger case**: the hazard is not one archive day, it is that a shipped subcommand can
-> silently replace somebody's develop settings with a GPS-only packet, on any tree it is pointed
-> at. `offload geotag`'s own purpose — tagging raws that already landed — points it at exactly
-> the directories Lightroom manages.
-
-**`xmp::render` writes a GPS-only packet** — seven `exif:GPS*` fields, verified 2026-08-07 from
-the source *and* from a sidecar it produced. Right for the nightly run, whose destinations
-Lightroom never opens (decision 11's correction). **Wrong when `offload geotag` is pointed at a
-Lightroom-managed archive**, where the packets carry `crs:`, `crd:` and `xmpMM:` — develop
-settings, ratings, keywords. **`--force-xmp` replaces the file; it does not merge.**
-
-**What saves you today is decision 16's invariant** — an existing sidecar is never rewritten
-*without* `--force-xmp`. **So the default is safe and the flag is the hazard**, which is a thin
-guard for an operation whose whole purpose is fixing an archive that already has sidecars.
-
-**The fix: read the existing packet's `x:xmptk` before overwriting, and refuse if it is not this
-tool's.** Deliberately **not** rushed — it touches phase 5's shared write path and was found with
-under an hour left in a work window. **A safety feature added hastily to a shared write path is
-worse than a documented gap.**
-
-> **This blocks the re-tag below in practice.** Whatever the geotag positions say, no
-> Lightroom-managed day gets `--force-xmp` until this is settled.
+> **Terry closed it by removing the capability instead:** *"let's delete the capability
+> altogether. If existing XMP's are in the way, it should info and skip them. I can decide what
+> to do then."* And the principle behind it: ***"better to make me the footgun than the tool."***
+>
+> **So there is nothing left to guard.** `--force-xmp` is gone from the nightly command *and*
+> from `offload geotag`; an existing sidecar is reported and skipped on every path. **The hazard
+> is structurally absent rather than gated behind a check somebody has to keep correct** — which
+> is strictly better than the guard would have been.
+>
+> **A defect surfaced while removing it, and it argued the same way.** The nightly
+> `--force-xmp=<DEST>` form was consumed as `.is_some()` — **the label was parsed and
+> discarded**, so a narrowed `--force-xmp=SSD-A` overwrote **all four** destinations while
+> `--help` promised *"just the one named."* The failure ran in the dangerous direction.
+>
+> `DESIGN.md` decision 16 carries the full reasoning; RawGeotag keeps its own `--force`.
 
 ## 2022-09-27's archive geotags are ~50 km out — CLOSED 2026-08-07, **NOT A WORK ITEM**
 
@@ -568,13 +559,11 @@ it tags 49.9 km away, and it still tags, because 15:02:05Z also falls inside the
 no warning, no skip."* `cr3-offset-nonzero` exists **because** of this bug. The archive was
 tagged before the fix and never re-tagged.
 
-**The fix, if he wants it** — `--force-xmp` is required because sidecars already exist:
+**There is no fix to run, and no longer any way to run one.** `--force-xmp` was deleted the same
+day from both the nightly command and `offload geotag`, so nothing in this tool can overwrite an
+existing sidecar — see the closed item above.
 
-```
-offload geotag "Q:\Lightroom\Images\2022\2022-09-27" "C:\Travel\GPX\not-tonight\2022-09-27.gpx" --force-xmp
-```
-
-> **⚠ Two things to settle before anyone runs that, and Claude MUST NOT run it unasked.**
+> **The two objections that would have gated it, kept because they are why the flag went.**
 >
 > 1. **Those sidecars are Lightroom's, not RawGeotag's** — they carry `crs:`, `crd:` and
 >    `xmpMM:` namespaces and an `Adobe XMP Core` writer tag. **`xmp::render` writes a GPS-only
@@ -655,11 +644,11 @@ needs the same check against its own track, which is now possible and cheap.
 > ### ✔ The subcommand shipped 2026-08-07. **The retirement did not.**
 >
 > ```text
-> offload geotag <ROOT> <GPX...> [--max-gap-seconds S] [--max-gap-meters M] [--force-xmp]
+> offload geotag <ROOT> <GPX...> [--max-gap-seconds S] [--max-gap-meters M] [--dry-run]
 > ```
 >
 > **Verified against six real frames from 2024-10-02 with that day's own track**: 6 tagged, 6
-> sidecars written; a re-run wrote 0 and left 6 alone; `--force-xmp` rewrote all 6; an empty
+> sidecars written; a re-run wrote 0 and left 6 alone; an empty
 > tree prints `NOTHING TO TAG` and exits 2. A sidecar was read back carrying
 > `x:xmptk="offload 0.1.0"`, real coordinates and a matching `GPSTimeStamp`.
 >

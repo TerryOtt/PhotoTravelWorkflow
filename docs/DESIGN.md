@@ -753,8 +753,6 @@ offload                            the nightly command
                              when the GPX directory holds none
   --max-gap-seconds <S>      refuse to interpolate across a longer hole [default: 60]
   --max-gap-meters <M>       refuse to interpolate across a wider hole [default: 100]
-  --force-xmp[=<DEST>]       overwrite existing XMP on every destination, or on
-                             just the one named
   --no-eject                 leave the archive SSDs mounted when the run ends
   --eject-gap-seconds <S>    ask this often during eject, instead of the
                              2s-doubling-to-60s backoff — a diagnostic
@@ -765,7 +763,6 @@ offload geotag <ROOT> <GPX...>      tag a tree of raws in place (decision 30)
 
   --max-gap-seconds <S>      refuse to interpolate across a longer hole [default: 60]
   --max-gap-meters <M>       refuse to interpolate across a wider hole [default: 100]
-  --force-xmp                rewrite sidecars that already exist
   --dry-run                  correlate everything and write nothing
 ```
 
@@ -993,7 +990,7 @@ had reached six other decisions and each was reasoning from it:
   standard (decision 20). The tolerance for sidecar drift on one destination is gone,
   and it was the most dangerous consequence of the error — a verification tool with a
   blind spot it cannot justify.
-- **`--force-xmp` had no honest reason to scope itself by role** (decision 16).
+- **`--force-xmp` had no honest reason to scope itself by role** (decision 16), and was deleted outright on 2026-08-07.
 - **Eject is about removable versus internal, not archive versus working** (decision 22).
 - ~~**`sync`'s copy source is the laptop**~~ — withdrawn 2026-08-06; kept only because the point below still holds,
   not because it is authoritative (decision 20).
@@ -1737,7 +1734,7 @@ Four earned their keep there and come across, two of them changed by the new con
 > |---|---|---|
 > | `--max-gap-seconds`, `--max-gap-meters` | same | same |
 > | `--dry-run` | a separate planning path | the same pass with **no destinations** |
-> | **`--force-xmp`** | `--force-xmp[=<DEST>]` — optionally **one destination** | a plain flag |
+> | ~~`--force-xmp`~~ | **deleted 2026-08-07 from both** — nothing overwrites a sidecar now | — |
 >
 > **`geotag` has exactly one destination — the tree it was pointed at — so a per-destination
 > selector would be a value with one legal setting.** That is the shape `CLAUDE.md` calls a
@@ -1769,17 +1766,37 @@ by hash (decision 5), which a dry run never computes — its already-present cal
 name, and the real run re-decides them by content. A complete answer in seconds, which
 makes it the natural thing to run before walking away.
 
-**`--force` becomes `--force-xmp`.** In RawGeotag the bare name is unambiguous
-because sidecars are all it writes. This tool writes raws *and* sidecars, so `--force`
-reads most naturally as "overwrite my archive" — and that reading is the dangerous one. A
-destructive flag has to be honest about what it destroys, which includes being
-unambiguous about *what*. Semantics are otherwise unchanged, including composing with
-`--dry-run` as a rehearsal that reports what would be overwritten while writing nothing.
+### ~~`--force` becomes `--force-xmp`~~ — the capability was deleted 2026-08-07
 
-The rule the flag is the exception to deserves stating outright: **an existing sidecar
-is never rewritten without `--force-xmp` — by any code path.** Phase 5 tags what is
-untagged and skips the rest (decision 13's convergence); a re-run writes a sidecar only
-where none exists (decision 20). One invariant, one door through it.
+**There is no way to overwrite a sidecar with this tool, on any command, under any flag.**
+Terry, closing it: ***"better to make me the footgun than the tool."*** An existing sidecar is
+**reported and skipped**; deciding what to do about it is a deliberate human act — delete it
+yourself, then run — rather than a flag the tool hands you.
+
+**The invariant is now absolute, and that is the change.** It used to read *"an existing sidecar
+is never rewritten without `--force-xmp` — one invariant, one door through it."* **There is no
+door.** Phase 5 tags what is untagged and skips the rest, which is also what makes a re-run
+converge (decision 13).
+
+**Three things pushed it over**, and the first alone would have been enough:
+
+- **The nightly run has no use for it.** It writes to destinations it just created, so on a
+  fresh night there are no sidecars, and on a re-run convergence *wants* the skip.
+- **`--force-xmp=<DEST>` never worked.** `main.rs` consumed it as `.is_some()` and discarded the
+  label, so the narrowed form overwrote **all four destinations** while `--help` promised *"just
+  the one named."* **The failure ran in the dangerous direction** — someone deliberately
+  limiting the blast radius got the opposite.
+- **`offload geotag` points at trees Lightroom manages**, where a GPS-only packet would replace
+  develop settings, ratings and keywords. A flag that can do that unattended is not worth the
+  rare case it serves.
+
+**This is decision 16's own argument about raws, applied to sidecars** — *"better as a
+structural impossibility than as a flag nobody should reach for."* It took until the subcommand
+existed for the same reasoning to reach the other file type.
+
+> **RawGeotag keeps its `--force`, and should** (Terry, same conversation). It is a different
+> program with a different job. What does not come across is the flag, not the capability's
+> legitimacy there.
 
 Two consequences of scoping it that way:
 
@@ -1790,8 +1807,8 @@ Two consequences of scoping it that way:
   selection (`--without`, decision 25), not an override — it narrows what pre-flight
   asserts, never skips it. Pre-flight exists to fail while you are still at the desk.
 
-Sidecars on the archives are only ever written by this tool, so forcing them is harmless.
-**`--force-xmp` covers every destination, and the `=<DEST>` form narrows it to one.**
+Sidecars on the archives are only ever written by this tool — which is why *skipping* an
+existing one is always safe, and why nothing is lost by having no way to force past it.
 
 > **Reversed 2026-08-03 with decision 11.** This read: *"Sidecars on the laptop are
 > written by Lightroom and hold develop settings that exist nowhere else. So
@@ -2853,30 +2870,20 @@ the worst moment, which is trip hygiene.
 > ### ✔ `offload geotag` shipped 2026-08-07 — the subcommand exists and tags real frames
 >
 > ```text
-> offload geotag <ROOT> <GPX...> [--max-gap-seconds S] [--max-gap-meters M] [--force-xmp]
->                                [--dry-run]
+> offload geotag <ROOT> <GPX...> [--max-gap-seconds S] [--max-gap-meters M] [--dry-run]
 > ```
 >
-> ### ⚠ `--force-xmp` here can destroy Lightroom's work, and nothing stops it
+> ### ✔ It cannot destroy Lightroom's work, because it cannot overwrite anything
 >
-> **`xmp::render` writes a GPS-only packet** — seven `exif:GPS*` fields, verified 2026-08-07 by
-> reading both the source and a sidecar it produced. That is exactly right for the nightly run,
-> whose destinations Lightroom never opens (decision 11's correction).
+> **This section used to describe a hazard.** `xmp::render` writes a GPS-only packet — seven
+> `exif:GPS*` fields — and `--force-xmp` would have *replaced* a Lightroom sidecar carrying
+> `crs:`, `crd:` and `xmpMM:` namespaces with it. Pointed at `Q:\Lightroom\Images`, that would
+> have silently discarded develop settings, ratings and keywords.
 >
-> **It is not right when this subcommand is pointed at a Lightroom-managed archive.** Those
-> sidecars carry `crs:`, `crd:` and `xmpMM:` namespaces — develop settings, ratings, keywords —
-> and **`--force-xmp` would replace the file, not merge into it.** `Q:\Lightroom\Images` is full
-> of exactly such packets.
->
-> **Nothing currently warns.** The invariant that saves you is decision 16's: an existing sidecar
-> is never rewritten *without* `--force-xmp`. **So the default is safe and the flag is the
-> hazard** — which is a thin guard for an operation whose whole purpose is fixing an archive
-> that already has sidecars.
->
-> **The obvious fix, not built and deliberately not rushed:** before overwriting, read the
-> existing packet's `x:xmptk`; if it is not this tool's, refuse or require a second flag. It
-> touches phase 5's shared write path, so it wants a considered change rather than a fast one.
-> **Tracked in [`BACKLOG.md`](BACKLOG.md).**
+> **The flag was deleted 2026-08-07 rather than guarded** (decision 16). An existing sidecar is
+> reported and skipped, always. **A guard was drafted and is no longer needed** — there is
+> nothing left to guard, which is the better outcome: the hazard is structurally absent instead
+> of gated behind a check somebody has to keep correct.
 
 > **`--dry-run` came across because losing it would have been a regression.** RawGeotag had one,
 > and this subcommand writes into a directory of existing photographs rather than into

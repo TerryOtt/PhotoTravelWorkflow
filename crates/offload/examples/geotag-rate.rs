@@ -96,7 +96,6 @@ fn main() -> ExitCode {
         &destinations,
         &tracks,
         GapLimits::DEFAULT,
-        false,
         &Progress::Silent,
     ) {
         Ok(report) => report,

@@ -72,10 +72,6 @@ enum Command {
         #[arg(long, value_name = "METERS", default_value_t = GapLimits::DEFAULT.max_meters)]
         max_gap_meters: f64,
 
-        /// Rewrite sidecars that already exist instead of leaving them alone.
-        #[arg(long)]
-        force_xmp: bool,
-
         // Carried over from RawGeotag deliberately: this subcommand writes into a directory of
         // somebody's existing photographs, where the nightly command writes into destinations
         // it created. A preview is worth more here than there.
@@ -127,13 +123,6 @@ struct Offload {
     /// Overwrite existing XMP on every destination, or on just the one named.
     //
     // A doc comment here would be printed by `--help`, so this note is an ordinary one.
-    // `Option<Option<_>>` is clap's encoding for a flag whose value is optional, which is
-    // what decision 8's `--force-xmp[=<DEST>]` needs: absent, bare and named are three
-    // distinct instructions, and a bare `--force-xmp` must not read as "no destination".
-    // `require_equals` keeps `--force-xmp SSD-A` from parsing the label as a positional.
-    #[arg(long, value_name = "DEST", num_args = 0..=1, require_equals = true)]
-    force_xmp: Option<Option<String>>,
-
     /// Leave the archive SSDs mounted when the run ends.
     #[arg(long)]
     no_eject: bool,
@@ -175,7 +164,6 @@ fn dispatch(cli: &Cli) -> Result<ExitCode> {
             tracks,
             max_gap_seconds,
             max_gap_meters,
-            force_xmp,
             dry_run,
         }) => {
             return geotag_tree(
@@ -185,7 +173,6 @@ fn dispatch(cli: &Cli) -> Result<ExitCode> {
                     max_gap: chrono::TimeDelta::seconds(*max_gap_seconds),
                     max_meters: *max_gap_meters,
                 },
-                *force_xmp,
                 *dry_run,
             );
         }
@@ -1890,7 +1877,6 @@ fn geotag_tree(
     root: &Path,
     tracks: &[PathBuf],
     limits: GapLimits,
-    force: bool,
     dry_run: bool,
 ) -> Result<ExitCode> {
     let tracks = expand_tracks(tracks)?;
@@ -1953,7 +1939,7 @@ fn geotag_tree(
     };
 
     let progress = offload::progress::Progress::detect();
-    let report = phase5::run(&landed, destinations, &tracks, limits, force, &progress)?;
+    let report = phase5::run(&landed, destinations, &tracks, limits, &progress)?;
 
     if dry_run {
         // **`report_geotag` is deliberately not called here.** Its closing line multiplies
@@ -1972,9 +1958,9 @@ fn geotag_tree(
             count(report.tagged),
             count(files.len())
         );
-        // **Not "would write N sidecars".** Whether each one is written depends on
-        // `--force-xmp` *and* on what is already on disk, and a preview that guessed at that
-        // would be the confident-and-wrong answer this project keeps refusing.
+        // **Not "would write N sidecars".** Whether each one is written depends on what is
+        // already on disk — an existing sidecar is always skipped — and a preview that guessed
+        // at that would be the confident-and-wrong answer this project keeps refusing.
         println!("    Re-run without --dry-run to write them.");
     } else {
         report_geotag(Some(&report), false, destinations.len());
@@ -2212,15 +2198,7 @@ fn geotag_phase(
         max_meters: args.max_gap_meters,
     };
 
-    phase5::run(
-        &outcome.landed,
-        targets,
-        &plan.rig.tracks,
-        limits,
-        args.force_xmp.is_some(),
-        progress,
-    )
-    .map(Some)
+    phase5::run(&outcome.landed, targets, &plan.rig.tracks, limits, progress).map(Some)
 }
 
 /// A static record of the two passes, printed where the live bars used to be.

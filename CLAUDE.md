@@ -278,6 +278,18 @@ repeats.
    the whole design answers to** — if only one survives a rewrite, this one.
 3. **The tool MUST NOT modify a raw file.** All derived data goes to sidecars and
    manifests.
+   **And more broadly: this is a tool that CREATES files, not one that overwrites them.**
+   Standing order, Terry, 2026-08-07 — ***"better to make me the footgun than the tool"*** and
+   ***"a purely additive tool to the file system."*** **Litigated and closed**: `--force-xmp`
+   was deleted from every command rather than guarded, and an existing sidecar is now reported
+   and skipped on every path. **If something is in the way, say so and stop** — deleting it is
+   a deliberate human act, never a flag.
+   **Two deliberate exceptions exist and MUST be named rather than quietly forgotten**, because
+   a constraint with unlisted exceptions is worse than none: the **manifest** is rewritten each
+   run via temp-then-rename (the tool's own artifact, and how a day accumulates), and
+   **phase 4 deletes** a frame the two cards disagree about — from all four destinations, after
+   quarantining both variants (decisions 3 and 4). **That deletion is the only path in this tool
+   that destroys a photograph**, and it is the one place the additive rule does not hold.
 4. **A run MUST NOT require administrator rights.** It runs unelevated and nothing in it
    may come to need elevation — a capability that only works elevated does not exist for
    this tool's purposes, and a design that reaches for one MUST be redesigned rather than
