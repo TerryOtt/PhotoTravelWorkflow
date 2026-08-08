@@ -2937,8 +2937,10 @@ the worst moment, which is trip hygiene.
 > **So the engine honors the offset correctly, and Terry's 2022-09-27 archive does not** —
 > 400 of 400 sidecars sampled agree with the *naive* reading, worst displacement **49.9 km**,
 > which is `FIXTURES.md`'s own number for this frame. Those sidecars were written before the fix
-> the fixture exists to guard. **Tracked in [`BACKLOG.md`](BACKLOG.md); re-tagging is Terry's
-> call and is not obviously safe, because Lightroom now owns those packets.**
+> the fixture exists to guard. **No re-tag is proposed or permitted**: `Q:\` is read-only to this
+> project beyond creating a new sidecar, those photographs are edited and finished, and a wrong
+> coordinate on finished work is a curiosity rather than a defect. [`BACKLOG.md`](BACKLOG.md)
+> carries why the item was withdrawn.
 >
 > **It is one day, not an era.** Checked against their own tracks from `Q:\Photo GPX Tracks\`,
 > **2021-08-08 (`-06:00`) and 2022-01-11 (`-05:00`) are correct** — 200/200 honoring the offset.

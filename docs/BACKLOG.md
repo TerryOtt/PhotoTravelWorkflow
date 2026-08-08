@@ -487,7 +487,14 @@ exactly the storage that measurement was taken against.
 **Recommendation: A**, because decision 30 is already authorized and B makes it worse. **His
 call because it is scope**, not because the engineering is unclear.
 
-## ⚠ Guard `--force-xmp` against foreign sidecars — OPEN, and it blocks the re-tag below
+## ⚠ Guard `--force-xmp` against foreign sidecars — OPEN
+
+> **Re-justified 2026-08-07 after the 2022-09-27 re-tag was withdrawn.** This item was filed as
+> *"it blocks the re-tag below"*, and that reason is gone. **It stands on its own and is now the
+> stronger case**: the hazard is not one archive day, it is that a shipped subcommand can
+> silently replace somebody's develop settings with a GPS-only packet, on any tree it is pointed
+> at. `offload geotag`'s own purpose — tagging raws that already landed — points it at exactly
+> the directories Lightroom manages.
 
 **`xmp::render` writes a GPS-only packet** — seven `exif:GPS*` fields, verified 2026-08-07 from
 the source *and* from a sidecar it produced. Right for the nightly run, whose destinations
@@ -507,7 +514,37 @@ worse than a documented gap.**
 > **This blocks the re-tag below in practice.** Whatever the geotag positions say, no
 > Lightroom-managed day gets `--force-xmp` until this is settled.
 
-## ⚠ 2022-09-27's archive geotags are ~50 km wrong — OPEN, TERRY'S MOVE
+## 2022-09-27's archive geotags are ~50 km out — CLOSED 2026-08-07, **NOT A WORK ITEM**
+
+> ### ✗ The re-tag was never proposable, and Claude should not have filed it
+>
+> **Terry, closing it:** *"2022-09-27 is edited and done and you aren't allowed to write to Q:.
+> What are you proposing to re-tag and why?"* Both halves land.
+>
+> **1. The rule already forbids it.** `Q:\` is *"read anything, create a new `.xmp`, nothing else
+> — never delete, never overwrite."* A re-tag is `--force-xmp`, which **overwrites**. This was
+> not a permission to ask for; it was one the standing rule refuses — and it was written into
+> [`../CLAUDE.md`](../CLAUDE.md) four hours before the item was filed, after Claude had already
+> tripped that guard on that drive the same evening.
+>
+> **2. "Edited and done" removes the reason.** Those sidecars carry develop settings, ratings and
+> keywords. The photographs are four years old and finished. **A wrong coordinate on finished
+> work is a curiosity, not a defect**, and the repair would trade real editing for a number
+> nobody will consult.
+>
+> **What the investigation was actually worth**, kept because it is knowledge rather than work:
+>
+> - **`offload geotag` handles a non-zero EXIF offset correctly**, confirmed against the hardest
+>   real case in the archive — the day the camera ran on BST.
+> - **The archive holds one day tagged an hour late**, cause understood, consequence nil.
+> - **The method** — compare a sidecar's own position against the track at both readings — is in
+>   the session scratchpad and reads nothing but `.xmp` and `.gpx`.
+>
+> **The lesson for Claude, and it is the point of leaving this here:** finding that something is
+> *wrong* is not the same as finding work. **Ask what the repair buys before filing it** — and
+> check whether you are even permitted to perform it. Neither question was asked.
+
+## ~~⚠ 2022-09-27's archive geotags are ~50 km wrong~~ — the investigation, kept for the method
 
 **Found 2026-08-07 while validating `offload geotag` against the archive, and it is a fact about
 his photographs rather than about this code.**
