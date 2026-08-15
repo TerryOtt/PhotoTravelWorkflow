@@ -476,6 +476,14 @@ which names this repository.
 
 - **Commits go straight to `main`** — one maintainer, no PR. Self-review at commit time
   *is* the gate, at the same bar (`REVIEWING.md`).
+
+  **GitHub protects `main` anyway, deliberately, so every push prints
+  `remote: Bypassed rule violations` naming the PR requirement and the
+  `fmt, clippy, test` check.** Terry asked to be exempted and was told no — the rule is a
+  **warning for the repository owner and fatal for everyone else**, which is the shape he
+  wanted. **That output is expected and MUST NOT be reported as a defect.** The local
+  pre-commit hook is what actually runs fmt, clippy and test, so the required check's
+  substance is satisfied before the push rather than after it.
 - **A commit is not finished until it is pushed.** GitHub is the backup, and the laptop
   is usually on the road.
 - **Every run gets a commit and a push first.** Standing order, Terry, 2026-08-05:
