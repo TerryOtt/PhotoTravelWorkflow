@@ -207,6 +207,18 @@ rig's spare hardware. Terry should not have to ask for either.
 numbers in this project turned out to be artifacts of how they were gathered rather than
 facts about the hardware; each was caught because he pushed back on one that looked off.
 
+### Those two are the whole prerequisite — do not read the source first
+
+**Claude MUST NOT read `crates/` preemptively.** `DESIGN.md` carries every decision the
+source implements, so a pre-read of the workspace buys a slower version of what the design
+document already said. **Read a module when about to change it.**
+
+**What this prevents now:** on 2026-08-15 a cold catch-up in a sibling repository read
+every source file, and **the source was worth about a fifth of the value at by far the
+largest cost** — the session arrived oriented on trivia and short on context. `crates/geotag`
+is the sharpest case here: decision 17 lifted it already validated, so reading it teaches
+RawGeotag's history rather than this project's state.
+
 ## Read before you write
 
 | Before you... | Read | Its standing order |
