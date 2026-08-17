@@ -420,6 +420,46 @@ Comparing one against the other reads as a mismatch on a machine that is perfect
 The `18` in the URL is the VS major version, and is the one thing here that has to be
 edited by hand rather than asked for.
 
+### The three linters are outside `cargo outdated` — but a hook watches them daily
+
+**Added 2026-08-17, when this repository gained a linter for each of its three languages.**
+`cargo outdated` sees crates, and `rust-toolchain-check.py` watches rustup and MSVC. Neither
+sees `ruff`, `pyright` or `PSScriptAnalyzer` — a pip tool, a pip tool and a PSGallery module.
+
+> **`~/.claude/hooks/lint-toolchain-check.py` now covers them**, on the day's first cargo
+> build, same three volumes as the build-chain check. **It checks VERSIONS and never runs a
+> linter** — running them is `.githooks/pre-commit` and CI. Terry drew that line when the hook
+> was written: *"If we're talking about RUNNING linters, that's totes not part of buildchain
+> freshness check."*
+>
+> **So the commands below are the manual fallback, not the routine.** They matter when the
+> hook could not reach the network, which it reports rather than hides.
+
+**A stale linter is the quiet kind of stale**, which is why it is worth watching at all.
+
+**This matters more than a stale crate would**, because these three are the gate. A linter a
+version behind does not fail — it simply stops reporting whatever the new release learned to
+find, and a green run looks identical either way. That is the same argument
+[`REVIEWING.md`](REVIEWING.md) makes about a diagnostic that cannot fail.
+
+```powershell
+python -m pip list --outdated | Select-String -Pattern '^(ruff|pyright)\s'   # no rows = current
+(Get-Module -ListAvailable PSScriptAnalyzer | Sort-Object Version -Descending)[0].Version
+(Find-Module PSScriptAnalyzer).Version                                        # compare the two
+```
+
+**Measured 2026-08-17:** ruff 0.16.3, pyright 1.1.411, PSScriptAnalyzer 1.25.0, all current.
+
+```
+python -m pip install --upgrade ruff pyright
+Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
+```
+
+> **A linter upgrade MAY surface new findings, which is the point of taking it.** Take it
+> *before* the trip window rather than inside it, for the same reason firmware is frozen at
+> T-30: a new rule family that wants twenty edits is fine in September and is not fine the
+> night before a flight.
+
 ### None of the above waits for trip hygiene — a hook checks it daily
 
 **Standing order, Terry, 2026-08-06: the build chain stays within 24 hours of current.** So
