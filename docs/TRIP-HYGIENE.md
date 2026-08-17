@@ -511,8 +511,18 @@ linker current today*, which is the half that goes stale on its own between trip
 cargo build --release
 cargo test
 cargo clippy --workspace --all-targets --all-features -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
 offload --dry-run          # against the real rig, per "Also before you leave"
 ```
+
+> **`cargo doc` earns its place on a *dependency* pass specifically.** A bump can change what
+> a crate re-exports, and an intra-doc link into a dependency's type then resolves to nothing.
+> Clippy cannot see that — rustdoc lints are evaluated by rustdoc alone — so leaving this line
+> out makes the trip verification narrower than the commit gate, which is the wrong way round.
+>
+> **The Python and PowerShell linters are deliberately NOT here.** They do not depend on a
+> crate, so `cargo update` cannot affect them. Their freshness is the separate question this
+> file covers above.
 
 **If the toolchain or Build Tools moved, `cargo clean` before that build.** Cargo
 fingerprints `rustc`, not the linker, so a new MSVC toolset or CRT changes what the binary
