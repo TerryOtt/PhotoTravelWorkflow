@@ -57,7 +57,7 @@ use offload::{cards, config, destinations, eject, storage};
 
 /// Long enough to cover the 11 m 17 s observation with room either side, short enough that a
 /// card which is never going to release does not hold the desk all afternoon.
-const CAP: Duration = Duration::from_secs(25 * 60);
+const CAP: Duration = Duration::from_mins(25);
 
 /// Between rounds. The production path backs off geometrically to spread attempts across a
 /// 90-minute budget; a fixed short gap is right here because the *shape over time* is the
@@ -96,7 +96,7 @@ fn main() -> ExitCode {
         .collect();
 
     for (label, volume, device) in &watching {
-        say(format!(
+        say(&format!(
             "watching {label} · disk {} · {} · {}",
             device.disk_number,
             if volume.removable {
@@ -107,7 +107,7 @@ fn main() -> ExitCode {
             volume.guid_path
         ));
     }
-    say(format!(
+    say(&format!(
         "cap {}s, {}s between rounds, using the production attempt sequence",
         CAP.as_secs(),
         GAP.as_secs()
@@ -135,7 +135,7 @@ fn main() -> ExitCode {
                 Ok(eject::Outcome::Held { reason }) => format!("held — {reason}"),
                 Err(error) => format!("ERROR — {error:#}"),
             };
-            say(format!(
+            say(&format!(
                 "[{:>3}m {:02}s] round {round:<3} {label:<10} {line}",
                 at.as_secs() / 60,
                 at.as_secs() % 60
@@ -150,9 +150,9 @@ fn main() -> ExitCode {
     }
 
     let total = started.elapsed();
-    say(String::new());
+    say("");
     if watching.is_empty() {
-        say(format!(
+        say(&format!(
             "ALL CARDS RELEASED after {}m {:02}s over {round} rounds",
             total.as_secs() / 60,
             total.as_secs() % 60
@@ -161,13 +161,13 @@ fn main() -> ExitCode {
         // Deliberately not phrased as a failure: the tool never wrote to a card, so this is a
         // measurement that did not converge rather than data at risk.
         let stuck: Vec<&str> = watching.iter().map(|(label, ..)| label.as_str()).collect();
-        say(format!(
+        say(&format!(
             "STILL HELD at the {}m cap after {round} rounds: {}",
             CAP.as_secs() / 60,
             stuck.join(", ")
         ));
     }
-    say("replug the USB SD reader before the next offload".to_owned());
+    say("replug the USB SD reader before the next offload");
 
     ExitCode::SUCCESS
 }
@@ -177,7 +177,7 @@ fn main() -> ExitCode {
 /// **Flushed per line because this is watched live.** Rust block-buffers stdout when it is a
 /// pipe, so a `Monitor` on this would otherwise receive the whole session in one burst at the
 /// end — which is exactly the information this harness exists to spread out over time.
-fn say(line: String) {
+fn say(line: &str) {
     println!("{line}");
     let _ = std::io::stdout().flush();
 }

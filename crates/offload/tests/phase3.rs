@@ -131,7 +131,17 @@ fn one_card_lands_four_identical_verified_trees() {
 
     // And identical to the card, byte for byte, read back off the disk rather than
     // trusted from the write.
-    let raws: Vec<&String> = first.iter().filter(|name| name.ends_with(".CR3")).collect();
+    // Matched the way the tool itself matches raws — `pipeline.rs` uses a case-insensitive
+    // extension test, so a case-sensitive one here would pass while describing a rule the
+    // product does not have.
+    let raws: Vec<&String> = first
+        .iter()
+        .filter(|name| {
+            Path::new(name.as_str())
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("cr3"))
+        })
+        .collect();
     assert_eq!(raws.len(), 5);
     for destination in &destinations {
         for (relative, expected) in raws.iter().zip(&frames) {

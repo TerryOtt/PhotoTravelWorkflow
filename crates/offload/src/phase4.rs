@@ -315,7 +315,7 @@ mod tests {
             &rig.destinations,
             &rig.quarantine,
             false,
-            &crate::progress::Progress::silent(),
+            &Progress::silent(),
         )
         .expect("corroboration");
 
@@ -348,7 +348,7 @@ mod tests {
             &rig.destinations,
             &rig.quarantine,
             false,
-            &crate::progress::Progress::silent(),
+            &Progress::silent(),
         )
         .expect("corroboration");
 
@@ -393,7 +393,7 @@ mod tests {
             &rig.destinations,
             &rig.quarantine,
             true,
-            &crate::progress::Progress::silent(),
+            &Progress::silent(),
         )
         .expect_err("it must refuse");
 
@@ -424,7 +424,7 @@ mod tests {
             &rig.destinations,
             &rig.quarantine,
             false,
-            &crate::progress::Progress::silent(),
+            &Progress::silent(),
         )
         .expect_err("it must be fatal");
 

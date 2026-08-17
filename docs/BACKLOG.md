@@ -97,6 +97,82 @@ the backlog instead of the report.
 > fix. Left unsorted on 2026-08-07 with one `C:` among four `T:`, where the prefixes still scan.
 
 
+## Rust lint pedantry: audit, raise, and fix — CLOSED 2026-08-17
+
+> **Standing order, Terry, 2026-08-17: *"I'd like to run full SANE lint pass every single time
+> we compile in this project."*** He said "full" first and corrected it to **SANE** in the next
+> message; the correction is the load-bearing half.
+>
+> **The gap was real.** This project ran **default clippy only** — no `[lints]` table, no
+> `clippy.toml`, no pedantic — with the level stated in `.githooks/pre-commit` and
+> `.github/workflows/ci.yml` and nowhere a bare `cargo build` would see it. The global
+> `CLAUDE.md` had already flagged it: *"Pedantry level NOT yet audited against this order."*
+>
+> **The policy now lives in `[workspace.lints]` in the root `Cargo.toml`**, with
+> `[lints] workspace = true` in both crates. Cargo applies that on every compile — `build`,
+> `check`, `test`, `clippy`, and **rust-analyzer in the editor**, which is the part a hook can
+> never reach. `cargo check` parses the `clippy` table and ignores it silently, with no
+> `unknown_lints` noise; verified rather than assumed.
+>
+> ### The survey, because a verdict without evidence gets re-litigated on taste
+>
+> Every group at once — `clippy::pedantic`, `clippy::nursery`, `clippy::cargo` and fourteen
+> rustc lints — over `--workspace --all-targets --all-features`, from a wiped `target/`, on
+> clippy 0.1.97 / rustc 1.97.1. **788 raw warnings, deduplicating to 353 distinct
+> (lint, file, line) findings across 37 clippy families, plus 151 across 4 rustc lints.**
+> Every `allow` row in `Cargo.toml` carries its own count, so the next person argues with data.
+>
+> **105 findings survived the policy. All 105 are fixed.** 39 by `cargo clippy --fix`, the rest
+> by hand. **192 tests pass, fmt clean, gate exit 0.**
+>
+> ### Three findings worth more than the cleanup
+>
+> | | |
+> |---|---|
+> | **`needless_collect` would have introduced a defect** | Five of its eight hits sit on `let running: Vec<_> = ...spawn(...).collect();` then `running.into_iter().map(join)`. **The `collect` is what makes it parallel** — it spawns every thread before joining any. Fusing them as the lint asks serializes the four ejects and the four destination copies. **Refused, with that reason in the manifest** |
+> | **Every `unreadable_literal` hit is a coordinate** | `47.4455083`, `-122.3352833`. Clippy wants `47.445_508_3`, which breaks the one thing these literals exist for: comparison by eye against a GPX file, a sidecar and a map. **That is how the 2022-09-27 archive error was found at all.** Refused |
+> | **The cast family split clean, so the policy splits with it** | 8 of 54 were Win32 `cbSize` and buffer lengths, where a truncated `as u32` hands the kernel a wrong length for a real disk. Those are now `storage::size_u32`, a checked conversion — **the class is gone by construction, not suppressed.** The other 46 are display math. So the family is `allow` workspace-wide and **`#![deny]` at the top of `storage.rs` and `eject.rs`**, the two modules that call `DeviceIoControl` |
+>
+> ### The gate was proven able to fire, not assumed to be
+>
+> Deliberate violations planted in `human.rs` and `storage.rs`, compiled, then removed.
+> `missing_debug_implementations`, `needless_pass_by_value` and `redundant_clone` reported as
+> warnings; **`cast_possible_truncation` reported as a hard ERROR inside `storage.rs`** while
+> the same family stayed quiet elsewhere, which is the targeted deny doing exactly its job.
+> Gate exit **101**. A clean run from an inert rule looks identical to a clean run from a
+> satisfied one, so this step is not optional.
+>
+> ### Two holes closed in the gate itself
+>
+> **`--all-features` was missing from both the hook and CI**, so the `hash-experiments` arms of
+> `hash::Hasher` were never compiled and therefore never linted — a whole code path exempt by
+> accident. Both now run `--workspace --all-targets --all-features`, and each file says to keep
+> the other identical.
+>
+> ### Also fixed, incidentally
+>
+> - **`tests/phase3.rs` matched raws case-sensitively** (`ends_with(".CR3")`) while
+>   `pipeline.rs` matches case-insensitively — a test asserting a rule the product does not
+>   have. Production code was swept and is uniformly `eq_ignore_ascii_case`.
+> - **14 Win32 out-parameters moved from `&mut x` to `&raw mut x`**, which is the correct idiom
+>   for a pointer handed to FFI: it never forms an intermediate reference.
+> - **A stale comment in `geotag/src/raw.rs`** claimed deriving `Debug` on `Capture` "buys
+>   nothing"; it now buys the lint, so the derive landed and the comment says what it is
+>   actually for.
+>
+> ### What is deliberately NOT enabled
+>
+> **`clippy::nursery` as a group.** Clippy ships those unstable and expects false positives;
+> this table gates every compile and this machine takes toolchain updates within 24 hours, so a
+> nursery lint changing behavior under a bump would break the build for something that is not a
+> defect. **Three members are promoted by name.**
+>
+> **`missing_docs`** — 123 findings, the largest single number in the survey. `WRITING.md`'s
+> standing order is that prose earns its place and *the default stance is REMOVE*. A compiler
+> lint demanding a doc comment on every item argues the opposite case on every compile and
+> would win by attrition. **Turning it on is a documentation decision for Terry, not a lint
+> decision.**
+
 ## Characterize all three UHS-II USB SD readers — CLOSED 2026-08-07
 
 > **All three cleared: 280, 276, 275 MB/s — one population inside ±2 %.** Every reader in the bag

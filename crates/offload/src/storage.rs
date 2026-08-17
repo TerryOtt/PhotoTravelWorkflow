@@ -26,6 +26,12 @@
 //! A capability that only works elevated does not exist for this tool's purposes — so the
 //! access rights get designed down to what the query actually needs, here and everywhere.
 
+// Denied here and allowed workspace-wide, because this is one of the two modules where a
+// truncated integer becomes a wrong buffer length handed to `DeviceIoControl` against a real
+// disk. Everywhere else the family reports display math. Use `size_u32` for a Win32 record
+// and `u32::try_from` for a runtime length; both fail loudly instead of silently.
+#![deny(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+
 use std::ffi::OsString;
 use std::fs::{File, OpenOptions};
 use std::os::windows::ffi::OsStringExt;
@@ -46,6 +52,22 @@ use windows::Win32::System::Ioctl::{
     StorageDeviceProperty,
 };
 use windows::core::PCWSTR;
+
+/// The byte size of a Win32 record, as the `u32` its `cbSize` and buffer-length parameters
+/// want.
+///
+/// Every caller passes a fixed Win32 struct of a few dozen bytes, so the conversion cannot
+/// fail. It is written as a checked conversion anyway, because the failure it replaces is
+/// the bad one: `size_of::<T>() as u32` truncates in silence, and a truncated length handed
+/// to `DeviceIoControl` is a wrong buffer size against a disk bound for the safe. A panic
+/// here would be loud, immediate, and impossible to mistake for success.
+///
+/// It also keeps `clippy::cast_possible_truncation` live at every other call site instead of
+/// being switched off across two modules of unsafe FFI, which is where the lint earns its
+/// place.
+pub(crate) fn size_u32<T>() -> u32 {
+    u32::try_from(size_of::<T>()).expect("a Win32 record is far smaller than 4 GiB")
+}
 
 /// `GetDriveTypeW`'s answer for removable media — a card reader with a card in it.
 const DRIVE_REMOVABLE: u32 = 2;
@@ -188,8 +210,8 @@ fn disk_number(handle: HANDLE) -> Result<u32> {
             None,
             0,
             Some(std::ptr::from_mut(&mut number).cast()),
-            size_of::<STORAGE_DEVICE_NUMBER>() as u32,
-            Some(&mut returned),
+            size_u32::<STORAGE_DEVICE_NUMBER>(),
+            Some(&raw mut returned),
             None,
         )
     }?;
@@ -224,10 +246,10 @@ fn serial_number(handle: HANDLE) -> Option<String> {
             handle,
             IOCTL_STORAGE_QUERY_PROPERTY,
             Some(std::ptr::from_ref(&query).cast()),
-            size_of::<STORAGE_PROPERTY_QUERY>() as u32,
+            size_u32::<STORAGE_PROPERTY_QUERY>(),
             Some(buffer.0.as_mut_ptr().cast()),
-            buffer.0.len() as u32,
-            Some(&mut returned),
+            u32::try_from(buffer.0.len()).expect("the descriptor buffer is 1 KiB"),
+            Some(&raw mut returned),
             None,
         )
     }
@@ -277,7 +299,7 @@ fn describe(guid_path: &str) -> Option<Volume> {
         GetVolumeInformationW(
             PCWSTR(root.as_ptr()),
             Some(&mut label),
-            Some(&mut volume_serial),
+            Some(&raw mut volume_serial),
             None,
             None,
             Some(&mut filesystem),
@@ -295,8 +317,8 @@ fn describe(guid_path: &str) -> Option<Volume> {
         GetDiskFreeSpaceExW(
             PCWSTR(root.as_ptr()),
             None,
-            Some(&mut total_bytes),
-            Some(&mut free_bytes),
+            Some(&raw mut total_bytes),
+            Some(&raw mut free_bytes),
         )
     }
     .ok()?;

@@ -28,12 +28,34 @@ pub fn sha256(bytes: &[u8]) -> Digest32 {
 /// it dispatches on `OFFLOAD_HASH`, which exists to measure what decision 17's choice
 /// costs — see `examples/verify-rate.rs`. The default build has no such branch and no
 /// such dependencies.
+#[allow(
+    variant_size_differences,
+    reason = "only the `hash-experiments` build has more than one variant, and boxing \
+              `Sha256` to even them up would add an allocation per file on phase 3's hot \
+              path — a cost to the primary metric, paid to tidy a measuring rig"
+)]
 pub enum Hasher {
     Sha256(Sha256),
     #[cfg(feature = "hash-experiments")]
     Blake3(Box<blake3::Hasher>),
     #[cfg(feature = "hash-experiments")]
     Xxh3(Box<xxhash_rust::xxh3::Xxh3>),
+}
+
+/// Written by hand rather than derived, for two reasons that point the same way.
+/// `xxhash_rust::xxh3::Xxh3` implements no `Debug`, so a derive does not compile under
+/// `hash-experiments` at all — and a partially consumed hasher's internal state is noise in
+/// a panic message anyway. The algorithm is the only part a reader can act on.
+impl std::fmt::Debug for Hasher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Sha256(_) => "Hasher::Sha256",
+            #[cfg(feature = "hash-experiments")]
+            Self::Blake3(_) => "Hasher::Blake3",
+            #[cfg(feature = "hash-experiments")]
+            Self::Xxh3(_) => "Hasher::Xxh3",
+        })
+    }
 }
 
 impl Hasher {

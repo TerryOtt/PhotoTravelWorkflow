@@ -36,6 +36,11 @@
 //! them. This module returns an [`Outcome`] and reserves `Err` for the cases where it could not
 //! even ask.
 
+// Denied here and allowed workspace-wide — see the note in `storage.rs`. This module calls
+// `DeviceIoControl`, `SetupDi*` and `CM_Request_Device_Eject`, so a truncated length is a
+// wrong-sized buffer aimed at a disk on its way to the safe.
+#![deny(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+
 use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::io::AsRawHandle;
 use std::path::Path;
@@ -49,7 +54,7 @@ use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::IO::DeviceIoControl;
 use windows::Win32::System::Ioctl::{FSCTL_DISMOUNT_VOLUME, FSCTL_LOCK_VOLUME};
 
-use crate::storage::{Device, Volume};
+use crate::storage::{Device, Volume, size_u32};
 
 /// Lock is retried for this long. Defender finishing with a few hundred freshly written
 /// gigabytes is the case this exists for, and it is measured in seconds rather than
@@ -103,7 +108,7 @@ const RACE_RETRIES: u32 = 8;
 /// last hour of the budget asleep, so it flattens into steady polling instead. Sixty
 /// seconds is frequent enough that a volume released early is taken promptly, and rare
 /// enough that a long wait costs a handful of attempts rather than thousands.
-const MAX_BACKOFF: Duration = Duration::from_secs(60);
+const MAX_BACKOFF: Duration = Duration::from_mins(1);
 
 /// What happened to one device.
 ///
@@ -246,10 +251,10 @@ fn eject_media_on(handle: HANDLE) -> Result<()> {
             handle,
             IOCTL_STORAGE_MEDIA_REMOVAL,
             Some(std::ptr::from_ref(&allow).cast()),
-            size_of::<PREVENT_MEDIA_REMOVAL>() as u32,
+            size_u32::<PREVENT_MEDIA_REMOVAL>(),
             None,
             0,
-            Some(&mut returned),
+            Some(&raw mut returned),
             None,
         )
     };
@@ -337,6 +342,7 @@ pub struct Effort {
 /// the live version on 2026-08-06, and it earns its keep twice: he gets to watch the tool
 /// out-wait Windows, and the transcript answers **whether the veto changes across the window**,
 /// which is the open question no completed run has been able to speak to.
+#[derive(Debug)]
 pub struct Attempt<'a> {
     /// 1-based.
     pub number: u32,
@@ -612,8 +618,19 @@ fn control(handle: HANDLE, code: u32) -> Result<()> {
 
     // SAFETY: both control codes take no input and write no output, so passing `None` for
     // both buffers is the documented shape. `handle` is a live volume handle.
-    unsafe { DeviceIoControl(handle, code, None, 0, None, 0, Some(&mut returned), None) }
-        .map_err(Into::into)
+    unsafe {
+        DeviceIoControl(
+            handle,
+            code,
+            None,
+            0,
+            None,
+            0,
+            Some(&raw mut returned),
+            None,
+        )
+    }
+    .map_err(Into::into)
 }
 
 /// `CM_Request_Device_Eject` on the device node behind `disk_number` — the tray icon's own
@@ -631,7 +648,7 @@ fn power_down(disk_number: u32) -> std::result::Result<(), Refusal> {
 
     let mut parent = 0u32;
     // SAFETY: `disk` is a devnode this process just located; `parent` is written on success.
-    let status = unsafe { CM_Get_Parent(&mut parent, disk, 0) };
+    let status = unsafe { CM_Get_Parent(&raw mut parent, disk, 0) };
     if status != CR_SUCCESS {
         return Err(Refusal {
             veto: Veto::Other,
@@ -647,8 +664,9 @@ fn power_down(disk_number: u32) -> std::result::Result<(), Refusal> {
     let mut veto_name = [0u16; 260];
 
     // SAFETY: both out-parameters are correctly sized for the lengths given.
-    let status =
-        unsafe { CM_Request_Device_EjectW(parent, Some(&mut veto_type), Some(&mut veto_name), 0) };
+    let status = unsafe {
+        CM_Request_Device_EjectW(parent, Some(&raw mut veto_type), Some(&mut veto_name), 0)
+    };
 
     if status == CR_SUCCESS {
         return Ok(());
@@ -735,14 +753,20 @@ fn devnode_for_disk(disk_number: u32) -> Result<u32> {
     let mut found = None;
     for index in 0.. {
         let mut interface = SP_DEVICE_INTERFACE_DATA {
-            cbSize: size_of::<SP_DEVICE_INTERFACE_DATA>() as u32,
+            cbSize: size_u32::<SP_DEVICE_INTERFACE_DATA>(),
             ..Default::default()
         };
 
         // SAFETY: `set` is live and `interface` is correctly sized; a false return ends the
         // enumeration, which is the documented termination condition.
         if unsafe {
-            SetupDiEnumDeviceInterfaces(set, None, &GUID_DEVINTERFACE_DISK, index, &mut interface)
+            SetupDiEnumDeviceInterfaces(
+                set,
+                None,
+                &GUID_DEVINTERFACE_DISK,
+                index,
+                &raw mut interface,
+            )
         }
         .is_err()
         {
@@ -755,7 +779,14 @@ fn devnode_for_disk(disk_number: u32) -> Result<u32> {
         // SAFETY: passing no output buffer is how the required size is requested; the error
         // this returns is expected and ignored.
         let _ = unsafe {
-            SetupDiGetDeviceInterfaceDetailW(set, &interface, None, 0, Some(&mut needed), None)
+            SetupDiGetDeviceInterfaceDetailW(
+                set,
+                &raw const interface,
+                None,
+                0,
+                Some(&raw mut needed),
+                None,
+            )
         };
         if needed == 0 {
             continue;
@@ -768,13 +799,13 @@ fn devnode_for_disk(disk_number: u32) -> Result<u32> {
         // SAFETY: `buffer` is at least `needed` bytes and 4-aligned by `Vec<u8>`'s
         // allocation; `cbSize` is the header size the API expects, not the buffer size.
         unsafe {
-            (*detail).cbSize =
-                size_of::<windows::Win32::Devices::DeviceAndDriverInstallation::SP_DEVICE_INTERFACE_DETAIL_DATA_W>()
-                    as u32;
+            (*detail).cbSize = size_u32::<
+                windows::Win32::Devices::DeviceAndDriverInstallation::SP_DEVICE_INTERFACE_DETAIL_DATA_W,
+            >();
         }
 
         let mut info = SP_DEVINFO_DATA {
-            cbSize: size_of::<SP_DEVINFO_DATA>() as u32,
+            cbSize: size_u32::<SP_DEVINFO_DATA>(),
             ..Default::default()
         };
 
@@ -782,11 +813,11 @@ fn devnode_for_disk(disk_number: u32) -> Result<u32> {
         if unsafe {
             SetupDiGetDeviceInterfaceDetailW(
                 set,
-                &interface,
+                &raw const interface,
                 Some(detail),
                 needed,
                 None,
-                Some(&mut info),
+                Some(&raw mut info),
             )
         }
         .is_err()
@@ -845,8 +876,8 @@ fn disk_number_of(path: &Path) -> Result<u32> {
             None,
             0,
             Some(std::ptr::from_mut(&mut number).cast()),
-            size_of::<STORAGE_DEVICE_NUMBER>() as u32,
-            Some(&mut returned),
+            size_u32::<STORAGE_DEVICE_NUMBER>(),
+            Some(&raw mut returned),
             None,
         )
     }?;

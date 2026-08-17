@@ -112,6 +112,157 @@ sha3 = "0.12"
 # wall clock, the hash is not on the critical path and decision 17's choice is free.
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 
+# --- Lint policy ----------------------------------------------------------------------
+#
+# RFC 2119 keywords, and the capitals are load-bearing.
+#
+# This table is the whole lint configuration, and it lives here rather than in the
+# pre-commit hook or in CI because Cargo applies it on EVERY compile — `build`, `check`,
+# `test`, `clippy`, and rust-analyzer in the editor. Standing order, Terry, 2026-08-17:
+# *"I'd like to run full SANE lint pass every single time we compile in this project."* A
+# level stated in a hook is a level a bare `cargo build` walks past; a level stated here
+# cannot be forgotten and cannot drift between the three files that used to state it.
+#
+# `cargo check` ignores the `clippy` table silently — verified 2026-08-17, no
+# `unknown_lints` — so the rustc-driven builds pay nothing and the clippy-driven ones get
+# all of it. Clippy lints still need `cargo clippy` to be EVALUATED; `.githooks/pre-commit`
+# and `.github/workflows/ci.yml` are what guarantee that happens.
+#
+# HOW THE ROWS BELOW WERE CHOSEN, so the next person argues with evidence rather than
+# taste. Surveyed 2026-08-17 on clippy 0.1.97 / rustc 1.97.1, from a wiped `target/`, with
+# every group turned on at once over `--workspace --all-targets --all-features`: 788 raw
+# warnings, which deduplicate to 353 distinct (lint, file, line) findings across 37 clippy
+# families, plus 151 across 4 rustc lints. **The count on each `allow` row is that survey's
+# number.** It is the evidence for the verdict, not decoration — re-run the survey before
+# changing a row.
+#
+# The first rule: KEEP what reports a defect, DROP what reports taste.
+#
+# The second rule is this project's, and it disqualifies rows the first rule would keep.
+# This pass runs on every compile, so a family that cannot stay QUIET during ordinary work
+# is out whatever its merits. A gate that fires when nobody can act teaches the reader to
+# skip it, and then it guards nothing — the same argument decisions 9, 12 and 34 make about
+# spending a scarce signal, applied to the compiler instead of the report.
+#
+# `clippy::nursery` is deliberately NOT enabled as a group. Clippy ships those lints as
+# unstable and expects false positives from them. This table gates every compile, and this
+# machine takes toolchain updates within 24 hours, so a nursery lint that changes behavior
+# under a bump would break the build for something that is not a defect. **The four members
+# that reported real findings are named individually below**, which buys the value without
+# the instability.
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+
+# Three `nursery` members, promoted by name rather than by enabling the group. Each one
+# reported a real finding in the survey and each is a defect rather than a preference.
+or_fun_call = "warn"               # 1 — eager evaluation inside `unwrap_or`
+redundant_clone = "warn"           # 1 — a clone the borrow checker did not need
+significant_drop_tightening = "warn" # 1 — a lock held wider than its use
+
+# `needless_collect` is REFUSED, and it is the one row here that would have introduced a
+# defect rather than found one. Five of its eight findings sit on this shape:
+#
+#     let running: Vec<_> = targets.iter().map(|t| scope.spawn(...)).collect();
+#     running.into_iter().map(|h| h.join().expect(...)).collect()
+#
+# The `collect` is what makes it parallel. It spawns every thread BEFORE joining any one of
+# them. Fuse the two iterators as the lint asks and each thread is spawned and immediately
+# joined — four ejects, and four destination copies, run one after another. The lint cannot
+# see that `spawn` has an effect worth ordering, so it reads the buffer as dead weight.
+#
+# The three genuine findings were in one `bail!` path that builds three vectors to print
+# their lengths, which is now `.count()`. That is a once-per-run diagnostic against a lint
+# that would serialize the primary metric, so the trade is not close.
+
+# --- Dropped, with the survey count and the reason -------------------------------------
+
+# Documentation ceremony. `docs/WRITING.md`'s standing order is that prose earns its place
+# or goes, and the DEFAULT STANCE IS REMOVE. A lint demanding a doc paragraph on every
+# public item argues the opposite case on every compile, and would win by attrition.
+must_use_candidate = "allow"       # 51
+missing_errors_doc = "allow"       # 45
+missing_panics_doc = "allow"       # 4
+doc_markdown = "allow"             # 42 — backticks around prose words, pure formatting
+too_long_first_doc_paragraph = "allow" # 4
+
+# Style preferences with no defect behind them. Each was read before it was dropped.
+use_self = "allow"                 # 13
+single_match_else = "allow"        # 4
+redundant_closure_for_method_calls = "allow" # 4
+too_many_lines = "allow"           # 2
+items_after_statements = "allow"   # 2
+manual_let_else = "allow"          # 3
+bool_to_int_with_if = "allow"      # 2
+struct_excessive_bools = "allow"   # 1
+similar_names = "allow"            # 1
+map_unwrap_or = "allow"            # 1
+
+# Every one of the nine is a LATITUDE OR A LONGITUDE — `47.4455083`, `-122.3352833`,
+# `47.99999999`. Clippy wants `47.445_508_3`, and that is worse rather than merely
+# different: coordinates in this codebase get compared by eye against a GPX file, a
+# Lightroom sidecar and a map, and that is how the 2022-09-27 archive error was found at
+# all. Underscoring them would break the one operation these literals exist for.
+unreadable_literal = "allow"       # 9
+
+# Changing a `Result<T>` return to `T` ripples through every caller and buys no safety.
+# The wrapper is often deliberate, keeping a family of functions one shape.
+unnecessary_wraps = "allow"        # 3
+
+# --- The cast family, which is the one row worth reading before changing ----------------
+#
+# These are allowed HERE and denied in `storage.rs` and `eject.rs`, which is not a fudge —
+# it is where the consequences differ by orders of magnitude.
+#
+# The survey's 54 cast findings split cleanly in two. Eight were Win32 `cbSize` and buffer
+# lengths, where a truncated `as u32` hands the kernel a wrong length for a real disk. Those
+# are now `storage::size_u32`, a checked conversion that cannot truncate, so **that class is
+# gone by construction rather than by suppression**. The other 46 are display math — byte
+# counts and MB/s pushed through `f64` for one printed line — plus test and example data
+# generation. A photograph's byte count reaches 2^53 in no universe this tool runs in.
+#
+# Leaving the family on would buy roughly ten permanent `#[allow]` scars on formatting
+# functions, which is the noise this table's second rule exists to refuse. So the lint is
+# switched off where it reports rendering and switched back on, as a DENY, at the top of the
+# two modules that talk to `DeviceIoControl`. Both modules are clean today, so that deny
+# costs nothing now and fires the moment somebody adds a cast where it matters.
+cast_precision_loss = "allow"      # 23
+cast_possible_truncation = "allow" # 23 — see above; denied in storage.rs and eject.rs
+cast_sign_loss = "allow"           # 7
+cast_possible_wrap = "allow"       # 1
+
+# Neither of these is actionable, which is the disqualifying property rather than the
+# count. `cargo_common_metadata` wants `repository`, `keywords` and `categories` on two
+# crates that are never published. `multiple_crate_versions` reports duplicate transitive
+# dependencies, which belong to other people's manifests.
+cargo_common_metadata = "allow"    # 21
+multiple_crate_versions = "allow"  # 3
+
+[workspace.lints.rust]
+# Enabled at zero cost: every one of these reported NOTHING in the survey, so they add no
+# work today and catch the regression tomorrow. That is the cheapest row in this file.
+rust_2018_idioms = { level = "warn", priority = -1 }
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unused_lifetimes = "warn"
+redundant_lifetimes = "warn"
+unreachable_pub = "warn"
+macro_use_extern_crate = "warn"
+meta_variable_misuse = "warn"
+non_ascii_idents = "warn"
+
+# These three reported real findings and each one is mechanical to fix.
+unused_qualifications = "warn"        # 19
+missing_debug_implementations = "warn" # 8
+variant_size_differences = "warn"      # 1
+
+# `missing_docs` is the largest single number in the survey — 123 — and it is left OFF for
+# the same reason the clippy documentation lints are. `docs/WRITING.md` governs what gets
+# written here, and a compiler lint demanding a doc comment on every item would overrule a
+# standing order that says the opposite. Turning it on is a documentation decision for
+# Terry, not a lint decision.
+
 [profile.release]
 # The workload is many short-lived parallel tasks over a large file count; whole-program
 # optimization is worth the slower build for a released binary.

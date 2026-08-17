@@ -50,6 +50,7 @@ pub struct Verified {
 /// destination is ~5,000 writes spread over minutes, against four threads that spend
 /// their time moving gigabytes. A channel to a dedicated writer thread would buy
 /// nothing and add a shutdown ordering problem.
+#[derive(Debug)]
 pub struct RunLog {
     file: Mutex<File>,
 }
@@ -80,6 +81,11 @@ impl RunLog {
     /// `BufWriter` when the power goes describes work that is done but will be redone —
     /// which is merely wasteful — while one sitting there when the *disk* goes is worse.
     /// ~5,000 syncs against a run that moves hundreds of gigabytes is not a cost.
+    #[allow(
+        clippy::significant_drop_tightening,
+        reason = "the guard must cover both the write and the sync, and only `Ok(())` \
+                  follows it — an explicit `drop` here would be ceremony, not tightening"
+    )]
     pub fn append(&self, record: &Verified) -> Result<()> {
         let line = serde_json::to_string(record).context("serializing a run log record")?;
 

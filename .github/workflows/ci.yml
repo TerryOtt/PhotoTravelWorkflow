@@ -50,11 +50,13 @@ jobs:
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
 
-      # --all-targets is the point: without it clippy lints neither the tests nor
-      # examples/hash-rate.rs, and there will be more of that here than there is
-      # implementation.
+      # The lint LEVELS live in Cargo.toml's [workspace.lints] and are not restated here.
+      # This line decides only what gets compiled: --all-targets so the tests and
+      # examples/hash-rate.rs are linted at all, and --all-features so the
+      # `hash-experiments` arms of hash::Hasher are compiled rather than exempt by accident.
+      # Keep this identical to .githooks/pre-commit, or the hook and the gate disagree.
       - name: cargo clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: cargo test
         run: cargo test

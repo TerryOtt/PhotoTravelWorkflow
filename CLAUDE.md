@@ -367,14 +367,23 @@ exercised rather than merely available.
 
 **`cargo clean`, then `cargo build --release`, before any run whose result will be quoted.**
 Standing order, and [`docs/FULL-RUN.md`](docs/FULL-RUN.md) places it *before* the reboot —
-a full rebuild is **51 seconds** here, and doing it after boot loads a machine that is already
+a full rebuild is **33 seconds** here, and doing it after boot loads a machine that is already
 busy and refills the page cache the reboot exists to clear.
 
-> **That figure was 31 seconds and was re-measured at 50.6 s on 2026-08-07** — the workspace has
-> grown dependencies since. **The argument is unchanged and that is the point**: 51 seconds against
-> a run measured in tens of minutes is still near zero, so the conclusion never depended on the
-> number being small. **Re-measure it rather than trusting it** the next time it is quoted; it will
-> keep drifting upward.
+> **The figure went 31 s → 50.6 s (2026-08-07) → 32.9 s (2026-08-17)**, the last on a wiped
+> `target/`, a quiet machine, rustc 1.97.1. **The argument is unchanged and that is the point**:
+> half a minute against a run measured in tens of minutes is still near zero, so the conclusion
+> never depended on the number being small. **Re-measure it rather than trusting it.**
+>
+> **What the 2026-08-17 number refutes is this file's own prediction that it would "keep
+> drifting upward."** It fell by 35 % instead, with no dependency removed.
+>
+> **The cause is NOT established, and MUST NOT be recorded as the MSVC upgrade.** That upgrade
+> — Build Tools 18.8 → 18.9, toolset 14.51.36231 — landed the same session, minutes earlier,
+> which makes it the obvious suspect and exactly the correlation this project has been burned
+> by before. **No before-and-after was taken across it**, so the honest position is that the
+> number moved and the reason is unknown. Whoever wants the answer measures the old toolset
+> against the new one on the same tree.
 
 **There is no informal run.** If a number, a timing or a behavior reaches a document, a
 commit message or Terry, it was measured and this applied.

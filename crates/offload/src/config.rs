@@ -117,7 +117,7 @@ impl Destination {
                 volume_guid: self.volume_guid.as_deref(),
                 // A device without a subpath means the archive is the volume root, which
                 // is legal and is what an empty string would have meant anyway.
-                subpath: self.subpath.as_deref().unwrap_or(Path::new("")),
+                subpath: self.subpath.as_deref().unwrap_or_else(|| Path::new("")),
             }),
 
             (Some(_), Some(_)) => bail!(

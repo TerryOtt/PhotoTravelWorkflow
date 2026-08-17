@@ -456,7 +456,7 @@ fn verify(
     run_id: &str,
     source: Source<'_>,
     log: &RunLog,
-    bar: &crate::progress::Bar,
+    bar: &Bar,
 ) -> Result<DestinationOutcome> {
     let mut outcome = DestinationOutcome {
         label: destination.label.clone(),

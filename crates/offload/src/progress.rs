@@ -120,6 +120,7 @@ const ETC_FROM_FRACTION: f32 = 0.10;
 const UPDATES_PER_PASS: usize = 10;
 
 /// How the run reports progress. See the module note for why there are three of these.
+#[derive(Debug)]
 pub enum Progress {
     /// stderr is a terminal: live bars, and every bar and heading handed out so far.
     ///
@@ -345,6 +346,7 @@ impl Progress {
 /// finishes an unfinished bar and takes its line with it, so a heading dropped at the end of
 /// the statement that made it is a heading nobody ever sees. `Lines` and `Silent` carry
 /// nothing and exist only so callers can treat all three modes the same way.
+#[derive(Debug)]
 pub struct Section {
     #[allow(
         dead_code,
@@ -357,11 +359,13 @@ pub struct Section {
 ///
 /// Owned by the thread that advances it — one per destination in phase 3 — so the interior
 /// mutability below needs no lock.
+#[derive(Debug)]
 pub struct Bar {
     bar: Option<ProgressBar>,
     plain: Option<Plain>,
 }
 
+#[derive(Debug)]
 struct Plain {
     prefix: String,
     indent: usize,
@@ -412,7 +416,7 @@ impl Bar {
     /// needs it.
     pub fn set_pass(&self, pass: &str) {
         if let Some(plain) = &self.plain {
-            *plain.message.borrow_mut() = pass.to_owned();
+            pass.clone_into(&mut plain.message.borrow_mut());
         }
     }
 
@@ -422,7 +426,7 @@ impl Bar {
             bar.set_message(message.to_owned());
         }
         if let Some(plain) = &self.plain {
-            *plain.message.borrow_mut() = message.to_owned();
+            message.clone_into(&mut plain.message.borrow_mut());
         }
     }
 

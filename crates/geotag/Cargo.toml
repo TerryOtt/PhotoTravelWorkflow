@@ -5,6 +5,10 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+# The lint policy is the workspace manifest's, in one place, with its evidence.
+[lints]
+workspace = true
+
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true

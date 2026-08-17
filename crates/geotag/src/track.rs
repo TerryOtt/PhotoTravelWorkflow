@@ -103,6 +103,7 @@ pub struct Gap {
 }
 
 /// Every timestamped point in the track, sorted by time and deduplicated.
+#[derive(Debug)]
 pub struct Track {
     points: Vec<TrackPoint>,
 }
@@ -226,6 +227,11 @@ impl Track {
 /// `time::OffsetDateTime` in, `chrono::DateTime<Utc>` out, via the Unix epoch —
 /// which both crates agree on, so nothing is lost. Keeping the conversion to this
 /// single function is what stops the two time crates from spreading.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "every caller owns the waypoint and drops it here, so taking it by value moves \
+              a value that would be destroyed anyway; a reference would only add a borrow"
+)]
 fn track_point(waypoint: Waypoint, segment: u32) -> Option<TrackPoint> {
     let point = waypoint.point();
     let ele = waypoint.elevation;
@@ -829,6 +835,11 @@ mod tests {
 
     /// Write a one-segment GPX at the given `HH:MM:SS` times, all at the same
     /// spot so distance never decides anything the test is asking about.
+    #[allow(
+        clippy::format_collect,
+        reason = "a fixture builder for a handful of track points; the `fold` plus `write!` \
+                  this lint asks for is harder to read and saves nothing a test can measure"
+    )]
     fn write_gpx(dir: &TempDir, name: &str, times: &[&str]) -> PathBuf {
         let points: String = times
             .iter()
@@ -849,6 +860,11 @@ mod tests {
 
     /// A GPX holding a track segment *and* standalone waypoints, so the file
     /// consumes two segment ids rather than one.
+    #[allow(
+        clippy::format_collect,
+        reason = "a fixture builder for a handful of track points; the `fold` plus `write!` \
+                  this lint asks for is harder to read and saves nothing a test can measure"
+    )]
     fn write_gpx_with_waypoints(dir: &TempDir, name: &str, trk: &[&str], wpt: &[&str]) -> PathBuf {
         let point = |tag: &str, times: &[&str]| -> String {
             times

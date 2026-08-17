@@ -37,10 +37,19 @@ fail() {
 echo "pre-commit: cargo fmt --check"
 cargo fmt --all -- --check || fail "formatting"
 
-# --all-targets is the point: without it clippy does not lint test code at all, and
-# there will be more of that here than there is implementation.
-echo "pre-commit: cargo clippy --all-targets -- -D warnings"
-cargo clippy --all-targets -- -D warnings || fail "clippy"
+# The lint LEVELS live in Cargo.toml's [workspace.lints], so they apply to every compile
+# and are not restated here. This line only decides what gets COMPILED, and each flag
+# closes a hole:
+#
+#   --all-targets   without it clippy lints neither tests nor examples, and there is more
+#                   of that here than there is implementation
+#   --all-features  without it the `hash-experiments` arms of `hash::Hasher` are never
+#                   compiled, so they are never linted -- a whole code path exempt by
+#                   accident
+#   -D warnings     the levels are warnings by default so an editor shows them without
+#                   blocking; the gate is what turns them fatal
+echo "pre-commit: cargo clippy --workspace --all-targets --all-features -- -D warnings"
+cargo clippy --workspace --all-targets --all-features -- -D warnings || fail "clippy"
 
 echo "pre-commit: cargo test"
 cargo test --quiet || fail "tests"

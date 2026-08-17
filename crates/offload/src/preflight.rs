@@ -268,13 +268,12 @@ fn gate(source: &Card, other: &Card) -> Result<()> {
         return Ok(());
     }
 
-    let only_ours: Vec<&PathBuf> = ours.keys().filter(|k| !theirs.contains_key(*k)).collect();
-    let only_theirs: Vec<&PathBuf> = theirs.keys().filter(|k| !ours.contains_key(*k)).collect();
-    let differing: Vec<&PathBuf> = ours
+    let only_ours = ours.keys().filter(|k| !theirs.contains_key(*k)).count();
+    let only_theirs = theirs.keys().filter(|k| !ours.contains_key(*k)).count();
+    let differing = ours
         .iter()
         .filter(|(path, size)| theirs.get(*path).is_some_and(|other| other != *size))
-        .map(|(path, _)| path)
-        .collect();
+        .count();
 
     bail!(
         "THE TWO CARDS DO NOT HOLD THE SAME FILES.\n\n\
@@ -286,9 +285,9 @@ fn gate(source: &Card, other: &Card) -> Result<()> {
          --allow-single-source.",
         ours.len(),
         theirs.len(),
-        only_ours.len(),
-        only_theirs.len(),
-        differing.len(),
+        only_ours,
+        only_theirs,
+        differing,
         source = source.label(),
         other = other.label(),
     )

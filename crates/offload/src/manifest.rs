@@ -756,7 +756,7 @@ mod tests {
         let changed = corroborate(
             scratch.path(),
             &[Outcome {
-                name: name.clone(),
+                name,
                 corroborated: Corroborated::Matched,
                 deletion: None,
             }],

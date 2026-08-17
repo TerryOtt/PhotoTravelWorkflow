@@ -22,6 +22,7 @@ use crate::format::{RawFormat, ReadStrategy};
 pub use nom_exif::MediaParser;
 
 /// What reading one file's capture time produced.
+#[derive(Debug)]
 pub enum Capture {
     /// Resolved to an absolute instant.
     Resolved {
@@ -463,11 +464,11 @@ mod tests {
         ] {
             let dir = tempfile::tempdir().expect("creating the scratch directory");
             let path = dir.path().join(name);
-            std::fs::write(&path, b"not a raw file at all").expect("writing the decoy");
+            fs::write(&path, b"not a raw file at all").expect("writing the decoy");
 
             let mut parser = MediaParser::new();
-            // Not `expect_err`: that needs `Capture: Debug`, and deriving it buys
-            // nothing outside this one line.
+            // Not `expect_err`: its panic prints the `Ok` value, where this one names the
+            // file and the format it was read as, which is what identifies the case.
             let error = match capture_time(&mut parser, &path, format, None) {
                 Err(error) => error,
                 Ok(_) => panic!("{name} is not a {format:?} and must not resolve"),
@@ -486,7 +487,7 @@ mod tests {
     fn an_empty_file_is_an_error_rather_than_a_panic() {
         let dir = tempfile::tempdir().expect("creating the scratch directory");
         let path = dir.path().join("IMG_0000.CR3");
-        std::fs::write(&path, b"").expect("writing an empty file");
+        fs::write(&path, b"").expect("writing an empty file");
 
         let mut parser = MediaParser::new();
         assert!(capture_time(&mut parser, &path, RawFormat::Cr3, None).is_err());

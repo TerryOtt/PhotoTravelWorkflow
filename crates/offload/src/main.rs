@@ -540,7 +540,7 @@ const BODY_LABEL: &str = "Body";
 ///
 /// **Nothing waits on this**: a clean first-ask eject still exits in seconds. It is a ceiling on
 /// patience, never a delay.
-const RUN_BUDGET: Duration = Duration::from_secs(90 * 60);
+const RUN_BUDGET: Duration = Duration::from_mins(90);
 
 /// Decision 22: eject when nothing remains for the current cards.
 ///
@@ -1304,7 +1304,7 @@ fn card_root(card: &cards::Card) -> PathBuf {
 /// writing sidecars for frames whose provenance is in doubt is the better order.
 fn corroboration_phase(
     plan: &preflight::Preflight,
-    targets: &[pipeline::Destination],
+    targets: &[Destination],
     outcome: &pipeline::Outcome,
     runs_root: &Path,
     args: &Offload,
@@ -1335,7 +1335,7 @@ fn corroboration_phase(
 /// Entries are grouped by day folder because that is where a manifest lives, and applied to
 /// every destination because each carries its own copy.
 fn record_corroboration(
-    targets: &[pipeline::Destination],
+    targets: &[Destination],
     outcome: &pipeline::Outcome,
     report: Option<&phase4::Report>,
 ) -> Result<()> {
@@ -2728,7 +2728,7 @@ mod tests {
                     3,
                 ),
             ],
-            Duration::from_secs(90 * 60),
+            Duration::from_mins(90),
         );
 
         assert!(
@@ -2761,7 +2761,7 @@ mod tests {
                 card("Primary", held("held by STORAGE\\Volume{...}"), 90),
                 card("Secondary", eject::Outcome::Ejected, 1),
             ],
-            Duration::from_secs(90 * 60),
+            Duration::from_mins(90),
             true,
         );
 
@@ -2943,7 +2943,7 @@ mod tests {
         let limp = released(
             "WD",
             eject::Outcome::Dismounted {
-                veto: offload::eject::Veto::Device,
+                veto: eject::Veto::Device,
                 reason: "would not power down".into(),
             },
             3,

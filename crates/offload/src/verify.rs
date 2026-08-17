@@ -285,7 +285,7 @@ mod tests {
         std::fs::create_dir_all(&folder).expect("a date folder");
         std::fs::write(folder.join("1402Z_0001.CR3"), &bytes).expect("a raw");
 
-        crate::manifest::update(
+        manifest::update(
             &folder,
             "2026-08-06",
             "TEST",
@@ -325,7 +325,7 @@ mod tests {
         // A marker and nothing else — exactly the state the WD was found in: it *had* been an
         // archive, so the marker reads fine and only the photographs are gone. That readable
         // marker is what kept `unreadable_manifests` empty and let the old test pass.
-        crate::marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
+        marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
             .expect("a destination marker");
 
         let report = destination(scratch.path()).expect("verification runs");
@@ -343,7 +343,7 @@ mod tests {
     #[test]
     fn a_disk_with_a_matching_manifest_is_clean() {
         let scratch = tempfile::TempDir::new().expect("a scratch directory");
-        crate::marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
+        marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
             .expect("a destination marker");
         archive_with_one_frame(scratch.path());
 
@@ -361,18 +361,18 @@ mod tests {
     #[test]
     fn a_folder_of_tombstones_is_clean_rather_than_empty() {
         let scratch = tempfile::TempDir::new().expect("a scratch directory");
-        crate::marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
+        marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
             .expect("a destination marker");
         archive_with_one_frame(scratch.path());
 
         let folder = scratch.path().join("2026").join("2026-08-06");
         std::fs::remove_file(folder.join("1402Z_0001.CR3")).expect("phase 4 deleted it");
-        crate::manifest::corroborate(
+        manifest::corroborate(
             &folder,
-            &[crate::manifest::Outcome {
+            &[manifest::Outcome {
                 name: "1402Z_0001.CR3".into(),
-                corroborated: crate::manifest::Corroborated::Mismatched,
-                deletion: Some(crate::manifest::Deletion {
+                corroborated: manifest::Corroborated::Mismatched,
+                deletion: Some(manifest::Deletion {
                     source_sha256: "aaaa".into(),
                     other_sha256: "bbbb".into(),
                     reason: "the two cards disagreed".into(),
@@ -397,7 +397,7 @@ mod tests {
     #[test]
     fn a_damaged_file_still_reports_damaged() {
         let scratch = tempfile::TempDir::new().expect("a scratch directory");
-        crate::marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
+        marker::write(scratch.path(), "WD", Some("SERIAL"), "2026-08-06T00:00:00Z")
             .expect("a destination marker");
         archive_with_one_frame(scratch.path());
 
