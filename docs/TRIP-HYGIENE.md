@@ -424,7 +424,8 @@ edited by hand rather than asked for.
 
 **Added 2026-08-17, when this repository gained a linter for each of its three languages.**
 `cargo outdated` sees crates, and `rust-toolchain-check.py` watches rustup and MSVC. Neither
-sees `ruff`, `pyright` or `PSScriptAnalyzer` — a pip tool, a pip tool and a PSGallery module.
+sees `ruff`, `pyright`, `PSScriptAnalyzer` or `shellcheck` — two pip tools, a PSGallery module
+and a winget package.
 
 > **`~/.claude/hooks/lint-toolchain-check.py` now covers them**, on the day's first cargo
 > build, same three volumes as the build-chain check. **It checks VERSIONS and never runs a
@@ -448,7 +449,12 @@ python -m pip list --outdated | Select-String -Pattern '^(ruff|pyright)\s'   # n
 (Find-Module PSScriptAnalyzer).Version                                        # compare the two
 ```
 
-**Measured 2026-08-17:** ruff 0.16.3, pyright 1.1.411, PSScriptAnalyzer 1.25.0, all current.
+**Measured 2026-08-17:** ruff 0.16.3, pyright 1.1.411, PSScriptAnalyzer 1.25.0,
+shellcheck 0.11.0, all current.
+
+```powershell
+winget upgrade --id koalaman.shellcheck --exact    # "No available upgrade found" = current
+```
 
 ```
 python -m pip install --upgrade ruff pyright
