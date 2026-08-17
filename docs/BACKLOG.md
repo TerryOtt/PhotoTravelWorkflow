@@ -160,6 +160,24 @@ the backlog instead of the report.
 >   nothing"; it now buys the lint, so the derive landed and the comment says what it is
 >   actually for.
 >
+> ### Re-surveyed at the end: nothing can be enabled for free, and the prose checks out
+>
+> **After every fix landed, all 24 allowed families were forced back to `warn` and counted.**
+> **None reports zero**, so no row could be tightened at no cost — the allow list is minimal
+> rather than merely defensible. That is a negative result and it closes the *"could we be
+> more pedantic?"* question with evidence rather than opinion.
+>
+> **It also confirms the arithmetic in `Cargo.toml`'s own notes**, which is the better half:
+>
+> | Family | Survey | Fixed here | Predicted | Live |
+> |---|---|---|---|---|
+> | the four cast families | 54 | 8, via `storage::size_u32` | 46 | **46** |
+> | `needless_collect` | 8 | 3, the `bail!` path now `.count()` | 5 | **5** |
+>
+> **The counts recorded in the config are the SURVEY's, by stated convention**, so a reader
+> who mistakes them for a live tally would be off by exactly the number the prose beside them
+> says was fixed. Both reconcile.
+>
 > ### What is deliberately NOT enabled
 >
 > **`clippy::nursery` as a group.** Clippy ships those unstable and expects false positives;
