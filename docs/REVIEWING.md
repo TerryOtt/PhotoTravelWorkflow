@@ -381,6 +381,7 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
 ruff check scripts/ && pyright scripts/
 Invoke-ScriptAnalyzer -Path scripts/ -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
 shellcheck .githooks/pre-commit
+actionlint
 ```
 
 **The lint LEVELS are not in those commands and MUST NOT be added to them.** They live in
@@ -407,8 +408,13 @@ Two layers, and the second is not redundant with the first:
 
 | | Where | Runs | Skippable |
 |---|---|---|---|
-| `.githooks/pre-commit` | your machine, before the commit exists | fmt, clippy, test, doc, ruff, pyright, PSScriptAnalyzer, shellcheck | `--no-verify`, and only present if the clone was wired up |
-| `.github/workflows/ci.yml` | GitHub, on push to `main` and on every PR | the same eight | no |
+| `.githooks/pre-commit` | your machine, before the commit exists | fmt, clippy, test, doc, ruff, pyright, PSScriptAnalyzer, shellcheck, actionlint | `--no-verify`, and only present if the clone was wired up |
+| `.github/workflows/ci.yml` | GitHub, on push to `main` and on every PR | the same nine | no |
+
+> **`actionlint` is the one whose mistakes are otherwise only discoverable by pushing and
+> waiting.** A bad context property or a mistyped runner label is *valid YAML*, so nothing
+> else here catches it. It also runs `shellcheck` over every `run:` block, which is the only
+> thing that lints the shell embedded in the workflow.
 
 > **`shellcheck` lints the hook itself, and that is not circular vanity.** A bug in
 > `.githooks/pre-commit` does not fail loudly — it silently stops the other three languages

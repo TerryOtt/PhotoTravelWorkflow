@@ -513,9 +513,9 @@ which names this repository.
   that looked wrong can be diffed rather than remembered. `FULL-RUN.md` already demands a
   clean tree for *measured* runs (`binary is HEAD's`); **this extends it to every run**,
   including the casual ones — which is where the fast iteration actually happens.
-- **The pre-commit hook** runs **eight** checks across **four** languages — `cargo fmt`,
+- **The pre-commit hook** runs **nine** checks across **five** languages — `cargo fmt`,
   `cargo clippy`, `cargo test`, `cargo doc` for the rustdoc lints, then `ruff`, `pyright`,
-  `PSScriptAnalyzer` and `shellcheck`. Wire it up once per clone:
+  `PSScriptAnalyzer`, `shellcheck` and `actionlint`. Wire it up once per clone:
   `git config core.hooksPath .githooks`.
 
   **Each language gate fires only when that language is in the diff**, so a docs-only commit

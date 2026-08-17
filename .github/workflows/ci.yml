@@ -99,6 +99,17 @@ jobs:
         shell: bash
         run: shellcheck .githooks/pre-commit
 
+      # This workflow lints itself. A bad context property or a mistyped runner label is
+      # valid YAML, so nothing else catches it before a push. Installed AFTER shellcheck on
+      # purpose: actionlint runs shellcheck over every `run:` block when it can find it.
+      - name: Install actionlint
+        shell: pwsh
+        run: choco install actionlint --no-progress -y
+
+      - name: actionlint
+        shell: bash
+        run: actionlint -no-color -oneline
+
       - name: PSScriptAnalyzer
         shell: pwsh
         run: |

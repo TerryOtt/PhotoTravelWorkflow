@@ -126,4 +126,20 @@ shellcheck .githooks/pre-commit || fail "shellcheck"
 
 fi
 
+# The GitHub Actions workflow. **This is the one gate whose mistakes are otherwise only
+# discoverable by pushing and waiting**, which is why it is worth a linter: a bad context
+# property or a mistyped runner label is valid YAML, so nothing local catches it.
+#
+# `actionlint` also runs `shellcheck` over every `run:` block, so the shell embedded in the
+# workflow gets the same treatment as `.githooks/pre-commit` itself. Nothing else does that.
+if touched '^\.github/workflows/'; then
+
+command -v actionlint >/dev/null 2>&1 \
+    || fail "actionlint is not installed: winget install --id rhysd.actionlint"
+
+echo "pre-commit: actionlint .github/workflows/"
+actionlint -no-color -oneline || fail "actionlint"
+
+fi
+
 echo "pre-commit: ok"

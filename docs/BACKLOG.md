@@ -173,6 +173,32 @@ the backlog instead of the report.
 > would win by attrition. **Turning it on is a documentation decision for Terry, not a lint
 > decision.**
 
+## The GitHub Actions workflow: actionlint — CLOSED 2026-08-17
+
+> **The fifth and last language, and the one with the worst feedback loop.** A bad context
+> property or a mistyped runner label in `ci.yml` is **valid YAML**, so nothing local catches
+> it — the only way to find out was to push and wait four minutes. That is a poor place to
+> leave a gate, and this session changed that file eight times.
+>
+> **`actionlint` 1.7.12** (`winget install --id rhysd.actionlint`; `choco` on the CI runner).
+> **The workflow reported clean at once** — nothing to fix, which is the honest result.
+>
+> ### It runs shellcheck over every `run:` block, which nothing else does
+>
+> That is the part worth having rather than the YAML schema check. `.githooks/pre-commit` gets
+> `shellcheck` directly, but the shell *inside* the workflow had no linter at all until now.
+> The probe below demonstrates both halves at once.
+>
+> **Proven able to fire**, on stdin so the real workflow was never touched:
+>
+> | Planted | Reported |
+> |---|---|
+> | `${{ github.evnt.head_commit.message }}` | `property "evnt" is not defined in object type {...}` |
+> | `echo $undefined_shell_var` in a `run:` block | `shellcheck reported issue in this script: SC2086` |
+>
+> Exit 1. **Installed AFTER shellcheck in CI on purpose** — actionlint shells out to it when
+> it can find it, and silently skips that half when it cannot.
+
 ## POSIX sh: shellcheck over the hook itself — CLOSED 2026-08-17
 
 > **The fourth language, and the one easiest to overlook because there is only one file of
