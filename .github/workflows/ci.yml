@@ -76,3 +76,17 @@ jobs:
 
       - name: pyright
         run: pyright scripts/
+
+      # PowerShell. Linter only -- no language server exists to pair with it.
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force -AllowClobber
+
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $found = Invoke-ScriptAnalyzer -Path scripts/ -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
+          if ($found) {
+            $found | Format-Table Severity, RuleName, ScriptName, Line, Message -AutoSize | Out-String -Width 200 | Write-Host
+            exit 1
+          }

@@ -1,4 +1,4 @@
-# Tell the session what the machine did while it was not looking.
+﻿# Tell the session what the machine did while it was not looking.
 #
 # **This exists because a reboot is invisible from inside a conversation.** `claude --continue`
 # restores the transcript across a restart, so the session reads as unbroken: the last thing in
@@ -36,7 +36,11 @@ $lines = @()
 # The headline. A boot after staging is the thing the session cannot otherwise know, so it
 # leads, and it says what to do about it rather than only what happened.
 $staged = $null
-try { $staged = (Get-Content $statePath -Raw | ConvertFrom-Json).staged_utc } catch { }
+# Fails OPEN on purpose, and the catch says so rather than sitting empty. A malformed or
+# half-written RUN-STATE.json must not stop this script printing the rest of the context --
+# this runs at session start, and a hard failure here would take the reboot warning down
+# with it, which is the one line the session cannot reconstruct for itself.
+try { $staged = (Get-Content $statePath -Raw | ConvertFrom-Json).staged_utc } catch { $staged = $null }
 
 if ($staged) {
     $stagedUtc = [datetime]::Parse($staged, [Globalization.CultureInfo]::InvariantCulture,

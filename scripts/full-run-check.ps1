@@ -1,4 +1,4 @@
-#requires -Version 7
+﻿#requires -Version 7
 <#
 .SYNOPSIS
     Metadata-only rig checks before a measured end-to-end run. See docs/FULL-RUN.md.

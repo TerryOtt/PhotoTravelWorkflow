@@ -1,4 +1,4 @@
-#requires -Version 7
+﻿#requires -Version 7
 <#
 .SYNOPSIS
     Emit one line per change in rig state. Metadata only. Intended for Claude's Monitor tool.

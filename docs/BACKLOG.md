@@ -220,6 +220,60 @@ the backlog instead of the report.
 > `[lints] workspace = true` now lives, so the file that turns the lint policy on was the file
 > the gate could not see. Now unanchored.
 
+## PowerShell linting: PSScriptAnalyzer over `scripts/` — CLOSED 2026-08-17
+
+> **Terry, 2026-08-17: *"yeah def install LSP and linter(s) to get good coverage."*** That
+> closes the third and last language in this repository.
+>
+> **Linter only, and it is a GAP rather than a choice.** The official plugin marketplace ships
+> language servers for clangd, csharp, gopls, jdtls, kotlin, lua, php, pyright, ruby,
+> rust-analyzer, swift and typescript — **and none for PowerShell.** Checked 2026-08-17 by
+> listing the marketplace directory. Same footing as the Svelte row in the global config: a
+> language with a linter and no server to install. **If one ships, this is the item to reopen.**
+>
+> **PSScriptAnalyzer 1.25.0**, policy in [`PSScriptAnalyzerSettings.psd1`](../PSScriptAnalyzerSettings.psd1),
+> all three severities on, wired into `.githooks/pre-commit` and CI, gated on a `.ps1` in the
+> diff. **Survey: 25 findings across 4 files.** One rule excluded, five findings fixed.
+>
+> ### The BOM finding was real, and it was measured rather than argued
+>
+> `PSUseBOMForUnicodeEncodedFile` fired on **all four** scripts, and it reads like a
+> compatibility nag until you run one. **Measured 2026-08-17**, a BOM-less script printing an
+> em dash, `══` and a middle dot:
+>
+> | | `—` | `══` | `·` |
+> |---|---|---|---|
+> | **pwsh 7** | `—` | `══` | `·` |
+> | **`powershell.exe` 5.1** | `â€”` | `â•â•` | `Â·` |
+>
+> **Every one of these scripts was mojibake under Windows PowerShell 5.1**, which is the
+> `powershell.exe` that ships with Windows. `pwsh` was always fine, which is exactly why
+> nobody had noticed — [`../CLAUDE.md`](../CLAUDE.md) tells sessions to launch `watch-rig.ps1`
+> with `pwsh`, so the broken path was never the one being used. **All four now carry a UTF-8
+> BOM**, content verified byte-identical across the rewrite.
+>
+> This matters here more than it would elsewhere: the box drawing and middle dots are a
+> deliberate part of what these scripts print.
+>
+> ### The one exclusion, and the one other fix
+>
+> **`PSAvoidUsingPositionalParameters`, 20 of the 25.** Every hit is a call to that script's
+> **own** `Report <name> <ok> <detail>` helper, defined a few lines above the call site. The
+> rule earns its keep against *cmdlets*, whose parameter sets can change under a caller; a
+> local three-argument helper cannot drift, and spelling out `-Name -Ok -Detail` twenty times
+> would bury a deliberately terse reporting DSL for no safety gain. **With it excluded,
+> `Information` severity reports nothing — so it is left ON at zero cost.**
+>
+> **`PSAvoidUsingEmptyCatchBlock` in `full-run-context.ps1` was a real one.** The fail-open is
+> deliberate — a malformed `RUN-STATE.json` must not stop the script printing the reboot
+> warning, which is the one line a session cannot reconstruct for itself — but that was
+> *implied by an empty block* rather than stated. Now written down in the catch.
+>
+> ### Proven able to fire
+>
+> A throwaway probe script with an empty catch, staged, hook run, **blocked at exit 1**, then
+> deleted.
+
 ## Characterize all three UHS-II USB SD readers — CLOSED 2026-08-07
 
 > **All three cleared: 280, 276, 275 MB/s — one population inside ±2 %.** Every reader in the bag

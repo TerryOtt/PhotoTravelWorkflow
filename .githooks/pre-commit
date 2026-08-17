@@ -82,4 +82,22 @@ pyright scripts/ || fail "pyright"
 
 fi
 
+# PowerShell, under the same standing order. **Linter only, and that is a gap rather than a
+# choice**: the official plugin marketplace ships twelve language servers and none for
+# PowerShell, checked 2026-08-17. PSScriptAnalyzerSettings.psd1 carries the rule policy.
+if touched '\.ps1$|^PSScriptAnalyzerSettings\.psd1$'; then
+
+command -v pwsh >/dev/null 2>&1 || fail "pwsh is not installed"
+
+echo "pre-commit: Invoke-ScriptAnalyzer scripts/"
+pwsh -NoProfile -Command '
+    $found = Invoke-ScriptAnalyzer -Path scripts/ -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
+    if ($found) {
+        $found | Format-Table Severity, RuleName, Line, Message -AutoSize | Out-String -Width 200 | Write-Host
+        exit 1
+    }
+' || fail "PSScriptAnalyzer"
+
+fi
+
 echo "pre-commit: ok"
