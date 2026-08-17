@@ -20,12 +20,7 @@
 
 set -e
 
-# Docs-only commits are frequent here and gain nothing from a Rust build. This also
-# makes the hook a clean no-op until the Cargo project lands.
-if ! git diff --cached --name-only --diff-filter=ACMR |
-     grep -qE '\.rs$|^Cargo\.(toml|lock)$'; then
-    exit 0
-fi
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
 
 fail() {
     echo ""
@@ -33,6 +28,17 @@ fail() {
     echo "pre-commit: fix it, or bypass deliberately with: git commit --no-verify"
     exit 1
 }
+
+# Docs-only commits are frequent here and gain nothing from a build, so each language
+# gate runs only when that language is actually in the diff.
+touched() {
+    printf '%s\n' "$staged" | grep -qE "$1"
+}
+
+# `Cargo\.toml` unanchored on purpose: the crate manifests live at crates/*/Cargo.toml, and
+# an anchored `^Cargo\.` matched only the workspace root -- so a change to a crate's own
+# manifest, which is where [lints] workspace = true lives, skipped the whole Rust gate.
+if touched '\.rs$|Cargo\.(toml|lock)$'; then
 
 echo "pre-commit: cargo fmt --check"
 cargo fmt --all -- --check || fail "formatting"
@@ -53,5 +59,27 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings || fail "cl
 
 echo "pre-commit: cargo test"
 cargo test --quiet || fail "tests"
+
+fi
+
+# Python. Standing order, Terry, 2026-08-17: every language in a project gets a
+# best-of-breed linter at best-practice pedantry, XOR his own written override.
+#
+# **Both tools run, and neither substitutes for the other.** Ruff checks that an annotation
+# EXISTS; pyright checks that it is TRUE. On the day this was wired, ruff passed a file
+# clean while pyright found `sys.stdout.reconfigure` -- a method the declared type does not
+# have. A green ruff run MUST NOT be described as type-checked.
+if touched '\.py$|^ruff\.toml$'; then
+
+command -v ruff >/dev/null 2>&1 || fail "ruff is not installed: python -m pip install --upgrade ruff"
+command -v pyright >/dev/null 2>&1 || fail "pyright is not installed: python -m pip install --upgrade pyright"
+
+echo "pre-commit: ruff check scripts/"
+ruff check scripts/ || fail "ruff"
+
+echo "pre-commit: pyright scripts/"
+pyright scripts/ || fail "pyright"
+
+fi
 
 echo "pre-commit: ok"

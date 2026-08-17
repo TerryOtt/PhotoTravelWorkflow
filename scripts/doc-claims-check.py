@@ -20,13 +20,18 @@ edit mid-thought should not be blocked by a link that will resolve two commits
 later. Run it before a review, or when touching a document that quotes output.
 """
 
+import io
 import json
 import os
 import re
 import subprocess
 import sys
 
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+# Guarded rather than called straight: `sys.stdout` is declared `TextIO`, which has no
+# `reconfigure`. It is a `TextIOWrapper` for a console and for a pipe -- but not under every
+# test harness, and this is the line that would raise before printing the reason why.
+if isinstance(sys.stdout, io.TextIOWrapper):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 DOCS = [os.path.join("docs", f) for f in sorted(os.listdir("docs")) if f.endswith(".md")]
 DOCS += ["CLAUDE.md"]
@@ -40,10 +45,10 @@ REMOTE_REPO_PATHS = {
     "scripts/verify-fixtures.ps1",
 }
 
-failures = []
+failures: list[str] = []
 
 
-def report(check, bad, note=""):
+def report(check: str, bad: list[str], note: str = "") -> None:
     if bad:
         failures.append(check)
         print(f"  [FAIL] {check}{note}")
@@ -53,55 +58,59 @@ def report(check, bad, note=""):
         print(f"  [ ok ] {check}{note}")
 
 
-def check_links():
+def check_links() -> None:
     """Every relative markdown link resolves."""
     pattern = re.compile(r"\[[^\]]*\]\(([^)\s#]+)(?:#[^)]*)?\)")
-    bad, n = [], 0
+    bad: list[str] = []
+    n = 0
     for path in DOCS:
         base = os.path.dirname(path)
-        for i, line in enumerate(open(path, encoding="utf-8"), 1):
-            for m in pattern.finditer(line):
-                target = m.group(1)
-                if target.startswith(("http://", "https://", "mailto:")):
-                    continue
-                n += 1
-                resolved = os.path.normpath(os.path.join(base, target))
-                if not os.path.exists(resolved):
-                    bad.append(f"{path}:{i} -> {target}")
+        with open(path, encoding="utf-8") as handle:
+            for i, line in enumerate(handle, 1):
+                for m in pattern.finditer(line):
+                    target = m.group(1)
+                    if target.startswith(("http://", "https://", "mailto:")):
+                        continue
+                    n += 1
+                    resolved = os.path.normpath(os.path.join(base, target))
+                    if not os.path.exists(resolved):
+                        bad.append(f"{path}:{i} -> {target}")
     report("relative markdown links", bad, f" ({n} checked)")
 
 
-def check_cited_paths():
+def check_cited_paths() -> None:
     """Every file path cited in backticks exists, or is a known remote-repo path."""
     pattern = re.compile(r"`([A-Za-z0-9_./\\-]+\.(?:rs|ps1|py|json|toml|md))`")
     seps = set("/\\")
-    bad, cited = [], set()
+    bad: list[str] = []
+    cited: set[str] = set()
     for path in DOCS:
-        for i, line in enumerate(open(path, encoding="utf-8"), 1):
-            for m in pattern.finditer(line):
-                raw = m.group(1)
-                if not any(c in seps for c in raw):
-                    continue
-                normalized = raw.replace("\\", "/")
-                cited.add(normalized)
-                if normalized in REMOTE_REPO_PATHS:
-                    continue
-                # Resolved relative to the citing document as well as to the root,
-                # because `../CLAUDE.md` from docs/ is correct and `crates/...` from
-                # anywhere is too. Getting this wrong reports eight defects that are
-                # the checker's, which is worse than reporting none.
-                candidates = [
-                    normalized,
-                    os.path.normpath(os.path.join(os.path.dirname(path), normalized)),
-                    "crates/offload/" + normalized,
-                    "crates/geotag/" + normalized,
-                ]
-                if not any(os.path.exists(c) for c in candidates):
-                    bad.append(f"{path}:{i} -> {raw}")
+        with open(path, encoding="utf-8") as handle:
+            for i, line in enumerate(handle, 1):
+                for m in pattern.finditer(line):
+                    raw = m.group(1)
+                    if not any(c in seps for c in raw):
+                        continue
+                    normalized = raw.replace("\\", "/")
+                    cited.add(normalized)
+                    if normalized in REMOTE_REPO_PATHS:
+                        continue
+                    # Resolved relative to the citing document as well as to the root,
+                    # because `../CLAUDE.md` from docs/ is correct and `crates/...` from
+                    # anywhere is too. Getting this wrong reports eight defects that are
+                    # the checker's, which is worse than reporting none.
+                    candidates = [
+                        normalized,
+                        os.path.normpath(os.path.join(os.path.dirname(path), normalized)),
+                        "crates/offload/" + normalized,
+                        "crates/geotag/" + normalized,
+                    ]
+                    if not any(os.path.exists(c) for c in candidates):
+                        bad.append(f"{path}:{i} -> {raw}")
     report("cited file paths", bad, f" ({len(cited)} distinct)")
 
 
-def check_invisible_dependencies():
+def check_invisible_dependencies() -> None:
     """No crate is declared in the workspace but imported by nobody.
 
     Those never resolve, never reach Cargo.lock, and `cargo outdated` cannot see
@@ -118,27 +127,31 @@ def check_invisible_dependencies():
         report("invisible workspace dependencies", [f"cargo metadata failed: {exc}"])
         return
     resolved = {p["name"] for p in json.loads(out)["packages"]}
-    manifest = open("Cargo.toml", encoding="utf-8").read()
+    with open("Cargo.toml", encoding="utf-8") as handle:
+        manifest = handle.read()
     section = manifest.split("[workspace.dependencies]")[1].split("\n[")[0]
-    declared = {m.group(1) for m in re.finditer(r"^([A-Za-z0-9_-]+)\s*=", section, re.M)}
+    declared = {
+        m.group(1) for m in re.finditer(r"^([A-Za-z0-9_-]+)\s*=", section, re.MULTILINE)
+    }
     report("invisible workspace dependencies", sorted(declared - resolved))
 
 
-def check_no_red_badge():
+def check_no_red_badge() -> None:
     """Decision 14's standing order: no badge in this tool renders red."""
-    bad = []
+    bad: list[str] = []
     for root, _, files in os.walk("crates"):
         for f in files:
             if not f.endswith(".rs"):
                 continue
             p = os.path.join(root, f)
-            for i, line in enumerate(open(p, encoding="utf-8", errors="ignore"), 1):
-                if re.search(r"\.red\(\)|\.on_red\(\)", line):
-                    bad.append(f"{p}:{i}")
+            with open(p, encoding="utf-8", errors="ignore") as handle:
+                for i, line in enumerate(handle, 1):
+                    if re.search(r"\.red\(\)|\.on_red\(\)", line):
+                        bad.append(f"{p}:{i}")
     report("no red badges (decision 14)", bad)
 
 
-def main():
+def main() -> int:
     if not os.path.isdir("docs"):
         print("Run this from the repository root.")
         return 1

@@ -60,3 +60,19 @@ jobs:
 
       - name: cargo test
         run: cargo test
+
+      # Python, under the same standing order as the Rust gate above: every language in a
+      # project gets a best-of-breed linter at best-practice pedantry. The job NAME must
+      # stay "fmt, clippy, test" -- the branch ruleset matches on it, and renaming it
+      # silently stops the gate from being enforced -- so these arrive as extra steps.
+      #
+      # Both tools run and neither substitutes for the other: ruff checks that an
+      # annotation EXISTS, pyright checks that it is TRUE.
+      - name: Install ruff and pyright
+        run: python -m pip install --upgrade ruff pyright
+
+      - name: ruff
+        run: ruff check scripts/
+
+      - name: pyright
+        run: pyright scripts/

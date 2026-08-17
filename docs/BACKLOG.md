@@ -173,6 +173,53 @@ the backlog instead of the report.
 > would win by attrition. **Turning it on is a documentation decision for Terry, not a lint
 > decision.**
 
+## Python linting: equip `scripts/` with ruff and pyright — CLOSED 2026-08-17
+
+> **The same standing order as the Rust item above**, and it fired here because this project
+> has a language nobody had equipped: `scripts/doc-claims-check.py`. Terry pointed at the
+> settled configuration — *"in the other project we installed pyright-lsp and pyright and ruff
+> ... global config shows python linting level for any python scripts in this project"* — so
+> the select list is the house standard rather than a fresh invention.
+>
+> **Surveyed here anyway before adopting it.** `ruff check --isolated --select ALL scripts/`
+> reported **46 findings on one file**, and the distribution matched the house config's own
+> reasoning almost exactly: `PTH` 14, `ANN` 9, `T20` 9, `E` 4, `SIM` 4, then singles. The new
+> [`ruff.toml`](../ruff.toml) carries **this repository's** counts on every refusal line.
+>
+> **14 findings survived the policy and all 14 are fixed.** Nine were `ANN` — the standing
+> order that all Claude-written Python is fully type hinted, which this file predated and
+> violated. **Four were `SIM115`: unclosed file handles**, `for line in enumerate(open(path))`
+> with nothing ever closing it, in four separate functions. That is a real defect rather than
+> a style point.
+>
+> ### Ruff passed a file that pyright then failed, in this repo, on the day it was wired
+>
+> **This is the argument for running both, and it did not need a contrived example.** After
+> ruff went green, pyright reported `sys.stdout.reconfigure` — *"Cannot access attribute
+> `reconfigure` for class `TextIO`"*. The declared type has no such method; the runtime object
+> usually does. It is now guarded with `isinstance(sys.stdout, io.TextIOWrapper)`, which also
+> closes the case where that line would raise **before** printing the reason why.
+>
+> **A green ruff run MUST NOT be described as type-checked.**
+>
+> ### Both gates proven able to fire
+>
+> A throwaway probe file under `scripts/`, staged, hook run, then deleted — twice, because
+> one probe cannot prove two tools:
+>
+> | Probe | Ruff | Pyright |
+> |---|---|---|
+> | Unused import, unannotated `def probe(value)` | **blocked**, 3 errors | not reached |
+> | Fully annotated `def typed_probe(value: int) -> str: return value` | **passed clean** | **blocked**, `reportReturnType` |
+>
+> ### And a pre-existing hole in the Rust trigger, found while restructuring the hook
+>
+> **`.githooks/pre-commit` matched `^Cargo\.(toml|lock)$`, anchored** — so it saw the
+> workspace manifest and **never `crates/*/Cargo.toml`.** A commit touching only a crate's own
+> manifest skipped fmt, clippy and test entirely. That is exactly where
+> `[lints] workspace = true` now lives, so the file that turns the lint policy on was the file
+> the gate could not see. Now unanchored.
+
 ## Characterize all three UHS-II USB SD readers — CLOSED 2026-08-07
 
 > **All three cleared: 280, 276, 275 MB/s — one population inside ±2 %.** Every reader in the bag

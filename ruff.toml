@@ -1,0 +1,82 @@
+# Ruff, the Python half of this repository's gate. `[workspace.lints]` in `Cargo.toml` does
+# the same job for Rust, and this file exists so the two are equally serious.
+#
+# **Standing order, Terry, 2026-08-17**, and it is global rather than this project's: every
+# language in a project gets a best-of-breed linter at best-practice pedantry, XOR a written
+# override from Terry. Python arrived here as `scripts/doc-claims-check.py` and was never
+# equipped. RFC 2119 keywords, and the capitals are load-bearing.
+#
+#     ruff check scripts/          # what `.githooks/pre-commit` runs
+#     pyright scripts/             # the other half -- see below
+#
+# **RUFF CHECKS THAT AN ANNOTATION EXISTS. PYRIGHT CHECKS THAT IT IS TRUE.** Neither replaces
+# the other, and a green ruff run MUST NOT be described as type-checked. Both run in the hook.
+#
+# **The select list is the house standard**, settled against FlickrGroupAddr and `~/.claude`
+# on 2026-08-17 by running `--select ALL` and keeping each family on what it actually
+# reported. It is reproduced here rather than re-derived, because one file is too small a
+# sample to settle a policy with -- but it WAS re-measured against this project, and the
+# counts in the refusal list below are this repository's own.
+#
+#     ruff check --isolated --select ALL scripts/     # 46 findings, 1 file, 2026-08-17
+
+target-version = "py313"
+line-length = 100
+
+[lint]
+# **BUGS FIRST.** `F` and `B` are the families that earn this file; `ANN` is a standing order
+# in its own right.
+select = [
+    "F",      # pyflakes -- undefined names, unused imports. Never optional
+    "E", "W", # pycodestyle
+    "I",      # import sorting
+    "N",      # PEP 8 naming
+    "UP",     # pyupgrade -- modern syntax for the pinned target-version
+    "B",      # bugbear -- the highest-yield bug family
+    "A",      # shadowed builtins
+    "C4",     # comprehensions
+    "SIM",    # simplifications that read better
+    "RET",    # return-statement hygiene
+    "ARG",    # unused arguments
+    "PIE",    # miscellaneous correctness
+    "PERF",   # obvious performance mistakes
+    "RUF",    # ruff's own
+    "ANN",    # THE STANDING ORDER: every signature fully type hinted
+    "DTZ",    # naive datetimes
+    "ISC",    # implicit string concatenation
+    "FURB",   # modernization
+    "TID",    # tidy imports
+    "SLF",    # private member access
+]
+
+# **Each family below was measured HERE and refused. The count is what it reported against
+# `scripts/` on 2026-08-17.** A checker that cries wolf gets switched off, which is the same
+# argument `Cargo.toml`'s lint table makes at length. **Adding a family back is a decision,
+# not a tidy-up.**
+#
+#   PTH   14  `os.path` -> `pathlib`. Deferred with a reason, not refused -- see the note
+#             at the foot of this file
+#   T20    9  `print` IS the interface. Every script here is a CLI tool a human runs
+#   D      2  Docstrings here are house-styled per `docs/WRITING.md`, not PEP 257 one-liners
+#   CPY    1  No copyright headers in a personal repository
+#   INP    1  Wants `__init__.py` in a directory of standalone scripts
+#   S      1  Bandit flags `ElementTree`, which is this project's chosen XML tool
+ignore = [
+    # The formatter owns these, and ruff itself warns that they fight it.
+    "COM812", "ISC001",
+    # `docs/WRITING.md` uses em dashes and curly quotes on purpose, and the checker script
+    # has to carry the characters it looks for.
+    "RUF001", "RUF002", "RUF003",
+]
+
+[lint.flake8-annotations]
+allow-star-arg-any = false
+mypy-init-return = true
+
+# **PTH is NOT selected, and this is the note the ignore list points at.**
+# It reported 14 of this project's 46 findings -- the largest single family -- and every fix
+# is manual, turning `os.path` calls into `Path` methods and rippling a str-to-Path change
+# through the call sites. **`os.path` is not deprecated and the script works**; it is a
+# pre-commit-adjacent checker whose failure mode is a false alarm on documentation.
+# Rewriting its file I/O for zero behavior gain is the overkill Terry explicitly excluded.
+# **New Python here SHOULD use `pathlib` anyway.**
