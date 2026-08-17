@@ -513,6 +513,12 @@ linker current today*, which is the half that goes stale on its own between trip
 
 ## Step 2b — prove the hooks still guard, and are still being called
 
+> **This one runs itself, once every 24 hours**, from a `UserPromptSubmit` hook. **A clean
+> sweep still prints one line** — *"Hook health: 8 self-test suites pass, 6 hooks show recent
+> execution"* — because a silent success and a check that never ran are indistinguishable,
+> which is the failure this whole mechanism exists to answer. **A failure raises a banner and
+> re-fires once per session until it is fixed.** The command below is for the full report.
+
 ```
 python ~/.claude/hooks/hook-health.py
 ```
