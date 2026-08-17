@@ -425,6 +425,26 @@ pub fn volume_containing(path: &std::path::Path) -> Result<Volume> {
 mod tests {
     use super::*;
 
+    /// Every `cbSize` and buffer-length argument in this module and in `eject` now goes
+    /// through [`size_u32`], so a wrong answer here is a wrong length handed to
+    /// `DeviceIoControl` against a real disk. Asserted against the records actually passed
+    /// rather than a stand-in type, because the point is that these specific structs
+    /// convert exactly and cannot make the `expect` fire.
+    #[test]
+    fn size_u32_converts_every_win32_record_it_is_used_on_exactly() {
+        assert_eq!(
+            usize::try_from(size_u32::<STORAGE_DEVICE_NUMBER>()).expect("a u32 fits a usize"),
+            size_of::<STORAGE_DEVICE_NUMBER>(),
+        );
+        assert_eq!(
+            usize::try_from(size_u32::<STORAGE_PROPERTY_QUERY>()).expect("a u32 fits a usize"),
+            size_of::<STORAGE_PROPERTY_QUERY>(),
+        );
+        // A zero-length buffer would be accepted by `DeviceIoControl` and return nothing,
+        // which is the failure this whole helper exists to make impossible to reach quietly.
+        assert!(size_u32::<STORAGE_DEVICE_NUMBER>() > 0);
+    }
+
     /// **These run against whatever is plugged into the machine**, which is unusual for
     /// a unit test and is the point: this module's entire job is to describe real
     /// hardware, and a mock would only prove the mock. They assert invariants that hold

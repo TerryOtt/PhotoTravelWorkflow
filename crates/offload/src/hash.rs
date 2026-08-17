@@ -139,6 +139,18 @@ pub fn hex(digest: &Digest32) -> String {
 mod tests {
     use super::*;
 
+    /// The hand-written `Debug` names the algorithm and nothing else.
+    ///
+    /// Written by hand because `xxhash_rust::xxh3::Xxh3` implements no `Debug`, so a derive
+    /// does not compile under `hash-experiments` at all. This asserts the deliberate half:
+    /// a partially consumed hasher's internal state is noise in a panic message, and the
+    /// algorithm is the only part a reader can act on. The default build has one variant,
+    /// and `OFFLOAD_HASH` is unset under test, so both builds answer the same here.
+    #[test]
+    fn the_debug_impl_names_the_algorithm_rather_than_the_state() {
+        assert_eq!(format!("{:?}", Hasher::new()), "Hasher::Sha256");
+    }
+
     /// Pinned against the published SHA-256 of the empty input and of `abc`. These are
     /// the two vectors every implementation is checked against, and they prove the
     /// wiring — crate, byte order and hex spelling — rather than merely that some hash
