@@ -24,6 +24,20 @@
 # Everything optional is on. `--enable=all` turns on the opt-in checks, and with the two
 # exclusions below it reports NOTHING here -- so maximum pedantry costs nothing today and
 # catches the next one for free.
+#
+# **This looks inconsistent with `Cargo.toml` refusing `clippy::nursery`, and the difference
+# is real rather than convenient.** That refusal turned on the stability argument: clippy
+# ships nursery lints as unstable and *expects* false positives from them, and this machine
+# takes toolchain updates within 24 hours, so one changing its mind under a bump would break
+# the build for something that is not a defect. **ShellCheck's optional checks are not
+# unstable** -- they are opinionated, which is a different property. They are stable, they are
+# documented, and they are off by default because not every script wants them.
+#
+# **The residual risk is named rather than waved away**: a future ShellCheck MAY add an
+# optional check that fires here, and the linter freshness hook will offer that upgrade within
+# a day. The surface is ONE file, so the cost is a two-minute fix or one more documented
+# `disable` line with its reason. That is a trade worth taking for one file and would not be
+# for a whole Rust workspace, which is why the two configs land differently.
 enable=all
 
 # SC2310 -- "this function is invoked in an 'if' condition so set -e will be disabled".
