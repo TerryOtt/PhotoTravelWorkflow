@@ -380,6 +380,7 @@ cargo test --workspace
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
 ruff check scripts/ && pyright scripts/
 Invoke-ScriptAnalyzer -Path scripts/ -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
+shellcheck .githooks/pre-commit
 ```
 
 **The lint LEVELS are not in those commands and MUST NOT be added to them.** They live in
@@ -406,8 +407,13 @@ Two layers, and the second is not redundant with the first:
 
 | | Where | Runs | Skippable |
 |---|---|---|---|
-| `.githooks/pre-commit` | your machine, before the commit exists | fmt, clippy, test, doc, ruff, pyright, PSScriptAnalyzer | `--no-verify`, and only present if the clone was wired up |
-| `.github/workflows/ci.yml` | GitHub, on push to `main` and on every PR | the same seven | no |
+| `.githooks/pre-commit` | your machine, before the commit exists | fmt, clippy, test, doc, ruff, pyright, PSScriptAnalyzer, shellcheck | `--no-verify`, and only present if the clone was wired up |
+| `.github/workflows/ci.yml` | GitHub, on push to `main` and on every PR | the same eight | no |
+
+> **`shellcheck` lints the hook itself, and that is not circular vanity.** A bug in
+> `.githooks/pre-commit` does not fail loudly — it silently stops the other three languages
+> being checked at all. It is the one file here whose failure mode is *every other check
+> quietly not running*, which is why one shell script earns a linter.
 
 **Each language gate fires only when that language is in the diff**, so a docs-only commit
 still costs nothing. The Rust trigger is `\.rs$|Cargo\.(toml|lock)$` — **unanchored on
