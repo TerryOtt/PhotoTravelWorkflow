@@ -121,7 +121,11 @@ xxhash-rust = { version = "0.8", features = ["xxh3"] }
 # `test`, `clippy`, and rust-analyzer in the editor. Standing order, Terry, 2026-08-17:
 # *"I'd like to run full SANE lint pass every single time we compile in this project."* A
 # level stated in a hook is a level a bare `cargo build` walks past; a level stated here
-# cannot be forgotten and cannot drift between the three files that used to state it.
+# cannot be forgotten and cannot drift. It used to be enforced in two files —
+# `.githooks/pre-commit` and `.github/workflows/ci.yml` — and QUOTED in two more,
+# `docs/REVIEWING.md` and `docs/TRIP-HYGIENE.md`, **both of which had already drifted out of
+# step with the hook by the time this table was written.** That is the failure mode, observed
+# rather than predicted.
 #
 # `cargo check` ignores the `clippy` table silently — verified 2026-08-17, no
 # `unknown_lints` — so the rustc-driven builds pay nothing and the clippy-driven ones get
@@ -147,9 +151,9 @@ xxhash-rust = { version = "0.8", features = ["xxh3"] }
 # `clippy::nursery` is deliberately NOT enabled as a group. Clippy ships those lints as
 # unstable and expects false positives from them. This table gates every compile, and this
 # machine takes toolchain updates within 24 hours, so a nursery lint that changes behavior
-# under a bump would break the build for something that is not a defect. **The four members
+# under a bump would break the build for something that is not a defect. **The three members
 # that reported real findings are named individually below**, which buys the value without
-# the instability.
+# the instability. A fourth, `needless_collect`, was surveyed and REFUSED — see its note.
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }

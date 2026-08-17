@@ -491,8 +491,13 @@ which names this repository.
   `fmt, clippy, test` check.** Terry asked to be exempted and was told no — the rule is a
   **warning for the repository owner and fatal for everyone else**, which is the shape he
   wanted. **That output is expected and MUST NOT be reported as a defect.** The local
-  pre-commit hook is what actually runs fmt, clippy and test, so the required check's
-  substance is satisfied before the push rather than after it.
+  pre-commit hook is what actually runs the gate, so the required check's substance is
+  satisfied before the push rather than after it.
+
+  > **The CI job is still NAMED `fmt, clippy, test` and that name MUST NOT change**, whatever
+  > the job grows to run — the ruleset matches the required status check on that exact string,
+  > so renaming it silently stops the gate being enforced. **The name is a label now, not a
+  > description**: as of 2026-08-17 the job runs seven checks.
 - **A commit is not finished until it is pushed.** GitHub is the backup, and the laptop
   is usually on the road.
 - **Every run gets a commit and a push first.** Standing order, Terry, 2026-08-05:
@@ -508,8 +513,21 @@ which names this repository.
   that looked wrong can be diffed rather than remembered. `FULL-RUN.md` already demands a
   clean tree for *measured* runs (`binary is HEAD's`); **this extends it to every run**,
   including the casual ones — which is where the fast iteration actually happens.
-- **The pre-commit hook** runs fmt, clippy and test. Wire it up once per clone:
-  `git config core.hooksPath .githooks`.
+- **The pre-commit hook** runs **seven** checks — `cargo fmt`, `cargo clippy`, `cargo test`,
+  `cargo doc` for the rustdoc lints, then `ruff`, `pyright` and `PSScriptAnalyzer`. Wire it up
+  once per clone: `git config core.hooksPath .githooks`.
+
+  **Each language gate fires only when that language is in the diff**, so a docs-only commit
+  still costs nothing. **The lint LEVELS are not in the hook** — they live in
+  `[workspace.lints]` in `Cargo.toml`, in `ruff.toml` and in `PSScriptAnalyzerSettings.psd1`,
+  each carrying the survey counts that justify every exclusion. Standing order, Terry,
+  2026-08-17: *"I'd like to run full SANE lint pass every single time we compile in this
+  project."* [`REVIEWING.md`](docs/REVIEWING.md) has the commands and the reasoning.
+
+  > **`cargo doc` is on that list because clippy does NOT evaluate rustdoc lints.** Drop it and
+  > `[workspace.lints.rustdoc]` goes inert while still reading as configured. **And a green
+  > `ruff` run MUST NOT be described as type-checked** — ruff checks that an annotation exists,
+  > `pyright` checks that it is true.
 
 ## The engine is lifted, and it is duplicated on purpose
 
