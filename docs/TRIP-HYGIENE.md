@@ -242,7 +242,7 @@ cargo outdated                   # what is behind, and whether cargo can reach i
 cargo update                     # take everything semver-compatible
 cargo build --release
 cargo test
-cargo clippy --all-targets -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 git add Cargo.lock && git commit
 ```
 
@@ -470,7 +470,7 @@ linker current today*, which is the half that goes stale on its own between trip
 ```
 cargo build --release
 cargo test
-cargo clippy --all-targets -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 offload --dry-run          # against the real rig, per "Also before you leave"
 ```
 

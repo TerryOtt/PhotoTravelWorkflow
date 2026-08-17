@@ -374,9 +374,15 @@ Two standards apply to the same diff:
 Mechanically, that is:
 
 ```
-cargo clippy --all-targets -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test
 ```
+
+**The lint LEVELS are not in that command and MUST NOT be added to it.** They live in
+`[workspace.lints]` in the root `Cargo.toml`, so Cargo applies them to every compile and to
+rust-analyzer. The flags above decide only what gets *compiled*: `--all-targets` reaches the
+tests and examples, and `--all-features` reaches the `hash-experiments` arms of
+`hash::Hasher`, which were exempt by accident until 2026-08-17.
 
 A green suite is the floor, not the bar: **clippy has no opinion about any row in the
 broken-window table above.**

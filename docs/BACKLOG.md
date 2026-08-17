@@ -156,7 +156,7 @@ the backlog instead of the report.
 >   have. Production code was swept and is uniformly `eq_ignore_ascii_case`.
 > - **14 Win32 out-parameters moved from `&mut x` to `&raw mut x`**, which is the correct idiom
 >   for a pointer handed to FFI: it never forms an intermediate reference.
-> - **A stale comment in `geotag/src/raw.rs`** claimed deriving `Debug` on `Capture` "buys
+> - **A stale comment in `crates/geotag/src/raw.rs`** claimed deriving `Debug` on `Capture` "buys
 >   nothing"; it now buys the lint, so the derive landed and the comment says what it is
 >   actually for.
 >
