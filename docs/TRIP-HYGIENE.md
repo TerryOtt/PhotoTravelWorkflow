@@ -511,6 +511,29 @@ rustup itself, the workflow action pins, the declared-but-unused crates `cargo o
 cannot see, and the dry run against the real rig. The hook only answers *is the compiler and
 linker current today*, which is the half that goes stale on its own between trips.
 
+## Step 2b — prove the hooks still guard, and are still being called
+
+```
+python ~/.claude/hooks/hook-health.py
+```
+
+**Two questions, two instruments, and it never lets one answer the other:**
+
+| | |
+|---|---|
+| **SELF-TEST** | The hook's own logic still behaves. Eight suites, including `nas-guard-probe.py --selftest`, which proves the suite can fail |
+| **EXECUTION** | The harness is still *calling* it — from `hook-events.log`, or from `.nas-guard-last-run` |
+
+**A green self-test on a hook nothing invokes is worth nothing**, and that combination is
+invisible from either side alone. `nas-guard.py` is why this matters: it stands between a bad
+command and `Q:\`, and until 2026-08-17 **nothing would have noticed it going quiet** — it
+passed its regression suite while leaving no evidence it had ever run.
+
+> **It reports what it CANNOT prove, and that line stays.** Passing means the hooks work and
+> are invoked. It does **not** mean their output reached Terry. On 2026-08-17 a hook ran,
+> passed, and its output vanished from both channels — no transcript attachment and nothing on
+> screen. **Only Terry can confirm the last step.**
+
 ## Step 3 — verify, and mean it
 
 ```
