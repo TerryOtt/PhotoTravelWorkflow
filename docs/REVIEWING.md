@@ -374,17 +374,30 @@ Two standards apply to the same diff:
 Mechanically, that is:
 
 ```
+cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test
+cargo test --workspace
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps
+ruff check scripts/ && pyright scripts/
+Invoke-ScriptAnalyzer -Path scripts/ -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
 ```
 
-**The lint LEVELS are not in that command and MUST NOT be added to it.** They live in
-`[workspace.lints]` in the root `Cargo.toml`, so Cargo applies them to every compile and to
-rust-analyzer. The flags above decide only what gets *compiled*: `--all-targets` reaches the
-tests and examples, and `--all-features` reaches the `hash-experiments` arms of
-`hash::Hasher`, which were exempt by accident until 2026-08-17.
+**The lint LEVELS are not in those commands and MUST NOT be added to them.** They live in
+`[workspace.lints]` in `Cargo.toml`, in `ruff.toml` and in `PSScriptAnalyzerSettings.psd1`,
+each with the survey counts that justify every exclusion. The flags above decide only what
+gets *compiled*: `--all-targets` reaches the tests and examples, and `--all-features` reaches
+the `hash-experiments` arms of `hash::Hasher`, which were exempt by accident until 2026-08-17.
 
-A green suite is the floor, not the bar: **clippy has no opinion about any row in the
+**`cargo doc` is on that list because clippy does not evaluate rustdoc lints — only rustdoc
+does.** Drop that line and `[workspace.lints.rustdoc]` becomes inert while still reading as
+covered.
+
+**Both Python tools run, and neither substitutes for the other.** Ruff checks that an
+annotation *exists*; pyright checks that it is *true*. On the day they were wired, ruff passed
+a file clean that pyright then failed. **A green ruff run MUST NOT be described as
+type-checked.**
+
+A green suite is the floor, not the bar: **no linter has an opinion about any row in the
 broken-window table above.**
 
 ### What runs automatically
@@ -393,8 +406,19 @@ Two layers, and the second is not redundant with the first:
 
 | | Where | Runs | Skippable |
 |---|---|---|---|
-| `.githooks/pre-commit` | your machine, before the commit exists | fmt, clippy, test | `--no-verify`, and only present if the clone was wired up |
-| `.github/workflows/ci.yml` | GitHub, on push to `main` and on every PR | the same three | no |
+| `.githooks/pre-commit` | your machine, before the commit exists | fmt, clippy, test, doc, ruff, pyright, PSScriptAnalyzer | `--no-verify`, and only present if the clone was wired up |
+| `.github/workflows/ci.yml` | GitHub, on push to `main` and on every PR | the same seven | no |
+
+**Each language gate fires only when that language is in the diff**, so a docs-only commit
+still costs nothing. The Rust trigger is `\.rs$|Cargo\.(toml|lock)$` — **unanchored on
+purpose**: it was `^Cargo\.` until 2026-08-17, which matched the workspace manifest and never
+`crates/*/Cargo.toml`, so a commit touching only a crate manifest skipped the whole Rust gate.
+That is exactly where `[lints] workspace = true` lives.
+
+> **The CI job is named `fmt, clippy, test` and that name MUST NOT change**, whatever the job
+> grows to run. The branch ruleset matches the required status check on that string, so
+> renaming the job silently stops the gate being enforced. The name is now a label rather than
+> a description, and that is the correct trade.
 
 CI is also a **required status check** on the pull-request ruleset, in strict mode — so a
 PR cannot merge while the checks are red, and cannot merge on a stale base either: strict
