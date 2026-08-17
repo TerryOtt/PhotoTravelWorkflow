@@ -1,0 +1,47 @@
+# ShellCheck, the POSIX sh quarter of this repository's gate. `[workspace.lints]` in
+# `Cargo.toml` does this job for Rust, `ruff.toml` for Python and
+# `PSScriptAnalyzerSettings.psd1` for PowerShell.
+#
+# **Standing order, Terry, 2026-08-17**, global rather than this project's: every language in
+# a project gets a best-of-breed linter at best-practice pedantry, XOR a written override
+# from Terry. He confirmed the same day: *"yeah def install LSP and linter(s) to get good
+# coverage."*
+#
+# **There is exactly one shell script here, and it is `.githooks/pre-commit` — the gate
+# itself.** That is why one file is worth a linter: a bug in the hook does not fail loudly,
+# it silently stops the other three languages being checked at all. It is the one script in
+# this repository whose failure mode is *every other check quietly not running*.
+#
+# **No language server, same as PowerShell.** The official plugin marketplace ships twelve
+# and none for shell. Checked 2026-08-17.
+#
+#     shellcheck .githooks/pre-commit
+#
+# **The survey**, `--severity=style --enable=all`, the maximum: **5 findings**. Three
+# families, and all three are answered below rather than suppressed silently. At the default
+# setting only SC2016 fires.
+
+# Everything optional is on. `--enable=all` turns on the opt-in checks, and with the two
+# exclusions below it reports NOTHING here -- so maximum pedantry costs nothing today and
+# catches the next one for free.
+enable=all
+
+# SC2310 -- "this function is invoked in an 'if' condition so set -e will be disabled".
+#
+# **That is the control flow, not an accident.** `touched` exists to answer yes or no, and a
+# `grep -qE` that finds nothing exits 1. Invoking it "separately", as the check suggests,
+# would make `set -e` abort the hook the first time a commit did not touch Rust -- turning
+# every docs-only commit into a failed one. The check is right about the mechanism and wrong
+# about whether it is wanted.
+disable=SC2310
+
+# SC2250 -- "prefer putting braces around variable references even when not strictly
+# required". Pure style, opt-in only, and the surrounding script does not use braces. A
+# linter that reformats a working script to its own taste is the noise the other three
+# configs in this repository all refuse.
+disable=SC2250
+
+# **SC2016 is NOT disabled here.** It fires once, on the single-quoted PowerShell block, and
+# it is answered with an inline `# shellcheck disable` at that line so the check stays live
+# for every other string in the file. A global disable would wave through a genuine
+# `'$missing'` somewhere else.

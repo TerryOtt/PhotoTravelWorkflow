@@ -173,6 +173,33 @@ the backlog instead of the report.
 > would win by attrition. **Turning it on is a documentation decision for Terry, not a lint
 > decision.**
 
+## POSIX sh: shellcheck over the hook itself — CLOSED 2026-08-17
+
+> **The fourth language, and the one easiest to overlook because there is only one file of
+> it.** `.githooks/pre-commit` is POSIX sh, and the standing order covers every language in a
+> project.
+>
+> **One file is worth a linter here for a specific reason: that file is the gate.** A bug in
+> it does not fail loudly — it silently stops Rust, Python and PowerShell being checked at
+> all. It is the one script in this repository whose failure mode is *every other check
+> quietly not running*.
+>
+> **shellcheck 0.11.0** (`winget install --id koalaman.shellcheck`), policy in
+> [`.shellcheckrc`](../.shellcheckrc), `enable=all` — the maximum. **Linter only; no shell
+> language server exists** in the official marketplace, same as PowerShell.
+>
+> **Survey at maximum: 5 findings, 3 families, and all three are answered rather than
+> silently suppressed.**
+>
+> | Finding | Verdict |
+> |---|---|
+> | **`SC2310`** ×3 — *"invoked in an `if` condition so `set -e` will be disabled"* | **Disabled, with the reason.** That is the control flow. `touched` answers yes or no, and `grep -qE` exits 1 on no match. Invoking it "separately" as the check suggests would make `set -e` abort the hook on **every docs-only commit** |
+> | **`SC2250`** ×1 — brace every variable reference | **Disabled.** Opt-in style only, and the surrounding script does not use braces |
+> | **`SC2016`** ×1 — *"expressions don't expand in single quotes"* | **NOT disabled globally.** Answered with an inline directive at the one site, because the single quotes around the PowerShell block are the point — expanding `$found` in sh would hand `pwsh` an empty script. A global disable would wave through a genuine `'$missing'` elsewhere |
+>
+> **Proven able to fire**: `if [ $undefined_unquoted = x ]` appended to the hook produced
+> `SC2154` and `SC2086` at exit 1, then removed.
+
 ## Rustdoc lints, and the dependency lint that could not do the job — CLOSED 2026-08-17
 
 > **Two families the first Rust pass never surveyed**, found by asking what `cargo clippy`

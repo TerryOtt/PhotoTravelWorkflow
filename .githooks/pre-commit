@@ -98,6 +98,8 @@ if touched '\.ps1$|^PSScriptAnalyzerSettings\.psd1$'; then
 command -v pwsh >/dev/null 2>&1 || fail "pwsh is not installed"
 
 echo "pre-commit: Invoke-ScriptAnalyzer scripts/"
+# shellcheck disable=SC2016  # single quotes are the point: sh must NOT expand $found or
+# $f -- they belong to PowerShell, and expanding them here would hand pwsh an empty script.
 pwsh -NoProfile -Command '
     $found = Invoke-ScriptAnalyzer -Path scripts/ -Recurse -Settings ./PSScriptAnalyzerSettings.psd1
     if ($found) {
@@ -105,6 +107,22 @@ pwsh -NoProfile -Command '
         exit 1
     }
 ' || fail "PSScriptAnalyzer"
+
+fi
+
+# POSIX sh -- this file, and it is the only shell script here. **That is exactly why it is
+# worth linting**: a bug in the gate does not fail loudly, it silently stops the other three
+# languages being checked at all. Policy and the two exclusions live in `.shellcheckrc`.
+#
+# Linter only. No shell language server exists in the official marketplace, same as
+# PowerShell.
+if touched '^\.githooks/|^\.shellcheckrc$'; then
+
+command -v shellcheck >/dev/null 2>&1 \
+    || fail "shellcheck is not installed: winget install --id koalaman.shellcheck"
+
+echo "pre-commit: shellcheck .githooks/pre-commit"
+shellcheck .githooks/pre-commit || fail "shellcheck"
 
 fi
 

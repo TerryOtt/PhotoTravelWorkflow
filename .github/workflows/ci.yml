@@ -89,6 +89,16 @@ jobs:
         shell: pwsh
         run: Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force -AllowClobber
 
+      # POSIX sh. The only shell script here is the pre-commit hook itself, which is exactly
+      # why it is linted: a bug there silently stops the other three languages being checked.
+      - name: Install shellcheck
+        shell: pwsh
+        run: choco install shellcheck --no-progress -y
+
+      - name: shellcheck
+        shell: bash
+        run: shellcheck .githooks/pre-commit
+
       - name: PSScriptAnalyzer
         shell: pwsh
         run: |
