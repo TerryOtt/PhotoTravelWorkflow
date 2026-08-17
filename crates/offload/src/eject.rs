@@ -369,7 +369,7 @@ pub struct Attempt<'a> {
 /// nothing else produces that signature.
 #[derive(Debug, Clone, Copy)]
 pub enum Cadence {
-    /// [`FIRST_BACKOFF`] doubling to [`MAX_BACKOFF`]. The default, and what every recorded run
+    /// `FIRST_BACKOFF` doubling to `MAX_BACKOFF`. The default, and what every recorded run
     /// so far used — so it is the baseline any comparison has to be made against.
     Backoff,
     /// A fixed pause between attempts. Diagnostic; see the type note.

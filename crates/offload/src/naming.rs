@@ -32,7 +32,7 @@ use chrono::{DateTime, Utc};
 /// Minute resolution is deliberate and sufficient: it restores shooting order that the
 /// camera's bare counter loses when a mid-day format resets it, and within any single
 /// minute the counter is still monotonic, so ties break correctly on the sequence
-/// number that [`prefixed_name`] keeps.
+/// number that `prefixed_name` keeps.
 pub fn destination_path(captured: DateTime<Utc>, source_file_name: &str) -> PathBuf {
     let year = captured.format("%Y");
     let day = captured.format("%Y-%m-%d");

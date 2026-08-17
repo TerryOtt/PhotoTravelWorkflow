@@ -173,6 +173,44 @@ the backlog instead of the report.
 > would win by attrition. **Turning it on is a documentation decision for Terry, not a lint
 > decision.**
 
+## Rustdoc lints, and the dependency lint that could not do the job — CLOSED 2026-08-17
+
+> **Two families the first Rust pass never surveyed**, found by asking what `cargo clippy`
+> structurally cannot see.
+>
+> ### `[workspace.lints.rustdoc]` — enabled, 5 findings, all real
+>
+> **Clippy does not evaluate rustdoc lints. Only `cargo doc` does.** So the table would have
+> been inert without a `cargo doc` step, and an inert lint table is worse than no table
+> because it reads as covered. `.githooks/pre-commit` and CI both run
+> `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps`.
+>
+> All five were `rustdoc::private_intra_doc_links` — a **public** doc comment linking to a
+> **private** item, which rustdoc renders as dead plain text instead of a link:
+> `` [`FIRST_BACKOFF`] ``, `` [`MAX_BACKOFF`] ``, `` [`prefixed_name`] ``, `` [`place`] `` and
+> `` [`STEP`] `` (twice). Fixed by dropping to plain code spans, which keeps the prose and
+> removes the dead link. **This codebase cites symbols in doc comments constantly**, so a link
+> that quietly stops being a link is exactly the rot worth catching.
+>
+> **Proven able to fire**: a `` [`NoSuchItemProbe`] `` link planted in `human.rs` took
+> `cargo doc` to **exit 101** with `unresolved link`, then removed.
+>
+> ### `unused_crate_dependencies` — REFUSED, and the reason matters
+>
+> It looks like precisely the check this project wants.
+> [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) cares a great deal about a declared-but-unused
+> workspace dependency — those never resolve, never reach `Cargo.lock`, and `cargo outdated`
+> cannot see them — and `scripts/doc-claims-check.py` hand-rolls a checker for exactly that.
+>
+> **It fires PER TARGET, so it cannot answer the question.** Measured: roughly **280
+> findings**, essentially all of them an example or a test truthfully reporting that it does
+> not personally use `windows`, `clap` or `sha3`. *Is this dependency used anywhere in the
+> workspace* and *is it used in this compilation unit* are different questions.
+>
+> **So the hand-rolled check stays, and that is not a failure to integrate before innovate** —
+> the maintained tool was surveyed and does not do the job. Recorded in `Cargo.toml` so nobody
+> re-proposes it.
+
 ## Python linting: equip `scripts/` with ruff and pyright — CLOSED 2026-08-17
 
 > **The same standing order as the Rust item above**, and it fired here because this project

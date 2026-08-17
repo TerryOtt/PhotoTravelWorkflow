@@ -81,7 +81,7 @@ pub struct DestinationOutcome {
     ///
     /// **A fresh file and a converged one cost the same two units**, which is not obvious:
     /// a written file pays one write plus one verify read, and a *skipped* one still pays an
-    /// `unbuffered_sha256` of the target in [`place`] to prove the hash matches before
+    /// `unbuffered_sha256` of the target in `place` to prove the hash matches before
     /// skipping, plus the same verify read. So convergence does not move less data — it moves
     /// the same data with the write half shifted into reads.
     ///

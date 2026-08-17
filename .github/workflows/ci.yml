@@ -61,6 +61,13 @@ jobs:
       - name: cargo test
         run: cargo test
 
+      # [workspace.lints.rustdoc] is evaluated by rustdoc and by nothing else -- clippy does
+      # not see it, so without this step that table is inert.
+      - name: cargo doc (rustdoc lints)
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --all-features --no-deps
+
       # Python, under the same standing order as the Rust gate above: every language in a
       # project gets a best-of-breed linter at best-practice pedantry. The job NAME must
       # stay "fmt, clippy, test" -- the branch ruleset matches on it, and renaming it

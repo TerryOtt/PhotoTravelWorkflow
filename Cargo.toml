@@ -257,11 +257,36 @@ unused_qualifications = "warn"        # 19
 missing_debug_implementations = "warn" # 8
 variant_size_differences = "warn"      # 1
 
+# `unused_crate_dependencies` is REFUSED, and it is worth recording WHY rather than leaving
+# it unmentioned, because it looks like exactly the check this project wants.
+# `docs/TRIP-HYGIENE.md` cares a lot about a declared-but-unused workspace dependency — those
+# never resolve, never reach `Cargo.lock`, and `cargo outdated` cannot see them — and
+# `scripts/doc-claims-check.py` hand-rolls a checker for it.
+#
+# **The lint cannot answer that question, because it fires PER TARGET.** Measured 2026-08-17:
+# roughly 280 findings, of which essentially all are an example or a test truthfully reporting
+# that it does not personally use `windows`, `clap` or `sha3`. The question worth asking is
+# whether a dependency is used ANYWHERE in the workspace; this lint asks whether it is used in
+# each compilation unit, and those are different questions.
+#
+# **So the hand-rolled check stays, and that is not a failure to integrate before innovate.**
+# The maintained tool was surveyed and does not do the job.
+
 # `missing_docs` is the largest single number in the survey — 123 — and it is left OFF for
 # the same reason the clippy documentation lints are. `docs/WRITING.md` governs what gets
 # written here, and a compiler lint demanding a doc comment on every item would overrule a
 # standing order that says the opposite. Turning it on is a documentation decision for
 # Terry, not a lint decision.
+
+[workspace.lints.rustdoc]
+# The whole group, because it reported **5** findings on a workspace this size and every one
+# was real: a public doc comment linking to a private item, which rustdoc renders as dead
+# plain text rather than a link. This project's doc comments cite symbols constantly, so a
+# link that silently stops being a link is exactly the rot worth catching.
+#
+# **`cargo clippy` does NOT evaluate these — only `cargo doc` does**, which is why
+# `.githooks/pre-commit` and CI both run it. Without that step this table is inert.
+all = { level = "warn", priority = -1 }
 
 [profile.release]
 # The workload is many short-lived parallel tasks over a large file count; whole-program

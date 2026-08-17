@@ -60,6 +60,14 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings || fail "cl
 echo "pre-commit: cargo test"
 cargo test --quiet || fail "tests"
 
+# `[workspace.lints.rustdoc]` is evaluated by rustdoc and by nothing else -- clippy does not
+# see it. Without this step that table is inert, and an inert lint table is worse than none
+# because it reads as covered. `-D warnings` makes a broken doc link fatal here the same way
+# it is for clippy.
+echo "pre-commit: cargo doc (rustdoc lints)"
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps --quiet \
+    || fail "rustdoc"
+
 fi
 
 # Python. Standing order, Terry, 2026-08-17: every language in a project gets a

@@ -31,7 +31,7 @@ use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 /// **Indent is a parameter rather than a constant because the phases are not all siblings.**
 /// `Pre-Flight`, `Offloading`, `Corroborating` and `Geotagging` are peers at column 0, but
 /// `Writing` and `Verifying` are the two *passes of* offloading — they belong under it, and a
-/// flat list would claim otherwise. Rows always sit [`STEP`] further in than their heading, so
+/// flat list would claim otherwise. Rows always sit `STEP` further in than their heading, so
 /// the two cannot drift apart at a call site.
 pub const PHASE: usize = 0;
 
@@ -71,7 +71,7 @@ fn section_template(indent: usize) -> String {
     format!("{:indent$}{{msg}}", "")
 }
 
-/// A destination row, one [`STEP`] in from its heading.
+/// A destination row, one `STEP` in from its heading.
 ///
 /// `human_pos` and `human_len` are `indicatif`'s own separator-formatted counters, which is
 /// `WRITING.md` rule 6 applied to the bars — they rendered a bare `3883` until 2026-08-05 while
