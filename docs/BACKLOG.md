@@ -96,7 +96,7 @@ the backlog instead of the report.
 > by title** — the same rule this file already applies to itself — and the sort becomes free to
 > fix. Left unsorted on 2026-08-07 with one `C:` among four `T:`, where the prefixes still scan.
 
-## November 2026 trip: the config describes a rig that is not here — OPEN, TERRY'S MOVE
+## November 2026 trip: the config describes a rig that is not here — IN PROGRESS
 
 **Found 2026-11-18, on the road, with trip hygiene skipped.** Three faults, each one enough to
 spoil the first night:
@@ -119,8 +119,17 @@ copies are inside one laptop, so they survive a drive failure but not a lost, st
 laptop. C: is also the boot disk, and at the largest recorded day (386.6 GiB) it holds about two
 days.
 
-**Done when:** Terry approves or amends the config, `offload --dry-run` passes against it, and the
-original four-destination config is restored at home.
+**Written 2026-11-18, before the first frame of the trip.** Labels are `Laptop` (D:), `Laptop-C`
+(C:, a new empty `C:\Travel\Images`) and `OWC`. The original is saved beside it as
+`config.four-ssd.json`. With no card inserted, `offload --dry-run` loads and validates it and
+stops at the card search, as expected.
+
+**The marker in `D:\Travel\Images` still records the Kingston's serial**, because it was copied
+from C: in September. That is harmless: `marker::write` rewrites the serial on every run and
+nothing compares it, so the first real run corrects it.
+
+**Done when:** `offload --dry-run` passes with cards inserted, and `config.four-ssd.json` is
+restored at home.
 
 ## The docs still describe hooks that were retired on 2026-11-14 — OPEN
 
