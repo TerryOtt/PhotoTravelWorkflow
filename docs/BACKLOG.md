@@ -138,8 +138,33 @@ nothing compares it, so the first real run corrects it.
   `Body ... — as configured` after `body` was added (`Canon EOS R5`, `082021001047`). CFexpress
   read 1,128 MB/s and SD 201 MB/s, which is above the 104 MB/s UHS-I ceiling.
 
+- **Tracks.** The logger is Pocket Earth Pro on an iPhone 16 Pro, set to Always and Precise
+  location, highest accuracy, required accuracy 50 ft (lowered from 25 ft so fixes near buildings
+  and trees are kept), 0 ft and 0 s minimums. A 3-minute test track has 171 points in UTC with
+  one segment, and its widest gap is 9 s with the phone locked. For this trip `gpx_dir` is
+  `D:\Travel\GPX\2026\2026-11- Northern Nevada`, because Terry files tracks by trip (see the next
+  item).
+
 **Remaining:** restore `config.four-ssd.json` at home, and update its two `C:\Travel` paths to
 `D:\Travel` when you do. It has the same staleness this item fixed.
+
+## Pre-flight cannot see tracks in subfolders, and never says whether tracks cover the frames — OPEN
+
+**Found 2026-11-19.** `preflight::gpx_tracks` reads only the top level of `gpx_dir`. Terry files
+tracks as `GPX\<year>\<trip>\`, so with `gpx_dir` at `D:\Travel\GPX` this trip's tracks would
+not be read. **That failure does not stop the run.** One 2024 track at the top level was enough
+for pre-flight to print `Tracks 1` and pass, so frames would land untagged and the only sign
+would be the geotag line in the closing report.
+
+Two separate defects:
+
+- **The scan is one level deep.** Either read the tree, or say in the docs that `gpx_dir` is a
+  per-trip folder. Worked around for this trip by pointing `gpx_dir` at the trip folder.
+- **"Tracks: N" counts files. It does not check coverage.** Pre-flight already has the first
+  frame's capture time for the body check, so it could say whether any track covers it. That is
+  the line that would have caught this.
+
+Code work for home, not the road.
 
 ## Can the tool tell compressed raw from uncompressed after all? — OPEN
 
