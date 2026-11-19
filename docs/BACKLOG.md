@@ -138,7 +138,8 @@ nothing compares it, so the first real run corrects it.
   `Body ... — as configured` after `body` was added (`Canon EOS R5`, `082021001047`). CFexpress
   read 1,128 MB/s and SD 201 MB/s, which is above the 104 MB/s UHS-I ceiling.
 
-- **Body firmware.** Terry reports the R5 is on **2.2.1**. Canon's download page lists 2.2.1,
+- **Body firmware.** Terry reports the R5 is on **2.2.1**. [Canon's R5 support page](https://www.usa.canon.com/support/p/eos-r5)
+  lists 2.2.1,
   dated 2025-11-20, as the newest release when checked on 2026-11-19, so the body is current.
   The hub, enclosure and readers were not checked: they were overtaken by departure, because
   the T-30 freeze bars flashing them now.
