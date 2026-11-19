@@ -138,6 +138,11 @@ nothing compares it, so the first real run corrects it.
   `Body ... — as configured` after `body` was added (`Canon EOS R5`, `082021001047`). CFexpress
   read 1,128 MB/s and SD 201 MB/s, which is above the 104 MB/s UHS-I ceiling.
 
+- **Body firmware.** Terry reports the R5 is on **2.2.1**. Canon's download page lists 2.2.1,
+  dated 2025-11-20, as the newest release when checked on 2026-11-19, so the body is current.
+  The hub, enclosure and readers were not checked: they were overtaken by departure, because
+  the T-30 freeze bars flashing them now.
+
 - **Tracks.** The logger is Pocket Earth Pro on an iPhone 16 Pro, set to Always and Precise
   location, highest accuracy, required accuracy 50 ft (lowered from 25 ft so fixes near buildings
   and trees are kept), 0 ft and 0 s minimums. A 3-minute test track has 171 points in UTC with
