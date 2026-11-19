@@ -142,7 +142,7 @@ nothing compares it, so the first real run corrects it.
   location, highest accuracy, required accuracy 50 ft (lowered from 25 ft so fixes near buildings
   and trees are kept), 0 ft and 0 s minimums. A 3-minute test track has 171 points in UTC with
   one segment, and its widest gap is 9 s with the phone locked. For this trip `gpx_dir` is
-  `D:\Travel\GPX\2026\2026-11- Northern Nevada`, because Terry files tracks by trip (see the next
+  `D:\Travel\GPX\2026\2026-11 - Northern Nevada`, because Terry files tracks by trip (see the next
   item).
 
 **Remaining:** restore `config.four-ssd.json` at home, and update its two `C:\Travel` paths to
