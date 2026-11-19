@@ -96,6 +96,21 @@ the backlog instead of the report.
 > by title** — the same rule this file already applies to itself — and the sort becomes free to
 > fix. Left unsorted on 2026-08-07 with one `C:` among four `T:`, where the prefixes still scan.
 
+## Lightroom Classic 16.0 shipped: run the XMP checks before importing this trip — OPEN, TERRY'S MOVE (at home)
+
+**Terry reported on 2026-11-19 that LrC 16.0 shipped the week before, with a new 16.0 SDK.**
+A major Classic release is the trigger [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) names for the two
+checks in RawGeotag's `docs/LIGHTROOM-XMP.md`: *does Lightroom still read our sidecars*, and *how
+does Lightroom write a geotag now*. RawGeotag's `scripts\lr-xmp-check.ps1 -Stage` and `-Compare`
+run the steps on either side of the Lightroom one, and the doc puts the whole thing at under ten
+minutes.
+
+**Do it at home before importing the November 2026 Nevada frames into 16.0**, because those
+sidecars are written during the trip, before anyone knows whether 16.0 reads them. Done when
+both checks pass, or when a failure is recorded with what Lightroom now expects. RawGeotag is not
+cloned on this machine (see `CLAUDE.md`), so the script runs from wherever Terry does Lightroom
+work.
+
 ## Trip hygiene for Palm Springs (flying 2027-01-16) — OPEN, TERRY'S MOVE
 
 **The November 2026 trip skipped trip hygiene because nothing triggered it.** The routine in
