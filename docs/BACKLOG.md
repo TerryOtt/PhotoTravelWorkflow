@@ -96,7 +96,7 @@ the backlog instead of the report.
 > by title** — the same rule this file already applies to itself — and the sort becomes free to
 > fix. Left unsorted on 2026-08-07 with one `C:` among four `T:`, where the prefixes still scan.
 
-## November 2026 trip: the config describes a rig that is not here — IN PROGRESS
+## November 2026 trip: the config describes a rig that is not here — OPEN, TERRY'S MOVE (at home)
 
 **Found 2026-11-18, on the road, with trip hygiene skipped.** Three faults, each one enough to
 spoil the first night:
@@ -128,8 +128,28 @@ stops at the card search, as expected.
 from C: in September. That is harmless: `marker::write` rewrites the serial on every run and
 nothing compares it, so the first real run corrects it.
 
-**Done when:** `offload --dry-run` passes with cards inserted, and `config.four-ssd.json` is
-restored at home.
+**Verified 2026-11-19 01:5xZ, before the first shooting day**, against four test frames:
+
+- **Clock.** Two of the frames photograph time.is. The camera stamps 01:52:41.21 and 01:52:57.40
+  against 01:52:42 and 01:52:58 on screen, so it runs about 1 s slow. `OffsetTimeOriginal` reads
+  `+00:00`.
+- **Camera settings.** ExifTool reads `Quality: RAW` on all four frames.
+- **Dry run, exit 0**, both readers on the CalDigit Element 5. `4 files on both cards · 3 destinations verified distinct`, and
+  `Body ... — as configured` after `body` was added (`Canon EOS R5`, `082021001047`). CFexpress
+  read 1,128 MB/s and SD 201 MB/s, which is above the 104 MB/s UHS-I ceiling.
+
+**Remaining:** restore `config.four-ssd.json` at home, and update its two `C:\Travel` paths to
+`D:\Travel` when you do. It has the same staleness this item fixed.
+
+## Can the tool tell compressed raw from uncompressed after all? — OPEN
+
+**Found 2026-11-19.** [`CONOPS.md`](CONOPS.md) says compressed raw is caught **"No. Never."**,
+because both kinds are `.CR3` in the same container. But ExifTool reads Canon's makernote
+`Quality` tag, and on this trip's test frames it says `RAW`. ExifTool's Canon tables list `CRAW`
+as a separate value of that tag. **If a C-RAW frame really reads `CRAW`**, pre-flight could check
+the first frame the way decision 34 checks the body. That would take one of daily hygiene's two
+checks that have no safety net and give it one. **Unverified:** no C-RAW frame has been read. One
+test frame settles it.
 
 ## The docs still describe hooks that were retired on 2026-11-14 — OPEN
 
