@@ -96,6 +96,41 @@ the backlog instead of the report.
 > by title** — the same rule this file already applies to itself — and the sort becomes free to
 > fix. Left unsorted on 2026-08-07 with one `C:` among four `T:`, where the prefixes still scan.
 
+## November 2026 trip: the config describes a rig that is not here — OPEN, TERRY'S MOVE
+
+**Found 2026-11-18, on the road, with trip hygiene skipped.** Three faults, each one enough to
+spoil the first night:
+
+| Fault | Effect tonight |
+|---|---|
+| `%APPDATA%\offload\config.json` still says `C:\Travel\Images` and `C:\Travel\GPX`. Both moved to `D:\Travel` on 2026-09-19 and neither C: path exists | The laptop copy would go to a new empty tree on C:, and pre-flight would refuse because there is no GPX directory |
+| SanDisk and WD SSDs left at home | Two of the four destinations missing. Laptop plus OWC is **two copies, below the three-copy bar** ([`CONOPS.md`](CONOPS.md), *A dead drive is a config edit*) |
+| No `body` key | Decision 34's body check is off |
+
+**What is on hand:** the OWC holding the WD_BLACK SN850X (`G:`, serial and volume GUID match the
+config, `BusType` NVMe), and two physical disks inside the laptop: Kingston `C:` (disk 0, 742 GB
+free) and Lexar NM790 `D:` (disk 1, 2,351 GB free).
+
+**Proposed:** a trip-scoped config with three destinations on three distinct disks: `D:\Travel\Images`,
+`C:\Travel\Images` and the OWC, plus `gpx_dir` on D:. Nothing in the code needs changing:
+`Config::validate` requires only a non-empty list, and decision 6's distinct-disk check counts
+disk numbers, so two `path` destinations on disks 0 and 1 pass. **The cost:** two of the three
+copies are inside one laptop, so they survive a drive failure but not a lost, stolen or soaked
+laptop. C: is also the boot disk, and at the largest recorded day (386.6 GiB) it holds about two
+days.
+
+**Done when:** Terry approves or amends the config, `offload --dry-run` passes against it, and the
+original four-destination config is restored at home.
+
+## The docs still describe hooks that were retired on 2026-11-14 — OPEN
+
+**Found 2026-11-18.** The `~/.claude` repository's commit *Remove every hook and the scripts behind
+them* deleted `~/.claude/hooks/`, including `rust-toolchain-check.py`, `lint-toolchain-check.py`,
+`hook-health.py` and `nas-guard.py`. `CLAUDE.md` and `TRIP-HYGIENE.md` (*Step 2b*, and the sections
+on the daily toolchain and linter checks) still describe them as live. **The `Q:\` rule is now
+enforced by nothing but `CLAUDE.md`.** Fix the docs at home. Whether any hook comes back is Terry's
+decision.
+
 
 ## Rust lint pedantry: audit, raise, and fix — CLOSED 2026-08-17
 
