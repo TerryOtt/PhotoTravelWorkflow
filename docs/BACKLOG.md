@@ -112,9 +112,11 @@ Do this at home, in the order `TRIP-HYGIENE.md` gives, ending with the dry run. 
 over from the November trip: restore `config.four-ssd.json` with its `C:\Travel` paths corrected,
 and set `gpx_dir` for the new trip's folder.
 
-**Proposed, not yet approved:** a one-time scheduled Claude task, set for the morning of
-2026-12-05, that runs the read-only half of trip hygiene so a report is waiting at 10:00am.
-**Also proposed:** a line in `TRIP-HYGIENE.md` making *a calendar event at T-30 or earlier,
+**Scheduled, approved 2026-11-19:** a one-time Claude task, `phototravel-trip-hygiene-prep-palm-springs`
+in `~/.claude/scheduled-tasks/`, fires at 2026-12-05 09:00 Eastern (14:00Z). It runs the
+read-only half of trip hygiene and leaves a report. It MUST change nothing: no updates, commits,
+config edits or flashes. It runs only while the Claude app is open, otherwise on the next launch.
+**Proposed, not yet approved:** a line in `TRIP-HYGIENE.md` making *a calendar event at T-30 or earlier,
 created when the trip is booked* part of the routine.
 
 ## November 2026 trip: the config describes a rig that is not here — OPEN, TERRY'S MOVE (at home)
