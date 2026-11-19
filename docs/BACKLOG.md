@@ -99,6 +99,9 @@ the backlog instead of the report.
 ## Lightroom Classic 16.0 shipped: run the XMP checks before importing this trip — OPEN, TERRY'S MOVE (at home)
 
 **Terry reported on 2026-11-19 that LrC 16.0 shipped the week before, with a new 16.0 SDK.**
+The travel laptop already runs it: `16.0 Release`, Camera Raw 19.0, build
+`202611041403-7ac14c66`, with a catalog at `D:\Travel\LrC Catalog`. The fixture lives on the
+NAS, which cannot be reached from the road.
 A major Classic release is the trigger [`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) names for the two
 checks in RawGeotag's `docs/LIGHTROOM-XMP.md`: *does Lightroom still read our sidecars*, and *how
 does Lightroom write a geotag now*. RawGeotag's `scripts\lr-xmp-check.ps1 -Stage` and `-Compare`
