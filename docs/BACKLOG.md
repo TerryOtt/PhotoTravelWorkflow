@@ -96,6 +96,27 @@ the backlog instead of the report.
 > by title** — the same rule this file already applies to itself — and the sort becomes free to
 > fix. Left unsorted on 2026-08-07 with one `C:` among four `T:`, where the prefixes still scan.
 
+## Trip hygiene for Palm Springs (flying 2027-01-16) — OPEN, TERRY'S MOVE
+
+**The November 2026 trip skipped trip hygiene because nothing triggered it.** The routine in
+[`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) is complete, but no part of it prompts anyone to start. The
+camera firmware turned out to be current, by luck rather than diligence.
+
+| Date | |
+|---|---|
+| **2026-12-05, Sat, 10:00am** | Terry's Google Calendar event *Photo Workflow: T-30 hygiene* (T-42) |
+| **2026-12-17** | **T-30. The firmware freeze starts**, and no device may be flashed after this day |
+| 2027-01-16 | Departure |
+
+Do this at home, in the order `TRIP-HYGIENE.md` gives, ending with the dry run. Two things carry
+over from the November trip: restore `config.four-ssd.json` with its `C:\Travel` paths corrected,
+and set `gpx_dir` for the new trip's folder.
+
+**Proposed, not yet approved:** a one-time scheduled Claude task, set for the morning of
+2026-12-05, that runs the read-only half of trip hygiene so a report is waiting at 10:00am.
+**Also proposed:** a line in `TRIP-HYGIENE.md` making *a calendar event at T-30 or earlier,
+created when the trip is booked* part of the routine.
+
 ## November 2026 trip: the config describes a rig that is not here — OPEN, TERRY'S MOVE (at home)
 
 **Found 2026-11-18, on the road, with trip hygiene skipped.** Three faults, each one enough to
