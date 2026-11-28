@@ -154,6 +154,22 @@ xxhash-rust = { version = "0.8", features = ["xxh3"] }
 # under a bump would break the build for something that is not a defect. **The three members
 # that reported real findings are named individually below**, which buys the value without
 # the instability. A fourth, `needless_collect`, was surveyed and REFUSED — see its note.
+#
+# **Re-surveyed on Rust 1.100.1, 2026-11-28: nothing new promoted.** `-W clippy::nursery`
+# reported 56 distinct findings in seven lints, and none is a defect:
+#
+#   missing_const_for_fn      22  API ceremony, not a bug
+#   use_self                  13  already allowed below
+#   option_if_let_else         6  style
+#   needless_collect           5  REFUSED, see its note
+#   suboptimal_flops           4  all in `geotag::track`'s distance and interpolation math;
+#                                 `mul_add` changes rounding, so every interpolated position
+#                                 would move, in the lifted engine validated against Lightroom
+#   too_long_first_doc_paragraph 4  already allowed below
+#   literal_string_with_formatting_args 2  false positives: `\\?\Volume{...}\` test fixtures
+#
+# The three promoted members report 0. The same toolchain added `assert_is_empty` to
+# `pedantic`, which found two bare `assert!(x.is_empty())` calls; both now print the contents.
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
