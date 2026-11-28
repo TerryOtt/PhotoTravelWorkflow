@@ -418,23 +418,20 @@ $want = (Invoke-RestMethod https://aka.ms/vs/18/stable/channel).channelItems |
 `18.8.2` where `installationVersion` says `18.8.12023.21` — and is the form winget reports.
 Comparing one against the other reads as a mismatch on a machine that is perfectly current.
 The `18` in the URL is the VS major version, and is the one thing here that has to be
-edited by hand rather than asked for.
+edited by hand rather than asked for. **Try the next major too**, so a whole new Visual Studio
+is not missed. A URL that resolves is not enough, because `aka.ms/vs/19/stable/channel`
+answered 200 in 2026 with an empty `channelItems` list. The check is that the list carries a
+`Microsoft.VisualStudio.Product.BuildTools` item.
 
-### The three linters are outside `cargo outdated` — but a hook watches them daily
+**Nothing checks any of this between trips, by decision** (Terry, 2026-11-28): the toolchain
+MAY drift, and this section is where it is brought current.
 
-**Added 2026-08-17, when this repository gained a linter for each of its three languages.**
-`cargo outdated` sees crates, and `rust-toolchain-check.py` watches rustup and MSVC. Neither
-sees `ruff`, `pyright`, `PSScriptAnalyzer` or `shellcheck` — two pip tools, a PSGallery module
-and a winget package.
+### The linters are outside `cargo outdated` too
 
-> **`~/.claude/hooks/lint-toolchain-check.py` now covers them**, on the day's first cargo
-> build, same three volumes as the build-chain check. **It checks VERSIONS and never runs a
-> linter** — running them is `.githooks/pre-commit` and CI. Terry drew that line when the hook
-> was written: *"If we're talking about RUNNING linters, that's totes not part of buildchain
-> freshness check."*
->
-> **So the commands below are the manual fallback, not the routine.** They matter when the
-> hook could not reach the network, which it reports rather than hides.
+`cargo outdated` sees crates, and the section above covers rustup and MSVC. Neither sees
+`ruff`, `pyright`, `PSScriptAnalyzer`, `shellcheck` or `actionlint`: two pip tools, a
+PSGallery module and two winget packages. This pass checks their **versions**; running them is
+`.githooks/pre-commit` and CI.
 
 **A stale linter is the quiet kind of stale**, which is why it is worth watching at all.
 
@@ -479,80 +476,6 @@ Install-Module -Name PSScriptAnalyzer -Scope CurrentUser -Force
 > *before* the trip window rather than inside it, for the same reason firmware is frozen at
 > T-30: a new rule family that wants twenty edits is fine in September and is not fine the
 > night before a flight.
-
-### None of the above waits for trip hygiene — a hook checks it daily
-
-**Standing order, Terry, 2026-08-06: the build chain stays within 24 hours of current.** So
-both checks in this section also run **automatically, on the first
-`cargo build|test|clippy|run|bench` of the day**, from
-`~/.claude/hooks/rust-toolchain-check.py`. It lives outside the repository because it is
-machine tooling serving several projects; `~/.claude/toolchain-projects.json` is what opts
-this one in.
-
-**It queries the network every time and never answers from a cached version** — a freshness
-check that trusts a stored answer is not one. Three outcomes, deliberately different volumes:
-
-```text
-Build chain confirmed current -- asked the network just now
-  rust  latest stable 1.97.1          installed matches
-  msvc  latest stable 18.8.12023.21   installed matches
-```
-
-That is the *quiet* one — a line per toolchain naming the version the network just reported,
-because a bare "current" is too easily confused with a check that never ran. A short
-informational note covers **could not** confirm, and an unmissable banner covers confirmed
-behind. **Offline is not stale**, and the middle outcome exists so a flight cannot manufacture
-an alarm — nor a missing tool report a clean bill of health.
-
-**The unreachable case is quiet on purpose, and the reason is the banner rather than the
-outage.** Volume tracks **actionability, not importance**: a warning that fires where you
-cannot act — on a plane, on hotel wi-fi — spends the reflex that makes the loud case work and
-buys nothing, and a warning you learn to ignore is worse than no warning at all. The loud
-shape is reserved for a **confirmed positive**, fixed by one command. Full reasoning, in the
-operator's words, is in [`../AGENTS.md`](../AGENTS.md); it MUST NOT be made louder.
-
-**Two improvements it carries over the manual snippet above**, both verified on this machine
-on 2026-08-06:
-
-- **It derives the VS major from what is installed**, so the hand-edited `18` cannot rot.
-- **It then probes major + 1 to catch a whole new Visual Studio**, and validates that the
-  channel actually carries a `Microsoft.VisualStudio.Product.BuildTools` item. That check is
-  load-bearing: `aka.ms/vs/19/stable/channel` **answers 200 today** with an empty
-  `channelItems` list, so "the URL resolved" would have reported BEHIND every day forever.
-
-**This does not retire the manual pass.** Trip hygiene is the deeper one — it also covers
-rustup itself, the workflow action pins, the declared-but-unused crates `cargo outdated`
-cannot see, and the dry run against the real rig. The hook only answers *is the compiler and
-linker current today*, which is the half that goes stale on its own between trips.
-
-## Step 2b — prove the hooks still guard, and are still being called
-
-> **This one runs itself, once every 24 hours**, from a `UserPromptSubmit` hook. **A clean
-> sweep still prints one line** — *"Hook health: 8 self-test suites pass, 6 hooks show recent
-> execution"* — because a silent success and a check that never ran are indistinguishable,
-> which is the failure this whole mechanism exists to answer. **A failure raises a banner and
-> re-fires once per session until it is fixed.** The command below is for the full report.
-
-```
-python ~/.claude/hooks/hook-health.py
-```
-
-**Two questions, two instruments, and it never lets one answer the other:**
-
-| | |
-|---|---|
-| **SELF-TEST** | The hook's own logic still behaves. Eight suites, including `nas-guard-probe.py --selftest`, which proves the suite can fail |
-| **EXECUTION** | The harness is still *calling* it — from `hook-events.log`, or from `.nas-guard-last-run` |
-
-**A green self-test on a hook nothing invokes is worth nothing**, and that combination is
-invisible from either side alone. `nas-guard.py` is why this matters: it stands between a bad
-command and `Q:\`, and until 2026-08-17 **nothing would have noticed it going quiet** — it
-passed its regression suite while leaving no evidence it had ever run.
-
-> **It reports what it CANNOT prove, and that line stays.** Passing means the hooks work and
-> are invoked. It does **not** mean their output reached Terry. On 2026-08-17 a hook ran,
-> passed, and its output vanished from both channels — no transcript attachment and nothing on
-> screen. **Only Terry can confirm the last step.**
 
 ## Step 3 — verify, and mean it
 

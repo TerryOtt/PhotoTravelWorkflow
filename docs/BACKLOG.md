@@ -244,7 +244,7 @@ the first frame the way decision 34 checks the body. That would take one of dail
 checks that have no safety net and give it one. **Unverified:** no C-RAW frame has been read. One
 test frame settles it.
 
-## The docs still describe hooks that were retired on 2026-11-14 — OPEN
+## The docs still describe hooks that were retired on 2026-11-14 — CLOSED 2026-11-28
 
 **Found 2026-11-18.** The `~/.claude` repository's commit *Remove every hook and the scripts behind
 them* deleted `~/.claude/hooks/`, including `rust-toolchain-check.py`, `lint-toolchain-check.py`,
@@ -266,6 +266,15 @@ back. Trip hygiene brings everything current before each trip, and the commit ga
 drift that breaks a build. **So the remaining work is documentation only:** remove or rewrite
 the passages that describe a daily build-chain check, chiefly `AGENTS.md`'s *The build chain is
 checked live* section and `TRIP-HYGIENE.md`'s hook sections and *Step 2b*.
+
+**Done the same day.** `AGENTS.md` now states the drift decision and keeps the `cargo clean`
+rule. Its `Q:\` section says that nothing but `AGENTS.md` enforces the rule. `TRIP-HYGIENE.md`
+lost *Step 2b* and the daily-hook section, keeping the one manual lesson (also try the next
+Visual Studio major). **`scripts\full-run-check.ps1` was still calling the deleted
+`rust-toolchain-check.py`**, so its build-chain row could only ever say *not verified*. That row
+now records which rustc and MSVC toolset built the binary, without judging whether they are
+current. The `Cargo.toml` and `.shellcheckrc` comments that relied on 24-hour updates now say
+trip hygiene.
 
 
 ## Rust lint pedantry: audit, raise, and fix — CLOSED 2026-08-17

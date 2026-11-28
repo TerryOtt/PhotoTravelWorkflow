@@ -149,8 +149,8 @@ xxhash-rust = { version = "0.8", features = ["xxh3"] }
 # spending a scarce signal, applied to the compiler instead of the report.
 #
 # `clippy::nursery` is deliberately NOT enabled as a group. Clippy ships those lints as
-# unstable and expects false positives from them. This table gates every compile, and this
-# machine takes toolchain updates within 24 hours, so a nursery lint that changes behavior
+# unstable and expects false positives from them. This table gates every compile, and every
+# trip hygiene takes whatever toolchain is current, so a nursery lint that changes behavior
 # under a bump would break the build for something that is not a defect. **The three members
 # that reported real findings are named individually below**, which buys the value without
 # the instability. A fourth, `needless_collect`, was surveyed and REFUSED — see its note.

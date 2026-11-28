@@ -258,23 +258,17 @@ bar. `DESIGN.md` — *Both metrics are thresholds* — has the full version.
 
 ## `Q:\` is the archive, and Claude may read it and almost nothing else
 
-**The rule, verbatim from the hook that enforces it: *"`Q:\` is the photo archive: read
-anything, create a new `.xmp`, nothing else — never delete, never overwrite."*** Twenty years
-of originals; `N:\` holds the stress corpora and is a softer *ask* rather than a deny.
+**The rule: *"`Q:\` is the photo archive: read anything, create a new `.xmp`, nothing else —
+never delete, never overwrite."*** Twenty years of originals; `N:\` holds the stress corpora
+and is a softer *ask* rather than a deny.
 
-**Written here 2026-08-07 because it lived only in `~/.claude/hooks/nas-guard.py`** and in
-neither `CLAUDE.md`. **A session had no way to learn it before tripping it** — which is exactly
-what happened: a benchmark scratch directory was created at `Q:\_offload-bench`, outside the
-*create a new `.xmp`, nothing else* rule, and the guard then refused the cleanup. **The hook
-enforces only the destructive half**, so it catches the tidy-up rather than the mistake.
+**Claude MUST NOT create anything on `Q:\` except a sidecar the workflow calls for**, and MUST
+ask before writing anything else there, scratch directories included. A benchmark scratch
+directory once landed at `Q:\_offload-bench` exactly that way.
 
-> **The hook's message cites "CLAUDE.md binding constraint 5", which is not this rule** —
-> constraint 5 below is *readable over clever*. The citation has been wrong for as long as the
-> hook has existed and is worth correcting in the hook, not by renumbering anything here.
-
-**So the operational rule is wider than the hook: Claude MUST NOT create anything on `Q:\`
-except a sidecar the workflow calls for**, and MUST ask before writing anything else there —
-scratch directories included. **A guard that only blocks deletes is not permission to write.**
+> **Nothing enforces this but this file.** A hook, `nas-guard.py`, used to refuse destructive
+> commands against `Q:\`. It was removed with the rest of `~/.claude/hooks/` on 2026-11-14, so
+> every session MUST hold this rule itself.
 
 ## This repository is public: nothing that places Terry in time or space
 
@@ -480,27 +474,17 @@ breaking position, so `"0.17"` can never resolve to 0.18, and `cargo update` rep
 "Locking 0 packages" while three releases behind. **A clean `cargo update` is not
 evidence of being current.** `TRIP-HYGIENE.md` names which crates here are exposed.
 
-## The build chain is checked live, once a day, on the first build
+## The build chain MAY drift between trips
 
-**The rule, the three outcomes and the reasoning live in the global `~/.claude/CLAUDE.md`** —
-*build chains stay within 24 hours of current* — and are not repeated here. A hook enforces it
-(`~/.claude/hooks/rust-toolchain-check.py`), scoped by `~/.claude/toolchain-projects.json`,
-which names this repository.
+**Decided, Terry, 2026-11-28.** Nothing checks the toolchain daily any more. It is brought
+current by [trip hygiene](docs/TRIP-HYGIENE.md) before each trip, and a drift that breaks the
+build announces itself at the commit gate, as Rust 1.99's `assert_is_empty` did.
+`scripts\full-run-check.ps1` records which rustc and MSVC toolset built a measured binary, and
+does not judge whether they are current.
 
-**The three things that are this project's rather than the machine's:**
-
-- **Cite the versions the hook just read** instead of re-running `rustup check`. It asked the
-  network; you did not.
-- **A `behind` banner is raised with Terry before further work.** *Could not confirm* is a real
-  answer and MUST NOT be reported as either current or stale — the same rule
-  [`docs/REVIEWING.md`](docs/REVIEWING.md) applies to `offload verify`.
-- **After any toolchain or linker change, `cargo clean` before anything you intend to trust.**
-  Cargo fingerprints `rustc` and not the linker, so an incremental build re-checks bytes the old
-  toolset produced and passes. [`docs/TRIP-HYGIENE.md`](docs/TRIP-HYGIENE.md) carries why.
-
-> **The unreachable case is deliberately quiet and Claude MUST NOT make it louder.** Volume
-> tracks actionability, not importance. This project already argues that three times —
-> decisions 9, 12 and 34 — so the reasoning is available without restating it.
+**After any toolchain or linker change, `cargo clean` before anything you intend to trust.**
+Cargo fingerprints `rustc` and not the linker, so an incremental build re-checks bytes the old
+toolset produced and passes. [`docs/TRIP-HYGIENE.md`](docs/TRIP-HYGIENE.md) carries why.
 
 ## The workflow
 

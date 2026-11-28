@@ -27,8 +27,8 @@
 #
 # **This looks inconsistent with `Cargo.toml` refusing `clippy::nursery`, and the difference
 # is real rather than convenient.** That refusal turned on the stability argument: clippy
-# ships nursery lints as unstable and *expects* false positives from them, and this machine
-# takes toolchain updates within 24 hours, so one changing its mind under a bump would break
+# ships nursery lints as unstable and *expects* false positives from them, and every trip
+# hygiene takes whatever toolchain is current, so one changing its mind under a bump would break
 # the build for something that is not a defect. **ShellCheck's optional checks are not
 # unstable** -- they are opinionated, which is a different property. They are stable, they are
 # documented, and they are off by default because not every script wants them.
