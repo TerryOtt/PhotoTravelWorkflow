@@ -253,6 +253,12 @@ on the daily toolchain and linter checks) still describe them as live. **The `Q:
 enforced by nothing but `AGENTS.md`.** Fix the docs at home. Whether any hook comes back is Terry's
 decision.
 
+**The first cost arrived on 2026-11-28.** The toolchain had moved from 1.97.1 to **rustc 1.99.0**
+(released 2026-09-28) with nothing reporting it. That release adds `clippy::assert_is_empty` to
+the `pedantic` group, so the commit gate refused two tests untouched since August. Both were
+fixed in `5dd452e`. The pre-commit hook also reports pyright 1.1.411 behind 1.1.414. The
+scheduled trip-hygiene prep run will cover both version questions, but only once.
+
 
 ## Rust lint pedantry: audit, raise, and fix — CLOSED 2026-08-17
 
