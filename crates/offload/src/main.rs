@@ -1857,11 +1857,6 @@ fn span(fast: f64, slow: f64) -> String {
     }
 }
 
-/// `offload verify <DEST>` — decision 20.
-///
-/// Reads nothing but the disk itself, so it works on a machine that has never seen this
-/// tool's configuration. That is the promise, and it is why this takes a path rather
-/// than a config label.
 /// `offload geotag <ROOT> <GPX...>` — decision 30's subcommand, and RawGeotag's whole job.
 ///
 /// **It re-reads the raws, and that is the one real difference from phase 5.** Decision 10 has
@@ -2049,6 +2044,11 @@ fn expand_tracks(given: &[PathBuf]) -> Result<Vec<PathBuf>> {
     Ok(tracks)
 }
 
+/// `offload verify <DEST>` — decision 20.
+///
+/// Reads nothing but the disk itself, so it works on a machine that has never seen this
+/// tool's configuration. That is the promise, and it is why this takes a path rather
+/// than a config label.
 fn verify_destination(root: &Path) -> Result<ExitCode> {
     let report = verify::destination(root)?;
 

@@ -204,7 +204,6 @@ fn format_utc(at: DateTime<Utc>) -> String {
 }
 
 /// Write sidecars for everything the track genuinely supports.
-///
 pub fn run(
     landed: &[Landed],
     destinations: &[Destination],
