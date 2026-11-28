@@ -259,8 +259,13 @@ the `pedantic` group, so the commit gate refused two tests untouched since Augus
 fixed in `5dd452e`. **Everything was brought current the same day**: Rust 1.100.1, rustup
 1.29.3, MSVC 18.12, ruff 0.17.6 and pyright 1.1.414, followed by `cargo clean` and a full gate.
 `TRIP-HYGIENE.md` records the versions and the update traps. The lint rules were re-surveyed on
-the new versions and nothing changed (`42fee62`, `c5c66ba`). **Without a hook, the next drift
-is again caught only by the scheduled trip-hygiene prep run**, and only once.
+the new versions and nothing changed (`42fee62`, `c5c66ba`).
+
+**Decided, Terry, 2026-11-28: the toolchain is allowed to drift between trips.** No hook comes
+back. Trip hygiene brings everything current before each trip, and the commit gate reports any
+drift that breaks a build. **So the remaining work is documentation only:** remove or rewrite
+the passages that describe a daily build-chain check, chiefly `AGENTS.md`'s *The build chain is
+checked live* section and `TRIP-HYGIENE.md`'s hook sections and *Step 2b*.
 
 
 ## Rust lint pedantry: audit, raise, and fix — CLOSED 2026-08-17
