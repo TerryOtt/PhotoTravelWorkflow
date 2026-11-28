@@ -320,7 +320,11 @@ mod tests {
         .expect("corroboration");
 
         assert_eq!(report.matched, 1);
-        assert!(report.mismatched.is_empty());
+        assert!(
+            report.mismatched.is_empty(),
+            "no disagreement expected, found {:?}",
+            report.mismatched
+        );
         for destination in &rig.destinations {
             assert!(
                 destination

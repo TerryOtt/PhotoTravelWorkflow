@@ -234,10 +234,7 @@ mod tests {
     #[test]
     fn a_missing_log_reads_as_empty_rather_than_failing() {
         let dir = TempDir::new().expect("a scratch directory");
-        assert!(
-            read(&dir.path().join("nothing-here.jsonl"))
-                .unwrap()
-                .is_empty()
-        );
+        let entries = read(&dir.path().join("nothing-here.jsonl")).unwrap();
+        assert!(entries.is_empty(), "expected no entries, read {entries:?}");
     }
 }
