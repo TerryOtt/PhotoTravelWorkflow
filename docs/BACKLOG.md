@@ -96,6 +96,163 @@ the backlog instead of the report.
 > by title** — the same rule this file already applies to itself — and the sort becomes free to
 > fix. Left unsorted on 2026-08-07 with one `C:` among four `T:`, where the prefixes still scan.
 
+## Lightroom Classic 16.0 shipped: run the XMP checks before importing — CLOSED 2026-11-28, BOTH PASS
+
+**LrC 16.0 shipped in November 2026, with a new 16.0 SDK.** A major Classic release is the trigger
+[`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) names for the two checks in RawGeotag's
+`docs/LIGHTROOM-XMP.md`: *does Lightroom still read our sidecars*, and *how does Lightroom write a
+geotag now*. They ran on **`16.0.1 Release`, Camera Raw 19.0.1**. Adobe's Developer Console lists
+the SDK as `v16.0 - Nov 2026`.
+
+The material was copies of two frames from a recent trip, staged on `N:`: one with its `offload`
+sidecar, and one without, whose `offload` sidecar was held aside as the reference. Both frames
+were shot within the same second, so their sidecars were byte-identical. That is the engine
+working to whole seconds, as designed.
+
+**Check 1 PASSES.** Imported into a scratch catalog, the frame's GPS and altitude in Lightroom
+decode exactly to the latitude, longitude and `/1000` altitude in our sidecar, and the pin lands
+where the photo was taken. **Lightroom 16 reads `offload`'s sidecars, altitude included.**
+
+**Check 2 PASSES: 16.0.1 writes GPS the same way 15.4.1 did.** The second frame was placed by hand
+and saved to file. Answers to `LIGHTROOM-XMP.md`'s five questions:
+
+1. **Coordinates are still `DDD,MM.mmmk`** with a hemisphere letter and about ten decimal places,
+   and they decode to the position shown in the panel.
+2. **Altitude:** not readable from a hand-placed pin, a known limit of this check.
+3. **Still no `<?xpacket?>` wrapper and no BOM.** The file starts `<x:xmpmeta` and ends
+   `</x:xmpmeta>\n`.
+4. **Still no `GPSTimeStamp` or `GPSMapDatum`.**
+5. **Nothing new in kind.** `x:xmptk` is still `Adobe XMP Core 7.0-c000`, the same toolkit as
+   13.4 and 15.4.1. GPS stays in `exif:`, attribute form, in the single top-level
+   `rdf:Description`, with `photoshop:SidecarForExtension="CR3"` as before. The two other
+   `rdf:Description` elements are nested in `crs:Preset`, Camera Raw's develop settings.
+
+**So check 3 is not needed, and `offload`'s XMP needs no change.** The sidecar in the read-check
+folder was confirmed byte-unchanged afterwards. The staging tree on `N:`, including the scratch
+catalog and the sidecar Lightroom wrote, is Terry's to delete. **Not yet done:** these results
+belong in `LIGHTROOM-XMP.md`'s *Recorded results*, which still lives in RawGeotag.
+
+## Trip hygiene for the next trip — OPEN, TERRY'S MOVE
+
+**The previous trip skipped trip hygiene because nothing triggered it.** The routine in
+[`TRIP-HYGIENE.md`](TRIP-HYGIENE.md) is complete, but no part of it prompts anyone to start. The
+camera firmware turned out to be current, by luck rather than diligence.
+
+**The trigger now exists.** Terry has a calendar event before the T-30 firmware freeze, and a
+one-time scheduled Claude task, in `~/.claude/scheduled-tasks/`, fires the morning of that event.
+It runs the read-only half of trip hygiene and leaves a report. It MUST change nothing: no
+updates, commits, config edits or flashes. It runs only while the Claude app is open, otherwise
+on the next launch. **The dates are deliberately not recorded here**, because this repository is
+public and a departure date says when a house is empty.
+
+Do this at home, in the order `TRIP-HYGIENE.md` gives, ending with the dry run. Two things carry
+over from the previous trip: restore `config.four-ssd.json` with its `C:\Travel` paths corrected,
+and set `gpx_dir` for the new trip's folder.
+
+**Proposed, not yet approved:** a line in `TRIP-HYGIENE.md` making *a calendar event at T-30 or
+earlier, created when the trip is booked* part of the routine.
+
+## Last trip: the config described a rig that was not there — OPEN, TERRY'S MOVE (at home)
+
+**Found on the road, with trip hygiene skipped.** Three faults, each one enough to spoil the first
+night:
+
+| Fault | Effect |
+|---|---|
+| `%APPDATA%\offload\config.json` still said `C:\Travel\Images` and `C:\Travel\GPX`. Both moved to `D:\Travel` on 2026-09-19 and neither C: path existed | The laptop copy would have gone to a new empty tree on C:, and pre-flight would have refused because there was no GPX directory |
+| SanDisk and WD SSDs left at home | Two of the four destinations missing. Laptop plus OWC is **two copies, below the three-copy bar** ([`CONOPS.md`](CONOPS.md), *A dead drive is a config edit*) |
+| No `body` key | Decision 34's body check was off |
+
+**What was on hand:** the OWC holding the WD_BLACK SN850X (`G:`, serial and volume GUID matching
+the config, `BusType` NVMe), and two physical disks inside the laptop: Kingston `C:` (disk 0) and
+Lexar NM790 `D:` (disk 1).
+
+**The trip config:** three destinations on three distinct disks: `D:\Travel\Images`,
+`C:\Travel\Images` and the OWC, plus `gpx_dir` on D:. Nothing in the code needed changing:
+`Config::validate` requires only a non-empty list, and decision 6's distinct-disk check counts
+disk numbers, so two `path` destinations on disks 0 and 1 pass. **The cost:** two of the three
+copies are inside one laptop, so they survive a drive failure but not a lost, stolen or soaked
+laptop. C: is also the boot disk, and at the largest recorded day (386.6 GiB) it holds about two
+days. Labels are `Laptop` (D:), `Laptop-C` (C:) and `OWC`. The original is saved beside it as
+`config.four-ssd.json`.
+
+**The marker in `D:\Travel\Images` recorded the Kingston's serial**, because it was copied from C:
+in September. That is harmless: `marker::write` rewrites the serial on every run and nothing
+compares it, so the first real run corrects it.
+
+**Verified before the first shooting day**, against four test frames:
+
+- **Clock.** Two of the frames photograph a UTC clock on screen. The camera ran about 1 s slow,
+  and `OffsetTimeOriginal` read `+00:00`.
+- **Camera settings.** ExifTool reads `Quality: RAW` on all four frames.
+- **Dry run, exit 0**, both readers on the CalDigit Element 5: `3 destinations verified distinct`,
+  and `Body ... — as configured` after `body` was added. CFexpress read 1,128 MB/s and SD
+  201 MB/s, which is above the 104 MB/s UHS-I ceiling.
+- **Body firmware.** The R5 is on **2.2.1**. [Canon's R5 support page](https://www.usa.canon.com/support/p/eos-r5)
+  listed 2.2.1, dated 2025-11-20, as the newest release, so the body was current. The hub,
+  enclosure and readers were not checked: the T-30 freeze barred flashing them.
+- **Tracks.** The phone GPS logger was set to always-on precise location, highest accuracy,
+  required accuracy 50 ft (lowered from 25 ft so fixes near buildings and trees are kept), and
+  0 ft and 0 s minimums. A 3-minute test track had one segment, and its widest gap was 9 s with
+  the phone locked. `gpx_dir` pointed at the trip's own folder, because Terry files tracks by trip
+  (see the next item).
+
+**First offload of the trip: exit 0, `SAFE TO STORE`.** 329 frames, 16 GiB. `LANDED in 0m 49s`.
+All three destinations show 329 written and 329 verified. `329 matched · 0 mismatched`,
+`329 tagged · 0 outside track`, and the `Body` row reads `as configured`. Every device ejected,
+the OWC and the CFexpress each on their second attempt. Not a measured run, since the binary was
+not clean-built. Hardware facts:
+
+- **The SD reader was a generic two-slot USB reader**, `Generic MassStorageClass`. It read at
+  244 MB/s. Its empty second slot appears as a 0 GB volume with no `DCIM`, which pre-flight
+  correctly ignores.
+- **Terry emptied `D:\Travel\Images` and `G:\Travel\Images` by hand before this run**, leaving
+  only their markers.
+- **Two extra copies in the cloud**, uploaded through two services' **web** clients. The archive
+  folders are not inside a sync client, so no online-only or streaming mode can replace them with
+  placeholders. `offload` does not verify these copies; a file count is their only check, and
+  both counts matched.
+
+**Remaining:** restore `config.four-ssd.json` at home, and update its two `C:\Travel` paths to
+`D:\Travel` when you do. It has the same staleness this item fixed.
+
+## Pre-flight cannot see tracks in subfolders, and never says whether tracks cover the frames — OPEN
+
+**Found 2026-11-19.** `preflight::gpx_tracks` reads only the top level of `gpx_dir`. Terry files
+tracks as `GPX\<year>\<trip>\`, so with `gpx_dir` at `D:\Travel\GPX` this trip's tracks would
+not be read. **That failure does not stop the run.** One 2024 track at the top level was enough
+for pre-flight to print `Tracks 1` and pass, so frames would land untagged and the only sign
+would be the geotag line in the closing report.
+
+Two separate defects:
+
+- **The scan is one level deep.** Either read the tree, or say in the docs that `gpx_dir` is a
+  per-trip folder. Worked around for this trip by pointing `gpx_dir` at the trip folder.
+- **"Tracks: N" counts files. It does not check coverage.** Pre-flight already has the first
+  frame's capture time for the body check, so it could say whether any track covers it. That is
+  the line that would have caught this.
+
+Code work for home, not the road.
+
+## Can the tool tell compressed raw from uncompressed after all? — OPEN
+
+**Found 2026-11-19.** [`CONOPS.md`](CONOPS.md) says compressed raw is caught **"No. Never."**,
+because both kinds are `.CR3` in the same container. But ExifTool reads Canon's makernote
+`Quality` tag, and on this trip's test frames it says `RAW`. ExifTool's Canon tables list `CRAW`
+as a separate value of that tag. **If a C-RAW frame really reads `CRAW`**, pre-flight could check
+the first frame the way decision 34 checks the body. That would take one of daily hygiene's two
+checks that have no safety net and give it one. **Unverified:** no C-RAW frame has been read. One
+test frame settles it.
+
+## The docs still describe hooks that were retired on 2026-11-14 — OPEN
+
+**Found 2026-11-18.** The `~/.claude` repository's commit *Remove every hook and the scripts behind
+them* deleted `~/.claude/hooks/`, including `rust-toolchain-check.py`, `lint-toolchain-check.py`,
+`hook-health.py` and `nas-guard.py`. `CLAUDE.md` and `TRIP-HYGIENE.md` (*Step 2b*, and the sections
+on the daily toolchain and linter checks) still describe them as live. **The `Q:\` rule is now
+enforced by nothing but `CLAUDE.md`.** Fix the docs at home. Whether any hook comes back is Terry's
+decision.
+
 
 ## Rust lint pedantry: audit, raise, and fix — CLOSED 2026-08-17
 

@@ -89,7 +89,7 @@ to *you* as much as to him, and **relaying one is not acting on it.**
 > **A run that prints no `Body` row at all means the config names no body**, not that the body
 > matched. The check is off unless `config.json` has a `body` key, and **Claude MUST NOT read a
 > missing row as agreement** — offer to add the key instead.
-> `cargo run --release --example body-identity -- <a .CR3>` produces the serial.
+> `exiftool -SerialNumber <a .CR3>` produces the serial, and `cargo run --release --example body-check -- <a .CR3> "Canon EOS R5" <serial>` prints the row pre-flight would.
 
 **"Every time" is literal, and it is not the nagging that exit 2 was rejected for.** That code
 was rejected because a machine repeating a signal teaches a human to filter it. You are not a
