@@ -449,8 +449,22 @@ python -m pip list --outdated | Select-String -Pattern '^(ruff|pyright)\s'   # n
 (Find-Module PSScriptAnalyzer).Version                                        # compare the two
 ```
 
-**Measured 2026-08-17:** ruff 0.16.3, pyright 1.1.411, PSScriptAnalyzer 1.25.0,
-shellcheck 0.11.0, all current.
+**Updated and measured 2026-11-28:** ruff 0.17.6, pyright 1.1.414, PSScriptAnalyzer 1.25.0,
+shellcheck 0.11.0, actionlint 1.7.12, all current. The build chain on the same day: Rust
+1.100.1, rustup 1.29.3, MSVC Build Tools 18.12.12412.261 (toolset 14.52.37025), and
+cargo-outdated 0.20.0.
+
+> **Two traps from that update, both specific to this machine.**
+>
+> - **A running language server blocks the update it depends on.** rust-analyzer runs through
+>   the `rustup.exe` proxy, so `rustup self update` fails with *Access is denied*. The pyright
+>   language server runs out of `site-packages\pyright\dist`, so `pip install --upgrade pyright`
+>   leaves a half-replaced package that fails with `Cannot find module './dist/pyright'`. Stop
+>   both servers first; they restart on demand. Repair with `pip install --force-reinstall
+>   --no-deps pyright`, then delete the `~yright*` folders pip leaves in `site-packages`.
+> - **The Visual Studio Installer will not elevate itself in `--passive` or `--quiet` mode.** It
+>   exits 5007 with *"should be run elevated from the beginning"* in `%TEMP%\dd_installer_*.log`.
+>   Click **Update** in the installer instead, and approve UAC.
 
 ```powershell
 winget upgrade --id koalaman.shellcheck --exact    # "No available upgrade found" = current

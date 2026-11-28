@@ -256,8 +256,11 @@ decision.
 **The first cost arrived on 2026-11-28.** The toolchain had moved from 1.97.1 to **rustc 1.99.0**
 (released 2026-09-28) with nothing reporting it. That release adds `clippy::assert_is_empty` to
 the `pedantic` group, so the commit gate refused two tests untouched since August. Both were
-fixed in `5dd452e`. The pre-commit hook also reports pyright 1.1.411 behind 1.1.414. The
-scheduled trip-hygiene prep run will cover both version questions, but only once.
+fixed in `5dd452e`. **Everything was brought current the same day**: Rust 1.100.1, rustup
+1.29.3, MSVC 18.12, ruff 0.17.6 and pyright 1.1.414, followed by `cargo clean` and a full gate.
+`TRIP-HYGIENE.md` records the versions and the update traps. The lint rules were re-surveyed on
+the new versions and nothing changed (`42fee62`, `c5c66ba`). **Without a hook, the next drift
+is again caught only by the scheduled trip-hygiene prep run**, and only once.
 
 
 ## Rust lint pedantry: audit, raise, and fix — CLOSED 2026-08-17
