@@ -129,8 +129,8 @@ and saved to file. Answers to `LIGHTROOM-XMP.md`'s five questions:
 
 **So check 3 is not needed, and `offload`'s XMP needs no change.** The sidecar in the read-check
 folder was confirmed byte-unchanged afterwards. The staging tree on `N:`, including the scratch
-catalog and the sidecar Lightroom wrote, is Terry's to delete. **Not yet done:** these results
-belong in `LIGHTROOM-XMP.md`'s *Recorded results*, which still lives in RawGeotag.
+catalog and the sidecar Lightroom wrote, is Terry's to delete. The results are recorded in RawGeotag's `LIGHTROOM-XMP.md`, under
+*Recorded results* (RawGeotag `2a570a8`).
 
 ## Trip hygiene for the next trip — OPEN, TERRY'S MOVE
 
