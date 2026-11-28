@@ -262,12 +262,6 @@ fn eject_media_on(handle: HANDLE) -> Result<()> {
     control(handle, IOCTL_STORAGE_EJECT_MEDIA)
 }
 
-/// Open a volume or a physical drive for the control codes in this module.
-///
-/// **Write access is what `FSCTL_LOCK_VOLUME` requires**, so the query-only handle
-/// `storage::Volume::open` hands out cannot be reused here. Sharing stays permissive because
-/// the *lock*, not the open, is what has to win exclusivity — failing the open instead would
-/// report the wrong thing entirely.
 /// Whether this failure means the volume no longer exists — i.e. that it is already gone.
 ///
 /// **Separate and named because the distinction is the whole defect.** *Could not open it* and
@@ -279,6 +273,12 @@ fn missing_volume(error: &anyhow::Error) -> bool {
         .is_some_and(|io| io.kind() == std::io::ErrorKind::NotFound)
 }
 
+/// Open a volume or a physical drive for the control codes in this module.
+///
+/// **Write access is what `FSCTL_LOCK_VOLUME` requires**, so the query-only handle
+/// `storage::Volume::open` hands out cannot be reused here. Sharing stays permissive because
+/// the *lock*, not the open, is what has to win exclusivity — failing the open instead would
+/// report the wrong thing entirely.
 fn open_for_control(path: &str) -> Result<std::fs::File> {
     const GENERIC_READ_WRITE: u32 = 0x8000_0000 | 0x4000_0000;
     const FILE_SHARE_READ_WRITE: u32 = 0x0000_0001 | 0x0000_0002;
@@ -321,19 +321,6 @@ pub struct Effort {
     pub waited: Duration,
 }
 
-/// Lock, dismount and power down one archive SSD, retrying the whole sequence until
-/// `deadline`.
-///
-/// `Err` only when the volume could not be opened at all — everything after that is an
-/// [`Outcome`], and the one reported is the last attempt's. Retrying stops the moment a
-/// device powers down, so the common case costs a single pass and no waiting.
-///
-/// **One attempt always happens, even past the deadline.** A run that has already spent the
-/// whole budget still gets its ejects tried once, because refusing to attempt at all would
-/// turn a slow night into a manual one for no gain.
-///
-/// The caller owns the deadline because the caller owns the budget — see decision 22 and
-/// `RUN_BUDGET` in the binary. This module deliberately knows nothing about dinner.
 /// One attempt, handed to the caller the moment it resolves.
 ///
 /// **The retry is otherwise invisible while it happens.** [`Effort`] reports the last attempt
@@ -394,6 +381,20 @@ impl Cadence {
     }
 }
 
+/// Lock, dismount and power down one archive SSD, retrying the whole sequence until
+/// `deadline`.
+///
+/// `Err` only when the volume could not be opened at all — everything after that is an
+/// [`Outcome`], and the one reported is the last attempt's. Retrying stops the moment a
+/// device powers down, so the common case costs a single pass and no waiting.
+///
+/// **One attempt always happens, even past the deadline.** A run that has already spent the
+/// whole budget still gets its ejects tried once, because refusing to attempt at all would
+/// turn a slow night into a manual one for no gain.
+///
+/// The caller owns the deadline because the caller owns the budget — see decision 22 and
+/// `RUN_BUDGET` in the binary. This module deliberately knows nothing about dinner.
+///
 /// `watch` sees every attempt as it resolves — see [`Attempt`]. Pass `|_| {}` to ignore them.
 pub fn eject(
     volume: &Volume,

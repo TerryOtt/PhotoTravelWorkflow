@@ -178,7 +178,6 @@ impl Progress {
                 // many depends on the level: a phase is a boundary in the run, a pass is a
                 // subdivision of one, and two blanks against one says that without a word. A
                 // rule each call site has to remember is a rule one call site will forget.
-                //
                 let blank = || {
                     let spacer = multi.add(ProgressBar::new(0));
                     if let Ok(style) = ProgressStyle::with_template(SPACER) {
