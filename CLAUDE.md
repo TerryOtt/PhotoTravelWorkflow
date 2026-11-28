@@ -272,6 +272,23 @@ enforces only the destructive half**, so it catches the tidy-up rather than the 
 except a sidecar the workflow calls for**, and MUST ask before writing anything else there —
 scratch directories included. **A guard that only blocks deletes is not permission to write.**
 
+## This repository is public: nothing that places Terry in time or space
+
+**Standing order, Terry, 2026-11-28. RFC 2119 keywords, and the capitals are load-bearing.**
+A session pushed a future departure date and exact shooting coordinates into
+`docs/BACKLOG.md` across 17 commits, and history had to be rewritten to remove them.
+
+- **Claude MUST NOT commit anything that says where Terry is, was or will be**: trip
+  destinations, travel dates past or future, coordinates, place names, capture times tied to
+  a date, GPX spans, folder or track names that name a place, and itinerary details. **A
+  departure date says when a house is empty.**
+- **Commit messages count.** History rewriting is the only way to remove one.
+- **Describe, do not name**: "the last trip", "a frame from a recent trip", "the next trip's
+  T-30". The engineering finding survives, and the whereabouts do not.
+- **When unsure, ask before committing.** Same rule as RawGeotag's constraint 7.
+- **Before writing personal detail to any repository, check its visibility**
+  (`gh repo view --json visibility`). This one was public the whole time and nobody looked.
+
 ## Binding constraints
 
 **The key words MUST, MUST NOT, SHALL NOT, SHOULD and MAY in this file are used as
