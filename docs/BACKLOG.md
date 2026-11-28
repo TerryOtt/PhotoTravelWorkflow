@@ -109,6 +109,9 @@ RawGeotag); refactors only, with no behavior or output change; no new dependenci
 clever; the lint table's deliberate patterns stay; no hardware; nothing in a PR that places
 Terry; reviewers MUST NOT merge.
 
+**On the `PhotoTravelWorkflow` board** (see `AGENTS.md`): #1 is the Opus reviewer, #2 the Fable
+reviewer and #3 the dev lead's merge pass, all In Progress.
+
 ## Lightroom Classic 16.0 shipped: run the XMP checks before importing — CLOSED 2026-11-28, BOTH PASS
 
 **LrC 16.0 shipped in November 2026, with a new 16.0 SDK.** A major Classic release is the trigger

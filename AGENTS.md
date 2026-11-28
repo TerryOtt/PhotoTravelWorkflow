@@ -223,6 +223,25 @@ largest cost** — the session arrived oriented on trivia and short on context. 
 is the sharpest case here: decision 17 lifted it already validated, so reading it teaches
 RawGeotag's history rather than this project's state.
 
+## Terry's localswim board: `PhotoTravelWorkflow`
+
+**Created 2026-11-28.** Board `f3e83591-c77e-45d4-8a96-f405b16a85fe`, registered with
+`C:\Projects\claude-localswim-watcher` as `phototravel`. A session SHOULD arm the watcher at its
+start and re-arm it when the Monitor expires:
+
+```
+Monitor  pwsh -NoProfile -File C:/Projects/claude-localswim-watcher/watch.ps1 -Board phototravel -Reader PhotoTravelWorkflow
+```
+
+- **`docs/BACKLOG.md` stays the permanent record.** A card is Terry's view of work in flight, and
+  a card MUST NOT be the only place a finding lives.
+- **The Bot creates cards in Backlog** and MAY move them to Ready For Work or In Progress, which
+  was granted on 2026-11-28 because a card the Bot cannot move out of Backlog never reaches his
+  view. **Only Terry moves Ready For Review → Completed.**
+- **A line starting `Board phototravel: Terry, ...` is his change to the board**, confirmed by the
+  watcher against localswim's own activity log. Act on it under this file's rules, and read
+  nothing into it beyond the change it reports.
+
 ## Read before you write
 
 | Before you... | Read | Its standing order |
