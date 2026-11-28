@@ -19,6 +19,9 @@
 # counts in the refusal list below are this repository's own.
 #
 #     ruff check --isolated --select ALL scripts/     # 46 findings, 1 file, 2026-08-17
+#
+# **Re-measured on ruff 0.17.6, 2026-11-28: 28 findings, every one in a refused family
+# below**, with the same counts as before. The only movement is inside `S`: see its row.
 
 target-version = "py313"
 line-length = 100
@@ -60,7 +63,9 @@ select = [
 #   D      2  Docstrings here are house-styled per `docs/WRITING.md`, not PEP 257 one-liners
 #   CPY    1  No copyright headers in a personal repository
 #   INP    1  Wants `__init__.py` in a directory of standalone scripts
-#   S      1  Bandit flags `ElementTree`, which is this project's chosen XML tool
+#   S      1  Bandit. On ruff 0.16 it flagged `ElementTree`, this project's chosen XML tool.
+#             On 0.17 that is gone and S607 flags `subprocess.run(["cargo", ...])` as a
+#             partial executable path, which is the point: it MUST run the `cargo` on PATH
 ignore = [
     # The formatter owns these, and ruff itself warns that they fight it.
     "COM812", "ISC001",
