@@ -12,7 +12,7 @@
 //! **Phase 5 is ~20 s of an 89-minute run.** Terry, on seeing the speedup: *"if we are only
 //! seeing a ~1.8x improvement on a 400 GB day where geotagging is like 20 seconds, my feeling is
 //! to revert it. That's too much complexity for a tiny wall clock win."* He is applying this
-//! project's own rule — `CLAUDE.md`'s *both metrics are thresholds, not gradients*: **do not
+//! project's own rule — `AGENTS.md`'s *both metrics are thresholds, not gradients*: **do not
 //! trade anything for wall clock**, not clarity, not a safety check, not an afternoon of
 //! engineering. Nine seconds on eighty-nine minutes is **0.17 %**.
 //!

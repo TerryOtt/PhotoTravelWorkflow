@@ -223,7 +223,7 @@ matters more.
 archive destination:
 
 1. **[`DESIGN.md`](DESIGN.md), then every file in the memory directory, in full** — not
-   just the index. `CLAUDE.md` requires this of every session; it is not extra work for a
+   just the index. `AGENTS.md` requires this of every session; it is not extra work for a
    measured run, and it is what supplies the expected serials, link types and per-device
    rates the checks below compare against.
 2. **Repository state** — `git status`, `git log`, and the config the run will use.
@@ -255,7 +255,7 @@ number nobody can reproduce costs the afternoon that produced it.
 what destroys conversations.** A session that comes back without context does not know it is
 mid-procedure, and does not announce that it doesn't — it just starts confidently looking
 around. So the state goes on disk, at the repository root, where
-[`CLAUDE.md`](../CLAUDE.md)'s first rule makes every session find it before its first tool
+[`AGENTS.md`](../AGENTS.md)'s first rule makes every session find it before its first tool
 call.
 
 Write it **before** the reboot. Delete it once the run is recorded.
@@ -365,7 +365,7 @@ run.**
   I/O describes contention ([`REVIEWING.md`](REVIEWING.md) — *Measurements are evidence*).
 
 > **`scripts\watch-rig.ps1` is the one sanctioned exception, and it MUST be declared with the
-> number.** [`../CLAUDE.md`](../CLAUDE.md) calls it safe mid-procedure and this document says
+> number.** [`../AGENTS.md`](../AGENTS.md) calls it safe mid-procedure and this document says
 > nothing else may use the machine; both are right, and the reconciliation is that it reads
 > storage-stack metadata and never opens a volume. **Measured during the 2026-08-05 run**: two
 > pollers at a 2 s interval, and the SD reader they were touching showed **0.00 MB/s**. So it

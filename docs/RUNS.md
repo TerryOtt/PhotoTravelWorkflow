@@ -574,7 +574,7 @@ at least one recorded run was convergence, so the comparison above is anchored t
   `CameraSerialNumber` into standard EXIF, so `exif.get(ExifTag::CameraSerialNumber)` reaches
   it with no MakerNote decoding and no new dependency (`crates/geotag/examples/body-identity.rs`
   is the probe). What remains is a `body` field in the config, one frame read per card at
-  pre-flight, and the INFO line — plus the standing instruction in [`../CLAUDE.md`](../CLAUDE.md)
+  pre-flight, and the INFO line — plus the standing instruction in [`../AGENTS.md`](../AGENTS.md)
   that Claude acts on that line every time it appears
 - **the Defender exclusion check** (decision 9). **The exclusions themselves were set
   2026-08-05** — by extension and process rather than by path, for the reasons decision 9

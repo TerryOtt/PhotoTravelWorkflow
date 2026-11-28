@@ -122,7 +122,7 @@ So the first question for any document is **who opens this, and what were they a
 | `REVIEWING.md` | someone about to put a change on `main` | the bar it has to clear |
 | `TRIP-HYGIENE.md` | someone preparing to leave on a trip | the routine, in the order it has to happen |
 | `FULL-RUN.md` | someone about to record what a full run cost | the sequence that makes the number comparable |
-| `CLAUDE.md` | a Claude session, cold | which of these to read before touching anything |
+| `AGENTS.md` | a Claude session, cold | which of these to read before touching anything |
 | this file | someone writing or reviewing a document | the standing order |
 
 Get that wrong and the document reads as though it were written for its author. Both
@@ -184,7 +184,7 @@ sections marked **COMPLETE** before any design.
    argument for doing this anyway?* If yes, it is a SHOULD.
 
    Where they are used today: the reboot prohibition ([`FULL-RUN.md`](FULL-RUN.md), global
-   `CLAUDE.md`), binding constraints 1–4 ([`../CLAUDE.md`](../CLAUDE.md)), the `RUN-STATE.json`
+   `AGENTS.md`), binding constraints 1–4 ([`../AGENTS.md`](../AGENTS.md)), the `RUN-STATE.json`
    gate, the firmware freeze ([`TRIP-HYGIENE.md`](TRIP-HYGIENE.md)), the measured-run
    checklist ([`FULL-RUN.md`](FULL-RUN.md)) and daily hygiene ([`CONOPS.md`](CONOPS.md)).
 

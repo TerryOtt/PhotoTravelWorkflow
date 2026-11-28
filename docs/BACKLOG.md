@@ -25,7 +25,7 @@ is the scope of the product; this is what is in flight right now and what state 
 
 > **The CLI checklist shows at most five items**, so on a list this length the newest one is
 > invisible to Terry. **This file is therefore the only complete copy**, not a backup of his
-> screen — see [`../CLAUDE.md`](../CLAUDE.md) on keeping the two synced.
+> screen — see [`../AGENTS.md`](../AGENTS.md) on keeping the two synced.
 
 ---
 
@@ -248,9 +248,9 @@ test frame settles it.
 
 **Found 2026-11-18.** The `~/.claude` repository's commit *Remove every hook and the scripts behind
 them* deleted `~/.claude/hooks/`, including `rust-toolchain-check.py`, `lint-toolchain-check.py`,
-`hook-health.py` and `nas-guard.py`. `CLAUDE.md` and `TRIP-HYGIENE.md` (*Step 2b*, and the sections
+`hook-health.py` and `nas-guard.py`. `AGENTS.md` and `TRIP-HYGIENE.md` (*Step 2b*, and the sections
 on the daily toolchain and linter checks) still describe them as live. **The `Q:\` rule is now
-enforced by nothing but `CLAUDE.md`.** Fix the docs at home. Whether any hook comes back is Terry's
+enforced by nothing but `AGENTS.md`.** Fix the docs at home. Whether any hook comes back is Terry's
 decision.
 
 
@@ -514,7 +514,7 @@ decision.
 >
 > **Every one of these scripts was mojibake under Windows PowerShell 5.1**, which is the
 > `powershell.exe` that ships with Windows. `pwsh` was always fine, which is exactly why
-> nobody had noticed — [`../CLAUDE.md`](../CLAUDE.md) tells sessions to launch `watch-rig.ps1`
+> nobody had noticed — [`../AGENTS.md`](../AGENTS.md) tells sessions to launch `watch-rig.ps1`
 > with `pwsh`, so the broken path was never the one being used. **All four now carry a UTF-8
 > BOM**, content verified byte-identical across the rewrite.
 >
@@ -958,7 +958,7 @@ call because it is scope**, not because the engineering is unclear.
 > **1. The rule already forbids it.** `Q:\` is *"read anything, create a new `.xmp`, nothing else
 > — never delete, never overwrite."* A re-tag is `--force-xmp`, which **overwrites**. This was
 > not a permission to ask for; it was one the standing rule refuses — and it was written into
-> [`../CLAUDE.md`](../CLAUDE.md) four hours before the item was filed, after Claude had already
+> [`../AGENTS.md`](../AGENTS.md) four hours before the item was filed, after Claude had already
 > tripped that guard on that drive the same evening.
 >
 > **2. "Edited and done" removes the reason.** Those sidecars carry develop settings, ratings and
@@ -1164,7 +1164,7 @@ retirement *"cannot happen until phase 5 works."* **Phase 5 works** — `main.rs
 lists it wired and running.
 
 **So the engine duplication is open by choice rather than by dependency**, and the standing
-warning in `CLAUDE.md` is real: `crates/geotag` here and RawGeotag's own four modules are
+warning in `AGENTS.md` is real: `crates/geotag` here and RawGeotag's own four modules are
 separate copies, so **a fix made here does not reach the tool Terry actually travels with.**
 
 **RawGeotag is <https://github.com/TerryOtt/RawGeotag>** — public, last pushed 2026-08-03, which
@@ -1278,7 +1278,7 @@ rules exist to prevent.
 **Opened 2026-08-07 at Terry's request**, off the diet pass's finding that decision 34 is fully
 designed and **entirely unbuilt**: `config.rs` has no `body` field and `main.rs` prints no `Body`
 line. Three places now say so — the decision's own header, *Still to build*, and
-[`../CLAUDE.md`](../CLAUDE.md), whose *Report lines you must act on* row had been instructing
+[`../AGENTS.md`](../AGENTS.md), whose *Report lines you must act on* row had been instructing
 Claude to act on a line that has never appeared.
 
 **What ships:**

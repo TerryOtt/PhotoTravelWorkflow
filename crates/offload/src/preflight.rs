@@ -78,7 +78,7 @@ impl fmt::Display for BodyReport {
     /// unfiled frames, a confirmed mismatch and a refused eject. Decision 34 rejected exactly
     /// that.
     ///
-    /// **What makes INFO sufficient rather than lax is the other reader.** `../CLAUDE.md` binds
+    /// **What makes INFO sufficient rather than lax is the other reader.** `../AGENTS.md` binds
     /// Claude to act on this line every time it disagrees — ask what changed, offer the config
     /// edit — while a tired human sees a plain fact about his camera. The line must still stand
     /// alone, because hotel internet does not.

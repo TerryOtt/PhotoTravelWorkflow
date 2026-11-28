@@ -34,7 +34,7 @@ if isinstance(sys.stdout, io.TextIOWrapper):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 DOCS = [os.path.join("docs", f) for f in sorted(os.listdir("docs")) if f.endswith(".md")]
-DOCS += ["CLAUDE.md"]
+DOCS += ["AGENTS.md"]
 
 # RawGeotag is a separate repository and is not cloned here (2026-08-07). Its paths
 # are cited deliberately and resolve nowhere locally, which is correct rather than broken.
@@ -96,7 +96,7 @@ def check_cited_paths() -> None:
                     if normalized in REMOTE_REPO_PATHS:
                         continue
                     # Resolved relative to the citing document as well as to the root,
-                    # because `../CLAUDE.md` from docs/ is correct and `crates/...` from
+                    # because `../AGENTS.md` from docs/ is correct and `crates/...` from
                     # anywhere is too. Getting this wrong reports eight defects that are
                     # the checker's, which is worse than reporting none.
                     candidates = [

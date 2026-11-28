@@ -495,7 +495,7 @@ outage.** Volume tracks **actionability, not importance**: a warning that fires 
 cannot act — on a plane, on hotel wi-fi — spends the reflex that makes the loud case work and
 buys nothing, and a warning you learn to ignore is worse than no warning at all. The loud
 shape is reserved for a **confirmed positive**, fixed by one command. Full reasoning, in the
-operator's words, is in [`../CLAUDE.md`](../CLAUDE.md); it MUST NOT be made louder.
+operator's words, is in [`../AGENTS.md`](../AGENTS.md); it MUST NOT be made louder.
 
 **Two improvements it carries over the manual snippet above**, both verified on this machine
 on 2026-08-06:

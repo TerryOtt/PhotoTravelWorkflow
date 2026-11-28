@@ -17,7 +17,7 @@
 //! | [`Progress::Lines`] | stderr is redirected | a plain line to **stdout** every tenth of a pass |
 //! | [`Progress::Silent`] | tests | nothing |
 //!
-//! Two genuine behaviors and an absence is a plain enum, not the trait `CLAUDE.md` says to push
+//! Two genuine behaviors and an absence is a plain enum, not the trait `AGENTS.md` says to push
 //! back on.
 
 use std::cell::{Cell, RefCell};

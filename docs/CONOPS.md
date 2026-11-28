@@ -54,7 +54,7 @@ problem it was built to solve.
 That is not hypothetical — [`FULL-RUN.md`](FULL-RUN.md) exists because a constraint once
 lived only in a conversation, and a reboot destroys conversations while leaving every drive
 exactly where it was. The answer was `RUN-STATE.json`: **state on disk, at a path
-[`CLAUDE.md`](../CLAUDE.md) forces every cold session to read before its first tool call.**
+[`AGENTS.md`](../AGENTS.md) forces every cold session to read before its first tool call.**
 
 **That pattern is the template for everything this intention adds.** A routine that spans a
 trip needs the same treatment — the trip's state written down where a session that has lost
@@ -510,9 +510,9 @@ the deal:
   because some nights it will be read by one. Claude adds a layer — noticing, asking, offering
   to fix — and never supplies a guarantee. **A check that is only useful when Claude is in the
   room is a defect in the check**, and the fix belongs in the report rather than in
-  [`CLAUDE.md`](../CLAUDE.md).
+  [`AGENTS.md`](../AGENTS.md).
 
-  What Claude is expected to act on rather than merely relay is listed in `CLAUDE.md` under
+  What Claude is expected to act on rather than merely relay is listed in `AGENTS.md` under
   *Report lines you must act on* — today that is decision 34's `Body` line, where the standing
   action is to ask what changed and offer to update the config.
 - **The camera runs on UTC, and its clock is right** — checked at trip start and after
@@ -779,7 +779,7 @@ not a mystery gap. Every bit is checked, every time; there is no sampled mode.
 ## What this tool will never do
 
 The full list is [`DESIGN.md`](DESIGN.md)'s non-goals; the two that shape daily use are
-binding constraints, stated in [`../CLAUDE.md`](../CLAUDE.md) as absolutes and restated here
+binding constraints, stated in [`../AGENTS.md`](../AGENTS.md) as absolutes and restated here
 in the same words:
 
 - **The tool MUST NOT write to a camera card.** Not a byte, under any flag, on any code

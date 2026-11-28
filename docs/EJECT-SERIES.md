@@ -18,7 +18,7 @@ as a candidate**: the archives are NTFS and journal their metadata, but giving u
 this project already has, to fix something `FirstAttemptOnly` also fixes, is a bad trade.
 
 > **`--eject-prepare` no longer exists.** B is the built-in behavior as of 2026-08-06 and A is
-> **not reachable from `offload`** — see `CLAUDE.md`, *a config item that is never used MUST NOT
+> **not reachable from `offload`** — see `AGENTS.md`, *a config item that is never used MUST NOT
 > exist*. To run A, use `cargo run --release --example eject-one`, which drives
 > [`eject::Prepare`] directly. **The experiment did not lose anything; the product stopped
 > offering a mode known to hang.**

@@ -775,7 +775,7 @@ offload geotag <ROOT> <GPX...>      tag a tree of raws in place (decision 30)
 safe or a directory that was never an `offload` destination.
 
 > **`--eject-gap-seconds` is the last survivor of the eject investigation**, and it should be
-> looked at against `CLAUDE.md`'s *a config item that is never used MUST NOT exist*. Its sibling
+> looked at against `AGENTS.md`'s *a config item that is never used MUST NOT exist*. Its sibling
 > `--eject-prepare` was deleted on 2026-08-06 once the comparison it existed for had settled.
 > This one is a cadence override rather than a mode selector, so it cannot select known-bad
 > behavior — but nothing routine passes it, and `examples/eject-one.rs` can do the same job.
@@ -1768,7 +1768,7 @@ Four earned their keep there and come across, two of them changed by the new con
 > | ~~`--force-xmp`~~ | **deleted 2026-08-07 from both** — nothing overwrites a sidecar now | — |
 >
 > **`geotag` has exactly one destination — the tree it was pointed at — so a per-destination
-> selector would be a value with one legal setting.** That is the shape `CLAUDE.md` calls a
+> selector would be a value with one legal setting.** That is the shape `AGENTS.md` calls a
 > constant with extra steps. The name stays identical because the *semantics* are: an existing
 > sidecar is never rewritten without it, by any code path.
 >
@@ -3056,7 +3056,7 @@ subcommand that reintroduced it would reintroduce the gate it implies.
 
 **Until then the duplication is live and must be treated as such:** a change to
 `crates/geotag` that fixes a real defect has to be applied to RawGeotag's copy by hand,
-or the trip tool silently keeps the bug. `CLAUDE.md` says so where a session will see it.
+or the trip tool silently keeps the bug. `AGENTS.md` says so where a session will see it.
 
 ### 31. `YYYY\YYYY-MM-DD` is Lightroom's layout, and the reason is import speed
 
@@ -3411,7 +3411,7 @@ fires regardless of the truth.
 > readers, and that is the point of putting it at INFO rather than dropping it: a tired human
 > sees a fact about their camera beside a fact about its clock, while **Claude has a standing
 > instruction to act on it every single time it disagrees with the config** — ask what changed,
-> offer the config edit ([`../CLAUDE.md`](../CLAUDE.md), *Report lines you must act on*). The
+> offer the config edit ([`../AGENTS.md`](../AGENTS.md), *Report lines you must act on*). The
 > operator runs the offload through Claude whenever he has internet, which `CONOPS.md`'s
 > shooting-day contract now records as a commitment.
 >
@@ -3658,7 +3658,7 @@ code on 2026-08-07 rather than remembered.
 > **`sync` was the one that could mislead a person rather than a session**, and it was withdrawn
 > the day this list was written. The CLI offered it with a description that read like a working
 > feature and the only way to find out otherwise was to run it. **A subcommand that fails on use
-> is worse than one that is absent** — `CLAUDE.md`'s rule about configuration that is never used
+> is worse than one that is absent** — `AGENTS.md`'s rule about configuration that is never used
 > applies to subcommands too.
 >
 > **Everything still listed above fails honestly**: it is absent, and nothing claims otherwise.
