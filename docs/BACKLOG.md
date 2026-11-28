@@ -96,6 +96,19 @@ the backlog instead of the report.
 > by title** — the same rule this file already applies to itself — and the sort becomes free to
 > fix. Left unsorted on 2026-08-07 with one `C:` among four `T:`, where the prefixes still scan.
 
+## Modernize `crates/offload` for current Rust: two reviewers, PRs — IN PROGRESS
+
+**Opened 2026-11-28 at Terry's request.** The code was written by Opus 5.0 for an older Rust;
+the toolchain is now 1.100.1, edition 2024. Two independent reviewers, Opus 5.5/high and Fable
+5.2/high, each review `crates/offload/` and open themed PRs (branches `review/opus-*` and
+`review/fable-*`). **Claude, as dev lead, holds every merge decision**, delegated by Terry:
+take the changes worth taking and close the rest.
+
+The brief both received: `crates/geotag` MUST NOT be touched (validated, and duplicated in
+RawGeotag); refactors only, with no behavior or output change; no new dependencies; readable over
+clever; the lint table's deliberate patterns stay; no hardware; nothing in a PR that places
+Terry; reviewers MUST NOT merge.
+
 ## Lightroom Classic 16.0 shipped: run the XMP checks before importing — CLOSED 2026-11-28, BOTH PASS
 
 **LrC 16.0 shipped in November 2026, with a new 16.0 SDK.** A major Classic release is the trigger
